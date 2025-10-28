@@ -13,3 +13,228 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
+model User {
+  uid             String  @id @default(cuid())
+  username        String  @unique
+  hashed_password String
+  status          String? @default("active") // logout active graduated expelled
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  Student  Student?
+  Lecturer Lecturer?
+  Admin    Admin?
+  File     File[]
+
+  @@index([status])
+  @@index([created_at])
+}
+
+model Student {
+  sid   String @id @default(cuid())
+  name  String
+  major String
+
+  personal_info_json String? // e.g. {"address": "...", "phone": "...", "dob": "..."}
+
+  user_id String @unique
+  user    User   @relation(fields: [user_id], references: [uid])
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  enrollments CourseEnrollment[]
+  attempts    Attempt[]
+  answers     Answer[]
+}
+
+model Lecturer {
+  lid                String  @id @default(cuid())
+  name               String
+  personal_info_json String? // e.g. {"address": "...", "phone": "...", "dob": "..."}
+
+  user_id String @unique
+  user    User   @relation(fields: [user_id], references: [uid])
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  Course Course[]
+  Class  Class[]
+  Quiz   Quiz[]
+}
+
+model Admin {
+  aid           String  @id @default(cuid())
+  name          String
+  personal_info String? // e.g. {"address": "...", "phone": "...", "dob": "..."}
+
+  user_id String @unique
+  user    User   @relation(fields: [user_id], references: [uid])
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
+
+model Course {
+  cid         String  @id @default(cuid())
+  code        String  @unique
+  name        String
+  description String?
+  credits     Int?    @default(3)
+
+  lecturer_id String
+  lecturer    Lecturer @relation(fields: [lecturer_id], references: [lid])
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  enrollments CourseEnrollment[]
+  classes     Class[]
+}
+
+model CourseEnrollment {
+  ceid String @id @default(cuid())
+
+  student_id String
+  student    Student @relation(fields: [student_id], references: [sid])
+
+  course_id String
+  course    Course @relation(fields: [course_id], references: [cid])
+
+  enrolled_at DateTime @default(now())
+  status      String   @default("active") // active, dropped, completed
+
+  @@unique([student_id, course_id]) // Prevent duplicate enrollments
+}
+
+model Class {
+  clid String @id @default(cuid())
+  name String
+
+  schedule_json String? // JSON: {"day": "Monday", "start": "09:00", "end": "11:00"}
+  location      String?
+  status        String  @default("active") // active, cancelled, completed
+
+  course_id String
+  course    Course @relation(fields: [course_id], references: [cid])
+
+  lecturer_id String
+  lecturer    Lecturer @relation(fields: [lecturer_id], references: [lid])
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  files   File[]
+  quizzes Quiz[]
+}
+
+model File {
+  fid       String @id @default(cuid())
+  filename  String
+  url       String
+  size      Float?
+  mime_type String // e.g. application/pdf, image/png, video/mp4
+
+  // File categorization
+  file_type String  @default("document") // document, video, image, assignment
+  is_public Boolean @default(false)
+
+  class_id String
+  class    Class  @relation(fields: [class_id], references: [clid])
+
+  uploader_id String // Only Lecturer and Admin can upload files (enforced at application level)
+  uploader    User   @relation(fields: [uploader_id], references: [uid])
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([class_id])
+  @@index([file_type])
+  @@index([mime_type])
+}
+
+model Quiz {
+  qid           String  @id @default(cuid())
+  name          String
+  description   String?
+  settings_json String? // {"timeLimit": 60, "maxAttempts": 3, "shuffleQuestions": true}
+
+  available_from  DateTime?
+  available_until DateTime?
+
+  class_id String?
+  class    Class?  @relation(fields: [class_id], references: [clid])
+
+  creator_id String
+  creator    Lecturer @relation(fields: [creator_id], references: [lid])
+
+  // Quiz scheduling
+
+  status String @default("draft") // draft, published, archived
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  questions Question[]
+  attempts  Attempt[]
+}
+
+model Question {
+  ques_id         String  @id @default(cuid())
+  content         String
+  options_json    String? // e.g. {"A": "CPU", "B": "GPU", "C": "RAM", "D": "SSD"}
+  answer_key_json String // e.g. {"correct": "A"} or {"correct": ["A", "C"]} for multiple correct answers
+  points          Float   @default(1.0)
+
+  quiz_id String
+  quiz    Quiz   @relation(fields: [quiz_id], references: [qid])
+
+  updated_at DateTime @updatedAt
+  created_at DateTime @default(now())
+  Answer     Answer[]
+}
+
+model Attempt {
+  atid String @id @default(cuid())
+
+  score          Float?
+  max_score      Float?
+  percentage     Float?
+  status         String @default("in_progress") // in_progress, submitted, graded
+  attempt_number Int    @default(1)
+
+  quiz_id String
+  quiz    Quiz   @relation(fields: [quiz_id], references: [qid])
+
+  student_id String
+  student    Student @relation(fields: [student_id], references: [sid])
+
+  submitted_at DateTime?
+  started_at   DateTime  @default(now())
+  answers      Answer[]
+
+  @@unique([quiz_id, student_id, attempt_number]) // Prevent duplicate attempts
+}
+
+model Answer {
+  ansid String @id @default(cuid())
+
+  answer_json    String // e.g. {"selected": "A"} or {"selected": ["A", "C"]} for multiple selections
+  is_correct     Boolean?
+  points_awarded Float?
+
+  attempt_id String
+  attempt    Attempt @relation(fields: [attempt_id], references: [atid])
+
+  question_id String
+  question    Question @relation(fields: [question_id], references: [ques_id])
+
+  student_id String
+  student    Student @relation(fields: [student_id], references: [sid])
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+}
