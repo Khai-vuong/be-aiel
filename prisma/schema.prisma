@@ -18,7 +18,8 @@ model User {
   uid             String  @id @default(cuid())
   username        String  @unique
   hashed_password String
-  status          String? @default("active") // logout active graduated expelled
+  status          String? @default("Active") // Active Logged_out Expelled Graduated
+  role            String  @default("Student") // Student Lecturer Admin
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
