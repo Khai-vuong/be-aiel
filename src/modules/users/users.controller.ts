@@ -37,8 +37,10 @@ export class UsersController {
     }
 
     @Put(":id")
-    async update(@Param("id") id: string, @Body() updateDto: UpdateDto) {
-        return this.usersService.update(id, updateDto);
+    async update(@Param("id") id: string, @Body() updateDto: UpdateDto, @Request() req) {
+        return (id) 
+            ? this.usersService.update(id, updateDto) 
+            : this.usersService.update(req.user.uid, updateDto);
     }
 
     @Put("authorize/:id")
