@@ -13,6 +13,7 @@ async function main() {
       status: 'active',
       Admin: {
         create: {
+          aid: "admin001",
           name: 'System Administrator',
           personal_info: JSON.stringify({
             address: 'Admin Office',
@@ -32,6 +33,7 @@ async function main() {
       status: 'active',
       Lecturer: {
         create: {
+          lid: "lecturer001",
           name: 'Dr. John Smith',
           personal_info_json: JSON.stringify({
             address: '123 University Ave',
@@ -54,6 +56,7 @@ async function main() {
       status: 'active',
       Lecturer: {
         create: {
+          lid: "lecturer002",
           name: 'Dr. Jane Doe',
           personal_info_json: JSON.stringify({
             address: '456 Campus Rd',
@@ -77,6 +80,7 @@ async function main() {
       status: 'active',
       Student: {
         create: {
+          sid: "student001",
           name: 'Alice Johnson',
           major: 'Computer Science',
           personal_info_json: JSON.stringify({
@@ -100,6 +104,7 @@ async function main() {
       status: 'active',
       Student: {
         create: {
+          sid: "student002",
           name: 'Bob Wilson',
           major: 'Mathematics',
           personal_info_json: JSON.stringify({
