@@ -1,12 +1,16 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { User } from 'generated/prisma';
+import { User } from '@prisma/client';
 import { PrismaService } from 'src/prisma.service';
 import { type RegisterDto, type LoginDto, AuthorizeDto } from './users.dto';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class UsersService {
 
-    constructor (private readonly prisma: PrismaService) { }
+    constructor (
+        private readonly prisma: PrismaService,
+        private readonly jwtService: JwtService
+    ) { }
 
     async findAll(): Promise<User[]> {
         return this.prisma.user.findMany();
@@ -59,19 +63,29 @@ export class UsersService {
 
     }
 
-    async login(loginDto: LoginDto): Promise<User> {
+    async login(loginDto: LoginDto): Promise<string> {
         const user = await this.prisma.user.findUnique({
             where: { username: loginDto.username }
         });
 
         if (!user) { throw new BadRequestException("Invalid username"); }
         else {
-            if (user.hashed_password === loginDto.hashed_password) {
-                return user;
-            } else throw new BadRequestException("Invalid password");
-        }
+            if (user.hashed_password !== loginDto.hashed_password) {
+                throw new BadRequestException("Invalid password");
+            }
+            
+            this.prisma.user.update({
+                where: {uid: user.uid},
+                data: {status: "Active"}
+            })
 
-        throw new BadRequestException("Invalid username or password");
+            const signPayload = {
+                uid: user.uid,
+                username: user.username,
+                role: user.role,
+            }
+            return this.jwtService.signAsync(signPayload);
+        }
     }
 
     async update(id: string, updateDto: any): Promise<any> {

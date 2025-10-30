@@ -1,4 +1,4 @@
-import { PrismaClient } from '../generated/prisma';
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -10,10 +10,10 @@ async function main() {
     data: {
       username: 'admin',
       hashed_password: 'admin123', // In production, this should be properly hashed
-      status: 'active',
+      status: 'Active',
+      role: 'Admin',
       Admin: {
         create: {
-          aid: "admin001",
           name: 'System Administrator',
           personal_info: JSON.stringify({
             address: 'Admin Office',
@@ -30,10 +30,10 @@ async function main() {
     data: {
       username: 'lecturer1',
       hashed_password: 'lecturer123',
-      status: 'active',
+      status: 'Active',
+      role: 'Lecturer',
       Lecturer: {
         create: {
-          lid: "lecturer001",
           name: 'Dr. John Smith',
           personal_info_json: JSON.stringify({
             address: '123 University Ave',
@@ -53,10 +53,10 @@ async function main() {
     data: {
       username: 'lecturer2',
       hashed_password: 'lecturer123',
-      status: 'active',
+      status: 'Active',
+      role: 'Lecturer',
       Lecturer: {
         create: {
-          lid: "lecturer002",
           name: 'Dr. Jane Doe',
           personal_info_json: JSON.stringify({
             address: '456 Campus Rd',
@@ -77,10 +77,10 @@ async function main() {
     data: {
       username: 'student1',
       hashed_password: 'student123',
-      status: 'active',
+      status: 'Active',
+      role: 'Student',
       Student: {
         create: {
-          sid: "student001",
           name: 'Alice Johnson',
           major: 'Computer Science',
           personal_info_json: JSON.stringify({
@@ -101,10 +101,10 @@ async function main() {
     data: {
       username: 'student2',
       hashed_password: 'student123',
-      status: 'active',
+      status: 'Active',
+      role: 'Student',
       Student: {
         create: {
-          sid: "student002",
           name: 'Bob Wilson',
           major: 'Mathematics',
           personal_info_json: JSON.stringify({
@@ -147,7 +147,7 @@ async function main() {
     data: {
       student_id: student1User.Student!.sid,
       course_id: course1.cid,
-      status: 'active',
+      status: 'Active',
     },
   });
 
@@ -155,7 +155,7 @@ async function main() {
     data: {
       student_id: student1User.Student!.sid,
       course_id: course2.cid,
-      status: 'active',
+      status: 'Active',
     },
   });
 
@@ -163,7 +163,7 @@ async function main() {
     data: {
       student_id: student2User.Student!.sid,
       course_id: course1.cid,
-      status: 'active',
+      status: 'Active',
     },
   });
 
@@ -178,7 +178,7 @@ async function main() {
         room: 'CS-101',
       }),
       location: 'Computer Science Building - Room 101',
-      status: 'active',
+      status: 'Active',
       course_id: course1.cid,
       lecturer_id: lecturer1User.Lecturer!.lid,
     },
@@ -194,7 +194,7 @@ async function main() {
         room: 'MATH-201',
       }),
       location: 'Mathematics Building - Room 201',
-      status: 'active',
+      status: 'Active',
       course_id: course2.cid,
       lecturer_id: lecturer2User.Lecturer!.lid,
     },
