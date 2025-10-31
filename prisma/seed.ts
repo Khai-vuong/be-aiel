@@ -8,6 +8,7 @@ async function main() {
   // Create Admin User
   const adminUser = await prisma.user.create({
     data: {
+      uid: 'user001',
       username: 'admin',
       hashed_password: 'admin123', // In production, this should be properly hashed
       status: 'Active',
@@ -28,6 +29,7 @@ async function main() {
   // Create Lecturer Users
   const lecturer1User = await prisma.user.create({
     data: {
+      uid: 'user002',
       username: 'lecturer1',
       hashed_password: 'lecturer123',
       status: 'Active',
@@ -51,6 +53,7 @@ async function main() {
 
   const lecturer2User = await prisma.user.create({
     data: {
+      uid: 'user003',
       username: 'lecturer2',
       hashed_password: 'lecturer123',
       status: 'Active',
@@ -75,6 +78,7 @@ async function main() {
   // Create Student Users
   const student1User = await prisma.user.create({
     data: {
+      uid: 'user004',
       username: 'student1',
       hashed_password: 'student123',
       status: 'Active',
@@ -99,6 +103,7 @@ async function main() {
 
   const student2User = await prisma.user.create({
     data: {
+      uid: 'user005',
       username: 'student2',
       hashed_password: 'student123',
       status: 'Active',
@@ -124,6 +129,7 @@ async function main() {
   // Create Courses
   const course1 = await prisma.course.create({
     data: {
+      cid: 'course001',
       code: 'CS101',
       name: 'Introduction to Programming',
       description: 'Basic programming concepts using Python',
@@ -134,6 +140,7 @@ async function main() {
 
   const course2 = await prisma.course.create({
     data: {
+      cid: 'course002',
       code: 'MATH201',
       name: 'Calculus I',
       description: 'Differential and integral calculus',
@@ -145,6 +152,7 @@ async function main() {
   // Create Course Enrollments
   await prisma.courseEnrollment.create({
     data: {
+      ceid: 'enrollment001',
       student_id: student1User.Student!.sid,
       course_id: course1.cid,
       status: 'Active',
@@ -153,6 +161,7 @@ async function main() {
 
   await prisma.courseEnrollment.create({
     data: {
+      ceid: 'enrollment002',
       student_id: student1User.Student!.sid,
       course_id: course2.cid,
       status: 'Active',
@@ -161,6 +170,7 @@ async function main() {
 
   await prisma.courseEnrollment.create({
     data: {
+      ceid: 'enrollment003',
       student_id: student2User.Student!.sid,
       course_id: course1.cid,
       status: 'Active',
@@ -170,6 +180,7 @@ async function main() {
   // Create Classes
   const class1 = await prisma.class.create({
     data: {
+      clid: 'class001',
       name: 'CS101 - Section A',
       schedule_json: JSON.stringify({
         day: 'Monday',
@@ -186,6 +197,7 @@ async function main() {
 
   const class2 = await prisma.class.create({
     data: {
+      clid: 'class002',
       name: 'MATH201 - Section A',
       schedule_json: JSON.stringify({
         day: 'Wednesday',
@@ -203,6 +215,7 @@ async function main() {
   // Create Files
   await prisma.file.create({
     data: {
+      fid: 'file001',
       filename: 'CS101_Syllabus.pdf',
       url: '/files/cs101_syllabus.pdf',
       size: 1024.5,
@@ -216,6 +229,7 @@ async function main() {
 
   await prisma.file.create({
     data: {
+      fid: 'file002',
       filename: 'Python_Basics_Lecture1.pptx',
       url: '/files/python_basics_lecture1.pptx',
       size: 2048.75,
@@ -230,6 +244,7 @@ async function main() {
   // Create Quiz
   const quiz1 = await prisma.quiz.create({
     data: {
+      qid: 'quiz001',
       name: 'Python Basics Quiz',
       description: 'Test your knowledge of Python fundamentals',
       settings_json: JSON.stringify({
@@ -248,6 +263,7 @@ async function main() {
   // Create Questions
   const question1 = await prisma.question.create({
     data: {
+      ques_id: 'question001',
       content: 'What is the correct way to declare a variable in Python?',
       options_json: JSON.stringify({
         A: 'var x = 10',
@@ -263,6 +279,7 @@ async function main() {
 
   const question2 = await prisma.question.create({
     data: {
+      ques_id: 'question002',
       content: 'Which of the following are Python data types? (Select all that apply)',
       options_json: JSON.stringify({
         A: 'int',
@@ -279,6 +296,7 @@ async function main() {
   // Create Quiz Attempt
   const attempt1 = await prisma.attempt.create({
     data: {
+      atid: 'attempt001',
       score: 4.0,
       max_score: 5.0,
       percentage: 80.0,
@@ -293,6 +311,7 @@ async function main() {
   // Create Answers
   await prisma.answer.create({
     data: {
+      ansid: 'answer001',
       answer_json: JSON.stringify({ selected: 'B' }),
       is_correct: true,
       points_awarded: 2.0,
@@ -304,6 +323,7 @@ async function main() {
 
   await prisma.answer.create({
     data: {
+      ansid: 'answer002',
       answer_json: JSON.stringify({ selected: ['A', 'C'] }),
       is_correct: false,
       points_awarded: 2.0, // Partial credit
