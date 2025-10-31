@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Put, Param, UseGuards, Request } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, Param, UseGuards, Request, Delete } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { type LoginDto, type RegisterDto, type UpdateDto, type AuthorizeDto } from './users.dto';
 import { RolesGuard } from '../../common/guards/roles.guard';
@@ -26,8 +26,8 @@ export class UsersController {
 
     @Get("profile")
     async getProfile(@Request() req) {
-        console.log("Profile request for user:", req.user);
-        return req.user;
+
+        return this.usersService.findUserById(req.user.uid);
     }
 
     @Post("auth/register")
@@ -36,16 +36,17 @@ export class UsersController {
         return this.usersService.register(registerDto);
     }
 
-    @Put(":id")
+    @Put("update/:id")
     async update(@Param("id") id: string, @Body() updateDto: UpdateDto, @Request() req) {
         return (id) 
             ? this.usersService.update(id, updateDto) 
             : this.usersService.update(req.user.uid, updateDto);
     }
 
-    @Put("authorize/:id")
-    @Roles('Admin') // Only Admin can authorize users
-    async authorize(@Param("id") id: string, @Body() authorizeDto: AuthorizeDto) {
-        return this.usersService.authorize(id, authorizeDto);
+    @Delete("delete/:id")
+    @Roles('Admin')
+    async delete(@Param("id") id: string) {
+        return this.usersService.delete(id);
     }
+
 }

@@ -43,9 +43,6 @@ model Student {
   user_id String @unique
   user    User   @relation(fields: [user_id], references: [uid])
 
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
   enrollments CourseEnrollment[]
   attempts    Attempt[]
   answers     Answer[]
@@ -59,9 +56,6 @@ model Lecturer {
   user_id String @unique
   user    User   @relation(fields: [user_id], references: [uid])
 
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
-
   Course Course[]
   Class  Class[]
   Quiz   Quiz[]
@@ -74,9 +68,6 @@ model Admin {
 
   user_id String @unique
   user    User   @relation(fields: [user_id], references: [uid])
-
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
 }
 
 model Course {

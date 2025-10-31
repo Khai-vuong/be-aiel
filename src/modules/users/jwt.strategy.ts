@@ -28,7 +28,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     //Automatically called by passport after verifying token signature and expiration.
     async validate(payload: JwtPayload) {
         
-        console.log("JWT payload:", payload);
+        // console.log("JWT payload:", payload);
 
         const currentTime = Math.floor(Date.now() / 1000);
         if (payload.exp && payload.exp < currentTime) {
