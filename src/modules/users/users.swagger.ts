@@ -10,7 +10,7 @@ import {
 import { LoginDto, RegisterDto, UpdateDto } from './users.dto';
 
 // Swagger decorator for Get All Users endpoint
-export function ApiGetAllUsers() {
+export function SwaggerGetAllUsers() {
   return applyDecorators(
     ApiBearerAuth('JWT-auth'),
     ApiOperation({ 
@@ -41,7 +41,7 @@ export function ApiGetAllUsers() {
 }
 
 // Swagger decorator for Login endpoint
-export function ApiLogin() {
+export function SwaggerLogin() {
   return applyDecorators(
     ApiTags('auth'),
     ApiOperation({ 
@@ -62,7 +62,7 @@ export function ApiLogin() {
 }
 
 // Swagger decorator for Get Profile endpoint
-export function ApiGetProfile() {
+export function SwaggerGetProfile() {
   return applyDecorators(
     ApiBearerAuth('JWT-auth'),
     ApiOperation({ 
@@ -99,7 +99,7 @@ export function ApiGetProfile() {
 }
 
 // Swagger decorator for Register endpoint
-export function ApiRegister() {
+export function SwaggerRegister() {
   return applyDecorators(
     ApiTags('auth'),
     ApiOperation({ 
@@ -137,7 +137,7 @@ export function ApiRegister() {
 }
 
 // Swagger decorator for Update User endpoint
-export function ApiUpdateUser() {
+export function SwaggerUpdateUser() {
   return applyDecorators(
     ApiBearerAuth('JWT-auth'),
     ApiOperation({ 
@@ -180,7 +180,7 @@ export function ApiUpdateUser() {
 }
 
 // Swagger decorator for Delete User endpoint
-export function ApiDeleteUser() {
+export function SwaggerDeleteUser() {
   return applyDecorators(
     ApiBearerAuth('JWT-auth'),
     ApiOperation({ 

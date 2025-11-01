@@ -19,12 +19,12 @@ import { Public } from 'src/common/decorators/public.decorator';
 import { JwtGuard } from '../../common/guards/jwt.guard';
 import { JsonParseInterceptor } from '../../common/interceptors/json-parse.interceptor';
 import { 
-    ApiGetAllUsers,
-    ApiLogin,
-    ApiGetProfile,
-    ApiRegister,
-    ApiUpdateUser,
-    ApiDeleteUser
+    SwaggerLogin,
+    SwaggerGetProfile,
+    SwaggerRegister,
+    SwaggerUpdateUser,
+    SwaggerDeleteUser,
+    SwaggerGetAllUsers
 } from './users.swagger';
 
 @ApiTags('users')
@@ -36,21 +36,21 @@ export class UsersController {
 
     @Get()
     @Roles('Admin')
-    @ApiGetAllUsers()
+    @SwaggerGetAllUsers()
     async findAll() {
         return this.usersService.findAll();
     }
 
     @Post("auth/login")
     @Public()
-    @ApiLogin()
+    @SwaggerLogin()
     async login(@Body() loginDto: LoginDto, @Request() req) {
         return this.usersService.login(loginDto);
     }
 
     @Get("profile")
     @UseInterceptors(JsonParseInterceptor)
-    @ApiGetProfile()
+    @SwaggerGetProfile()
     async getProfile(@Request() req) {
         return this.usersService.findUserById(req.user.uid);
     }
@@ -58,14 +58,14 @@ export class UsersController {
     @Post("auth/register")
     @UseInterceptors(JsonParseInterceptor)
     @Public()
-    @ApiRegister()
+    @SwaggerRegister()
     async register(@Body() registerDto: RegisterDto) {
         return this.usersService.register(registerDto);
     }
 
     @Put("update/:id")
     @UseInterceptors(JsonParseInterceptor)
-    @ApiUpdateUser()
+    @SwaggerUpdateUser()
     async update(@Param("id") id: string, @Body() updateDto: UpdateDto, @Request() req) {
         return (id) 
             ? this.usersService.update(id, updateDto) 
@@ -74,7 +74,7 @@ export class UsersController {
 
     @Delete("delete/:id")
     @Roles('Admin')
-    @ApiDeleteUser()
+    @SwaggerDeleteUser()
     async delete(@Param("id") id: string) {
         return this.usersService.delete(id);
     }
