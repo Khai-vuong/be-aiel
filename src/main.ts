@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import supabase from './supabase/supabaseClient';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -36,5 +37,8 @@ async function bootstrap() {
   console.log(
     `Swagger documentation available at: localhost:${process.env.PORT ?? 3000}/api`,
   );
+
+
+  console.log('Supabase object: ', supabase)
 }
 bootstrap();
