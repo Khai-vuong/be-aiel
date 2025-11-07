@@ -37,8 +37,5 @@ async function bootstrap() {
   console.log(
     `Swagger documentation available at: localhost:${process.env.PORT ?? 3000}/api`,
   );
-
-
-  console.log('Supabase object: ', supabase)
 }
 bootstrap();
