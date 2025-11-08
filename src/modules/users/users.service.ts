@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { User } from '@prisma/client';
 import { PrismaService } from 'src/prisma.service';
 import { type RegisterDto, type LoginDto, AuthorizeDto, UpdateDto } from './users.dto';
@@ -17,10 +17,16 @@ export class UsersService {
     }
 
     async findUserById(id: string): Promise<any> {
-        return this.prisma.user.findUnique({
+        const user = await this.prisma.user.findUnique({
             where: { uid: id },
             include: { Student: true, Lecturer: true, Admin: true }
         });
+
+        if (!user) {
+            throw new NotFoundException(`User with ID ${id} not found`);
+        }
+
+        return user;
     }
     async findStudentByUserId(userId: string): Promise<any> {
         return this.prisma.student.findUnique({

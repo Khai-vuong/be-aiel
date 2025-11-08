@@ -24,7 +24,8 @@ import {
     SwaggerRegister,
     SwaggerUpdateUser,
     SwaggerDeleteUser,
-    SwaggerGetAllUsers
+    SwaggerGetAllUsers,
+    SwaggerGetUserById
 } from './users.swagger';
 
 @ApiTags('users')
@@ -53,6 +54,13 @@ export class UsersController {
     @SwaggerGetProfile()
     async getProfile(@Request() req) {
         return this.usersService.findUserById(req.user.uid);
+    }
+
+    @Get(":id")
+    @UseInterceptors(JsonParseInterceptor)
+    @SwaggerGetUserById()
+    async findOne(@Param("id") id: string) {
+        return this.usersService.findUserById(id);
     }
 
     @Post("auth/register")

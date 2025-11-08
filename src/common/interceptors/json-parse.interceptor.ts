@@ -12,7 +12,7 @@ export class JsonParseInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     return next.handle().pipe(
       map((data) => {
-        console.log('Intercepting response for JSON parsing', data);
+        // console.log('Intercepting response for JSON parsing', data);
         return this.parseJsonStrings(data);
       }),
     );

@@ -201,3 +201,48 @@ export function SwaggerDeleteUser() {
     ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions (Admin role required)' })
   );
 }
+
+// Swagger decorator for Get User by ID endpoint
+export function SwaggerGetUserById() {
+  return applyDecorators(
+    ApiBearerAuth('JWT-auth'),
+    ApiOperation({ 
+      summary: 'Get user by ID',
+      description: 'Retrieve detailed information about a specific user by their ID'
+    }),
+    ApiParam({ 
+      name: 'id', 
+      description: 'User ID to retrieve', 
+      example: 'user004' 
+    }),
+    ApiResponse({ 
+      status: 200, 
+      description: 'Successfully retrieved user',
+      schema: {
+        type: 'object',
+        properties: {
+          uid: { type: 'string', example: 'user004' },
+          username: { type: 'string', example: 'student1' },
+          status: { type: 'string', example: 'Active' },
+          role: { type: 'string', example: 'Student' },
+          created_at: { type: 'string', format: 'date-time' },
+          updated_at: { type: 'string', format: 'date-time' },
+          Student: {
+            type: 'object',
+            properties: {
+              sid: { type: 'string', example: 'student_id_001' },
+              name: { type: 'string', example: 'Alice Johnson' },
+              major: { type: 'string', example: 'Computer Science' },
+              personal_info_json: { 
+                type: 'object', 
+                example: { phone: '+1234567890', address: '789 Student St' }
+              }
+            }
+          }
+        }
+      }
+    }),
+    ApiResponse({ status: 404, description: 'Not Found - User not found' }),
+    ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing JWT token' })
+  );
+}
