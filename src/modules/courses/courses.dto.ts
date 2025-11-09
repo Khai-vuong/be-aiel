@@ -70,3 +70,13 @@ export class UpdateCourseDto {
   })
   lecturer_id?: string;
 }
+
+export class ProcessEnrollmentsDto {
+  @ApiProperty({
+    description: 'Maximum number of students per class',
+    example: 5,
+    default: 5,
+    required: false
+  })
+  maxStudentsPerClass?: number;
+}

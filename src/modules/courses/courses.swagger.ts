@@ -6,7 +6,7 @@ import {
   ApiParam,
   ApiBody,
 } from '@nestjs/swagger';
-import { CreateCourseDto, UpdateCourseDto } from './courses.dto';
+import { CreateCourseDto, UpdateCourseDto, ProcessEnrollmentsDto } from './courses.dto';
 
 export function SwaggerGetAllCourses() {
   return applyDecorators(
@@ -238,5 +238,163 @@ export function SwaggerGetEnrolledStudents() {
     }),
     ApiResponse({ status: 404, description: 'Course not found' }),
     ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing JWT token' })
+  );
+}
+
+export function SwaggerRegisterToCourse() {
+  return applyDecorators(
+    ApiBearerAuth('JWT-auth'),
+    ApiOperation({
+      summary: 'Register to course',
+      description: 'Register the authenticated student to a course. If already enrolled before, reactivates the enrollment with "Pending" status.'
+    }),
+    ApiParam({
+      name: 'id',
+      description: 'Course ID to register for',
+      example: 'course001'
+    }),
+    ApiResponse({
+      status: 201,
+      description: 'Successfully registered to course or reactivated existing enrollment',
+      schema: {
+        type: 'object',
+        properties: {
+          ceid: { type: 'string', example: 'enrollment_001' },
+          student_id: { type: 'string', example: 'student001' },
+          course_id: { type: 'string', example: 'course001' },
+          enrolled_at: { type: 'string', format: 'date-time' },
+          status: { type: 'string', example: 'Pending' },
+          student: {
+            type: 'object',
+            properties: {
+              sid: { type: 'string' },
+              name: { type: 'string' },
+              major: { type: 'string' }
+            }
+          },
+          course: {
+            type: 'object',
+            properties: {
+              cid: { type: 'string' },
+              code: { type: 'string' },
+              name: { type: 'string' }
+            }
+          }
+        }
+      }
+    }),
+    ApiResponse({ status: 404, description: 'Course or Student not found' }),
+    ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing JWT token' }),
+    ApiResponse({ status: 403, description: 'Forbidden - Only Students can register for courses' })
+  );
+}
+
+export function SwaggerUnregisterFromCourse() {
+  return applyDecorators(
+    ApiBearerAuth('JWT-auth'),
+    ApiOperation({
+      summary: 'Unregister from course',
+      description: 'Unregister the authenticated student from a course. Changes enrollment status to "Unregistered" (soft delete).'
+    }),
+    ApiParam({
+      name: 'id',
+      description: 'Course ID to unregister from',
+      example: 'course001'
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Successfully unregistered from course',
+      schema: {
+        type: 'object',
+        properties: {
+          ceid: { type: 'string', example: 'enrollment_001' },
+          student_id: { type: 'string', example: 'student001' },
+          course_id: { type: 'string', example: 'course001' },
+          enrolled_at: { type: 'string', format: 'date-time' },
+          status: { type: 'string', example: 'Unregistered' },
+          student: {
+            type: 'object',
+            properties: {
+              sid: { type: 'string' },
+              name: { type: 'string' },
+              major: { type: 'string' }
+            }
+          },
+          course: {
+            type: 'object',
+            properties: {
+              cid: { type: 'string' },
+              code: { type: 'string' },
+              name: { type: 'string' }
+            }
+          }
+        }
+      }
+    }),
+    ApiResponse({ status: 400, description: 'Bad Request - Student is not enrolled in this course' }),
+    ApiResponse({ status: 404, description: 'Course or Student not found' }),
+    ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing JWT token' }),
+    ApiResponse({ status: 403, description: 'Forbidden - Only Students can unregister from courses' })
+  );
+}
+
+export function SwaggerProcessEnrollments() {
+  return applyDecorators(
+    ApiBearerAuth('JWT-auth'),
+    ApiOperation({
+      summary: 'Process pending enrollments',
+      description: 'Process all pending enrollments and create classes. Groups students by course and creates multiple classes based on maxStudentsPerClass limit. Only Admin and Lecturers can access this.'
+    }),
+    ApiBody({ type: ProcessEnrollmentsDto }),
+    ApiResponse({
+      status: 201,
+      description: 'Successfully processed pending enrollments and created classes',
+      schema: {
+        type: 'object',
+        properties: {
+          message: { type: 'string', example: 'Successfully processed pending enrollments' },
+          classesCreated: { type: 'number', example: 3 },
+          enrollmentsProcessed: { type: 'number', example: 12 },
+          maxStudentsPerClass: { type: 'number', example: 5 },
+          classes: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                classId: { type: 'string', example: 'class_001' },
+                className: { type: 'string', example: 'CS101-1' },
+                courseCode: { type: 'string', example: 'CS101' },
+                courseName: { type: 'string', example: 'Introduction to Programming' },
+                studentCount: { type: 'number', example: 5 },
+                students: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      studentId: { type: 'string', example: 'student001' },
+                      studentName: { type: 'string', example: 'Alice Johnson' }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }),
+    ApiResponse({ 
+      status: 200, 
+      description: 'No pending enrollments to process',
+      schema: {
+        type: 'object',
+        properties: {
+          message: { type: 'string', example: 'No pending enrollments to process' },
+          classesCreated: { type: 'number', example: 0 },
+          enrollmentsProcessed: { type: 'number', example: 0 }
+        }
+      }
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing JWT token' }),
+    ApiResponse({ status: 403, description: 'Forbidden - Only Admin and Lecturers can process enrollments' })
   );
 }

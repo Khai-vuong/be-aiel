@@ -6,12 +6,13 @@ import {
     Delete, 
     Body, 
     Param, 
+    Request,
     UseGuards,
     UseInterceptors
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { CoursesService } from './courses.service';
-import { CreateCourseDto, UpdateCourseDto } from './courses.dto';
+import { CreateCourseDto, UpdateCourseDto, ProcessEnrollmentsDto } from './courses.dto';
 import { JwtGuard } from '../../common/guards/jwt.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -22,8 +23,9 @@ import {
     SwaggerCreateCourse,
     SwaggerUpdateCourse,
     SwaggerDeleteCourse,
-    SwaggerGetCoursesByLecturer,
-    SwaggerGetEnrolledStudents
+    SwaggerRegisterToCourse,
+    SwaggerUnregisterFromCourse,
+    SwaggerProcessEnrollments,
 } from './courses.swagger';
 
 @ApiTags('courses')
@@ -67,6 +69,32 @@ export class CoursesController {
     async delete(@Param('id') id: string) {
         await this.coursesService.delete(id);
         return { message: 'Course deleted successfully' };
+    }
+
+    @Roles('Student')
+    @Post(':id/register')
+    @SwaggerRegisterToCourse()
+    async registerToCourse(@Request() req, @Param('id') id: string) {
+        const userId = req.user.id;
+        const courseId = id;
+        return this.coursesService.registerStudentToCourse(userId, courseId);
+    }
+
+    @Roles('Student')
+    @Post(':id/unregister')
+    @SwaggerUnregisterFromCourse()
+    async unregisterFromCourse(@Request() req, @Param('id') id: string) {
+        const userId = req.user.id;
+        const courseId = id;
+        return this.coursesService.unregisterStudentFromCourse(userId, courseId);
+    }
+
+    @Roles('Admin', 'Lecturer')
+    @Post('enrollments/process')
+    @SwaggerProcessEnrollments()
+    async processPendingEnrollments(@Body() dto: ProcessEnrollmentsDto) {
+        const maxStudentsPerClass = dto.maxStudentsPerClass || 5;
+        return this.coursesService.processPendingEnrollments(maxStudentsPerClass);
     }
 
 }

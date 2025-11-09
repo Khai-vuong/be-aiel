@@ -195,4 +195,263 @@ export class CoursesService {
         });
     }
 
+    async registerStudentToCourse(studentId: string, courseId: string): Promise<any> {
+        const course = this.prisma.course.findUnique({
+            where: { cid: courseId }
+        });
+
+        const student = this.prisma.student.findUnique({
+            where: { sid: studentId }
+        });
+
+        Promise.all([course, student]).then(async ([course, student]) => {
+            if (!course) {
+                throw new NotFoundException(`Course with ID ${courseId} not found`);
+            }
+
+            if (!student) {
+                throw new NotFoundException(`Student with ID ${studentId} not found`);
+            }
+
+            // Check if student is already enrolled in the course
+            const enrollment = await this.prisma.courseEnrollment.findFirst({
+                where: {
+                    student_id: studentId,
+                    course_id: courseId
+                }
+            });
+
+            if (enrollment) {
+                return this.prisma.courseEnrollment.update({
+                    where: {
+                        ceid: enrollment.ceid
+                    },
+                    data: {
+                        status: 'Pending'
+                    },
+                    include: {
+                        student: true,
+                        course: true
+                    }
+                });
+            }
+
+            // Enroll student in course
+            return this.prisma.courseEnrollment.create({
+                data: {
+                    student_id: studentId,
+                    course_id: courseId
+                },
+                include: {
+                    student: true,
+                    course: true
+                }
+            });
+        });
+    }
+
+    async unregisterStudentFromCourse(studentId: string, courseId: string): Promise<any> {
+        const course = this.prisma.course.findUnique({
+            where: { cid: courseId }
+        });
+
+        const student = this.prisma.student.findUnique({
+            where: { sid: studentId }
+        });
+
+        Promise.all([course, student]).then(async ([course, student]) => {
+            if (!course) {
+                throw new NotFoundException(`Course with ID ${courseId} not found`);
+            }
+
+            if (!student) {
+                throw new NotFoundException(`Student with ID ${studentId} not found`);
+            }
+
+            // Check if student is enrolled in the course
+            const enrollment = await this.prisma.courseEnrollment.findFirst({
+                where: {
+                    student_id: studentId,
+                    course_id: courseId
+                }
+            });
+
+            if (!enrollment) {
+                throw new BadRequestException(`Student with ID ${studentId} is not enrolled in course with ID ${courseId}`);
+            }
+
+            // Unenroll student from course
+            return this.prisma.courseEnrollment.update({
+                where: {
+                    ceid: enrollment.ceid
+                },
+                data: {
+                    status: 'Unregistered'
+                },
+                include: {
+                    student: true,
+                    course: true
+                }
+            });
+        });        
+    }
+
+    /**
+     * Process pending enrollments and create classes
+     * Groups students by course and creates classes with max students per class
+     * @param maxStudentsPerClass - Maximum number of students per class (default: 5)
+     * @returns Summary of created classes and updated enrollments
+     */
+    // async processPendingEnrollments(maxStudentsPerClass: number = 5): Promise<any> {
+    //     // 1. Get all pending enrollments
+    //     const pendingEnrollments = await this.prisma.courseEnrollment.findMany({
+    //         where: {
+    //             status: 'Pending'
+    //         },
+    //         include: {
+    //             student: {
+    //                 select: {
+    //                     sid: true,
+    //                     name: true
+    //                 }
+    //             },
+    //             course: {
+    //                 include: {
+    //                     lecturer: true
+    //                 }
+    //             }
+    //         },
+    //         orderBy: {
+    //             enrolled_at: 'asc' // First come, first served
+    //         }
+    //     });
+
+    //     if (pendingEnrollments.length === 0) {
+    //         return {
+    //             message: 'No pending enrollments to process',
+    //             classesCreated: 0,
+    //             enrollmentsProcessed: 0
+    //         };
+    //     }
+
+    //     // 2. Group enrollments by course
+    //     const enrollmentsByCourse = new Map<string, typeof pendingEnrollments>();
+        
+    //     for (const enrollment of pendingEnrollments) {
+    //         const courseId = enrollment.course_id;
+    //         if (!enrollmentsByCourse.has(courseId)) {
+    //             enrollmentsByCourse.set(courseId, []);
+    //         }
+    //         enrollmentsByCourse.get(courseId)!.push(enrollment);
+    //     }
+
+    //     // 3. Process each course and create classes
+    //     const createdClasses: any[] = [];
+    //     let totalEnrollmentsProcessed = 0;
+
+    //     for (const [courseId, enrollments] of enrollmentsByCourse.entries()) {
+    //         const course = enrollments[0].course;
+    //         const courseCode = course.code;
+            
+    //         // Calculate how many classes we need for this course
+    //         const numberOfClasses = Math.ceil(enrollments.length / maxStudentsPerClass);
+            
+    //         // Get existing class count for this course to generate unique class names
+    //         const existingClassCount = await this.prisma.class.count({
+    //             where: {
+    //                 course_id: courseId
+    //             }
+    //         });
+
+    //         // Split students into groups (classes)
+    //         for (let i = 0; i < numberOfClasses; i++) {
+    //             const startIndex = i * maxStudentsPerClass;
+    //             const endIndex = Math.min(startIndex + maxStudentsPerClass, enrollments.length);
+    //             const studentsInClass = enrollments.slice(startIndex, endIndex);
+                
+    //             // Generate class name: CourseCode + ClassNumber (e.g., "CS101-1", "CS101-2")
+    //             const classNumber = existingClassCount + i + 1;
+    //             const className = `${courseCode}-${classNumber}`;
+
+    //             // Create the class
+    //             const newClass = await this.prisma.class.create({
+    //                 data: {
+    //                     name: className,
+    //                     course_id: courseId,
+    //                     lecturer_id: course.lecturer_id,
+    //                     status: 'active'
+    //                 }
+    //             });
+
+    //             // Update enrollment status to 'Active' for students in this class
+    //             const enrollmentIds = studentsInClass.map(e => e.ceid);
+    //             await this.prisma.courseEnrollment.updateMany({
+    //                 where: {
+    //                     ceid: {
+    //                         in: enrollmentIds
+    //                     }
+    //                 },
+    //                 data: {
+    //                     status: 'Active'
+    //                 }
+    //             });
+
+    //             totalEnrollmentsProcessed += studentsInClass.length;
+
+    //             createdClasses.push({
+    //                 classId: newClass.clid,
+    //                 className: newClass.name,
+    //                 courseCode: courseCode,
+    //                 courseName: course.name,
+    //                 studentCount: studentsInClass.length,
+    //                 students: studentsInClass.map(e => ({
+    //                     studentId: e.student.sid,
+    //                     studentName: e.student.name
+    //                 }))
+    //             });
+    //         }
+    //     }
+
+    //     return {
+    //         message: 'Successfully processed pending enrollments',
+    //         classesCreated: createdClasses.length,
+    //         enrollmentsProcessed: totalEnrollmentsProcessed,
+    //         maxStudentsPerClass,
+    //         classes: createdClasses
+    //     };
+    // }
+
+    async processPendingEnrollments(maxStudentsPerClass: number = 5): Promise<any> {
+        //1. Fetch all the enrollnents with 'Pending' status
+
+        const enrollments = await this.prisma.courseEnrollment.findMany({
+            where: {
+                status: "Pending"
+            },
+            include: {
+                student: {
+                    select: {
+                        sid: true,
+                        name: true
+                    }
+                },
+                course: {
+                    select: {
+                        cid: true,
+                        code: true,
+                        name: true
+                    }
+                }
+            },
+                            orderBy: {
+                    enrolled_at: 'asc' 
+                }
+        })
+
+        //2.Group them by course
+
+        //3. For each course, devide them into classes based on maxStudentsPerClass
+    }
+
+
 }

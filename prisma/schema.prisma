@@ -10,10 +10,10 @@ generator client {
 }
 
 datasource db {
-  provider     = "postgresql"
+  provider = "postgresql"
   // url          = env("DATABASE_SUPABASE_URL_POOLING")
-  url          = env("DATABASE_LOCAL_URL")
-  relationMode = "prisma"
+  url      = env("DATABASE_LOCAL_URL")
+  // relationMode = "prisma"
 }
 
 model User {
@@ -44,6 +44,8 @@ model Student {
 
   user_id String @unique
   user    User   @relation(fields: [user_id], references: [uid])
+
+  classes Class[] @relation("StudentInClass")
 
   enrollments CourseEnrollment[]
   attempts    Attempt[]
@@ -99,7 +101,7 @@ model CourseEnrollment {
   course    Course @relation(fields: [course_id], references: [cid])
 
   enrolled_at DateTime @default(now())
-  status      String   @default("active") // active, dropped, completed
+  status      String   @default("Pending") // Pending, Unregistered, Completed
 
   @@unique([student_id, course_id]) // Prevent duplicate enrollments
 }
@@ -110,13 +112,15 @@ model Class {
 
   schedule_json String? // JSON: {"day": "Monday", "start": "09:00", "end": "11:00"}
   location      String?
-  status        String  @default("active") // active, cancelled, completed
+  status        String  @default("Active") // Active, Cancelled, Completed
 
   course_id String
   course    Course @relation(fields: [course_id], references: [cid])
 
   lecturer_id String
   lecturer    Lecturer @relation(fields: [lecturer_id], references: [lid])
+
+  students Student[] @relation("StudentInClass")
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt

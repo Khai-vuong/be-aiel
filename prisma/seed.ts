@@ -78,6 +78,81 @@ async function main() {
     },
   });
 
+  const lecturer3User = await prisma.user.create({
+    data: {
+      uid: 'user006',
+      username: 'lecturer3',
+      hashed_password: 'lecturer123',
+      status: 'Active',
+      role: 'Lecturer',
+      Lecturer: {
+        create: {
+          lid: 'lecturer003',
+          name: 'Prof. Michael Chen',
+          personal_info_json: JSON.stringify({
+            address: '789 Faculty St',
+            phone: '+1234567895',
+            dob: '1972-03-12',
+            department: 'Computer Science',
+          }),
+        },
+      },
+    },
+    include: {
+      Lecturer: true,
+    },
+  });
+
+  const lecturer4User = await prisma.user.create({
+    data: {
+      uid: 'user007',
+      username: 'lecturer4',
+      hashed_password: 'lecturer123',
+      status: 'Active',
+      role: 'Lecturer',
+      Lecturer: {
+        create: {
+          lid: 'lecturer004',
+          name: 'Dr. Sarah Williams',
+          personal_info_json: JSON.stringify({
+            address: '234 Academic Blvd',
+            phone: '+1234567896',
+            dob: '1980-07-25',
+            department: 'Mathematics',
+          }),
+        },
+      },
+    },
+    include: {
+      Lecturer: true,
+    },
+  });
+
+  const lecturer5User = await prisma.user.create({
+    data: {
+      uid: 'user008',
+      username: 'lecturer5',
+      hashed_password: 'lecturer123',
+      status: 'Active',
+      role: 'Lecturer',
+      Lecturer: {
+        create: {
+          lid: 'lecturer005',
+          name: 'Prof. David Brown',
+          personal_info_json: JSON.stringify({
+            address: '567 Professor Lane',
+            phone: '+1234567897',
+            dob: '1976-11-30',
+            department: 'Computer Science',
+          }),
+        },
+      },
+    },
+    include: {
+      Lecturer: true,
+    },
+  });
+
   // Create Student Users
   const student1User = await prisma.user.create({
     data: {
@@ -131,6 +206,162 @@ async function main() {
     },
   });
 
+  const student3User = await prisma.user.create({
+    data: {
+      uid: 'user009',
+      username: 'student3',
+      hashed_password: 'student123',
+      status: 'Active',
+      role: 'Student',
+      Student: {
+        create: {
+          sid: 'student003',
+          name: 'Charlie Davis',
+          major: 'Computer Science',
+          personal_info_json: JSON.stringify({
+            address: '111 Campus Dr',
+            phone: '+1234567898',
+            dob: '2001-01-15',
+            year: 'Sophomore',
+          }),
+        },
+      },
+    },
+    include: {
+      Student: true,
+    },
+  });
+
+  const student4User = await prisma.user.create({
+    data: {
+      uid: 'user010',
+      username: 'student4',
+      hashed_password: 'student123',
+      status: 'Active',
+      role: 'Student',
+      Student: {
+        create: {
+          sid: 'student004',
+          name: 'Diana Martinez',
+          major: 'Mathematics',
+          personal_info_json: JSON.stringify({
+            address: '222 Student Blvd',
+            phone: '+1234567899',
+            dob: '2000-06-20',
+            year: 'Junior',
+          }),
+        },
+      },
+    },
+    include: {
+      Student: true,
+    },
+  });
+
+  const student5User = await prisma.user.create({
+    data: {
+      uid: 'user011',
+      username: 'student5',
+      hashed_password: 'student123',
+      status: 'Active',
+      role: 'Student',
+      Student: {
+        create: {
+          sid: 'student005',
+          name: 'Eva Thompson',
+          major: 'Computer Science',
+          personal_info_json: JSON.stringify({
+            address: '333 Residence Hall',
+            phone: '+1234567900',
+            dob: '2001-09-10',
+            year: 'Sophomore',
+          }),
+        },
+      },
+    },
+    include: {
+      Student: true,
+    },
+  });
+
+  const student6User = await prisma.user.create({
+    data: {
+      uid: 'user012',
+      username: 'student6',
+      hashed_password: 'student123',
+      status: 'Active',
+      role: 'Student',
+      Student: {
+        create: {
+          sid: 'student006',
+          name: 'Frank Garcia',
+          major: 'Mathematics',
+          personal_info_json: JSON.stringify({
+            address: '444 College St',
+            phone: '+1234567901',
+            dob: '2000-12-05',
+            year: 'Junior',
+          }),
+        },
+      },
+    },
+    include: {
+      Student: true,
+    },
+  });
+
+  const student7User = await prisma.user.create({
+    data: {
+      uid: 'user013',
+      username: 'student7',
+      hashed_password: 'student123',
+      status: 'Active',
+      role: 'Student',
+      Student: {
+        create: {
+          sid: 'student007',
+          name: 'Grace Lee',
+          major: 'Computer Science',
+          personal_info_json: JSON.stringify({
+            address: '555 University Way',
+            phone: '+1234567902',
+            dob: '2001-04-18',
+            year: 'Sophomore',
+          }),
+        },
+      },
+    },
+    include: {
+      Student: true,
+    },
+  });
+
+  const student8User = await prisma.user.create({
+    data: {
+      uid: 'user014',
+      username: 'student8',
+      hashed_password: 'student123',
+      status: 'Active',
+      role: 'Student',
+      Student: {
+        create: {
+          sid: 'student008',
+          name: 'Henry Zhang',
+          major: 'Mathematics',
+          personal_info_json: JSON.stringify({
+            address: '666 Academic Ave',
+            phone: '+1234567903',
+            dob: '1999-08-28',
+            year: 'Senior',
+          }),
+        },
+      },
+    },
+    include: {
+      Student: true,
+    },
+  });
+
   // Create Courses
   const course1 = await prisma.course.create({
     data: {
@@ -146,7 +377,7 @@ async function main() {
   const course2 = await prisma.course.create({
     data: {
       cid: 'course002',
-      code: 'MATH201',
+      code: 'MT105',
       name: 'Calculus I',
       description: 'Differential and integral calculus',
       credits: 4,
@@ -182,11 +413,11 @@ async function main() {
     },
   });
 
-  // Create Classes
+  // Create Classes with M-N relationship to Students
   const class1 = await prisma.class.create({
     data: {
       clid: 'class001',
-      name: 'CS101 - Section A',
+      name: 'CS101 - L1',
       schedule_json: JSON.stringify({
         day: 'Monday',
         start: '09:00',
@@ -197,23 +428,60 @@ async function main() {
       status: 'Active',
       course_id: course1.cid,
       lecturer_id: lecturer1User.Lecturer!.lid,
+      students: {
+        connect: [
+          { sid: student1User.Student!.sid },
+          { sid: student3User.Student!.sid },
+          { sid: student5User.Student!.sid },
+        ]
+      }
     },
   });
 
   const class2 = await prisma.class.create({
     data: {
       clid: 'class002',
-      name: 'MATH201 - Section A',
+      name: 'CS101 - L2',
       schedule_json: JSON.stringify({
         day: 'Wednesday',
         start: '14:00',
         end: '16:00',
+        room: 'CS-102',
+      }),
+      location: 'Computer Science Building - Room 102',
+      status: 'Active',
+      course_id: course1.cid,
+      lecturer_id: lecturer3User.Lecturer!.lid,
+      students: {
+        connect: [
+          { sid: student2User.Student!.sid },
+          { sid: student7User.Student!.sid },
+        ]
+      }
+    },
+  });
+
+  const class3 = await prisma.class.create({
+    data: {
+      clid: 'class003',
+      name: 'MT105 - L1',
+      schedule_json: JSON.stringify({
+        day: 'Tuesday',
+        start: '10:00',
+        end: '12:00',
         room: 'MATH-201',
       }),
       location: 'Mathematics Building - Room 201',
       status: 'Active',
       course_id: course2.cid,
       lecturer_id: lecturer2User.Lecturer!.lid,
+      students: {
+        connect: [
+          { sid: student4User.Student!.sid },
+          { sid: student6User.Student!.sid },
+          { sid: student8User.Student!.sid },
+        ]
+      }
     },
   });
 
@@ -341,10 +609,10 @@ async function main() {
   console.log('✅ Database seeded successfully!');
   console.log(`Created:`);
   console.log(`- 1 Admin user`);
-  console.log(`- 2 Lecturer users`);
-  console.log(`- 2 Student users`);
-  console.log(`- 2 Courses`);
-  console.log(`- 2 Classes`);
+  console.log(`- 5 Lecturer users`);
+  console.log(`- 8 Student users`);
+  console.log(`- 2 Courses (CS101, MT105)`);
+  console.log(`- 3 Classes (CS101-L1, CS101-L2, MT105-L1)`);
   console.log(`- 3 Course enrollments`);
   console.log(`- 2 Files`);
   console.log(`- 1 Quiz with 2 questions`);
