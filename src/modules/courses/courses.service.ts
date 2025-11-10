@@ -1,8 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
-import { CreateCourseDto, UpdateCourseDto } from './courses.dto';
+import { CourseCreateDto, CourseUpdateDto, CourseResponseEnrollmentsToClassesDto } from './courses.dto';
 import { Course } from '@prisma/client';
-import { ResponseEnrollmentsToClassesDto } from './courses.dto';
 @Injectable()
 export class CoursesService {
 
@@ -13,21 +12,12 @@ export class CoursesService {
         return this.prisma.course.findMany({
             include: {
                 lecturer: {
-                    include: {
-                        user: {
-                            select: {
-                                username: true,
-                                status: true
-                            }
-                        }
+                    select: {
+                        name: true,
+                        lid: true,
+                        personal_info_json: true
                     }
                 },
-                _count: {
-                    select: {
-                        enrollments: true,
-                        classes: true
-                    }
-                }
             },
             orderBy: {
                 created_at: 'desc'
@@ -36,38 +26,15 @@ export class CoursesService {
     }
 
     // Get a single course by ID
-    async findOne(id: string): Promise<any> {
+    async findOne(id: string): Promise<Course> {
         const course = await this.prisma.course.findUnique({
             where: { cid: id },
             include: {
                 lecturer: {
-                    include: {
-                        user: {
-                            select: {
-                                username: true,
-                                status: true
-                            }
-                        }
-                    }
-                },
-                enrollments: {
-                    include: {
-                        student: {
-                            select: {
-                                sid: true,
-                                name: true,
-                                major: true
-                            }
-                        }
-                    }
-                },
-                classes: {
                     select: {
-                        clid: true,
                         name: true,
-                        schedule_json: true,
-                        location: true,
-                        status: true
+                        lid: true,
+                        personal_info_json: true
                     }
                 }
             }
@@ -81,43 +48,37 @@ export class CoursesService {
     }
 
     // Create a new course
-    async create(createCourseDto: CreateCourseDto): Promise<Course> {
+    async create(createCourseDto: CourseCreateDto): Promise<Course> {
         // Check if lecturer exists
-        const lecturer = await this.prisma.lecturer.findUnique({
+        const lecturer = this.prisma.lecturer.findUnique({
             where: { lid: createCourseDto.lecturer_id }
         });
 
-        if (!lecturer) {
-            throw new BadRequestException(`Lecturer with ID ${createCourseDto.lecturer_id} not found`);
-        }
-
         // Check if course code already exists
-        const existingCourse = await this.prisma.course.findUnique({
+        const existingCourse = this.prisma.course.findUnique({
             where: { code: createCourseDto.code }
         });
 
-        if (existingCourse) {
+        const [lecturerResult, existingCourseResult] = await Promise.all([lecturer, existingCourse]);
+
+        if (!lecturerResult) {
+            throw new BadRequestException(`Lecturer with ID ${createCourseDto.lecturer_id} not found`);
+        }
+
+        if (existingCourseResult) {
             throw new BadRequestException(`Course with code ${createCourseDto.code} already exists`);
         }
 
         return this.prisma.course.create({
             data: createCourseDto,
             include: {
-                lecturer: {
-                    include: {
-                        user: {
-                            select: {
-                                username: true
-                            }
-                        }
-                    }
-                }
+                lecturer: true,
             }
         });
     }
 
     // Update a course
-    async update(id: string, updateCourseDto: UpdateCourseDto): Promise<Course> {
+    async update(id: string, updateCourseDto: CourseUpdateDto): Promise<Course> {
         const course = await this.prisma.course.findUnique({
             where: { cid: id }
         });
@@ -302,7 +263,7 @@ export class CoursesService {
      * @param maxStudentsPerClass - Maximum number of students per class (default: 5)
      * @returns Summary of created classes and updated enrollments
      */
-    async processPendingEnrollments(maxStudentsPerClass: number = 5): Promise<ResponseEnrollmentsToClassesDto> {
+    async processPendingEnrollments(maxStudentsPerClass: number = 5): Promise<CourseResponseEnrollmentsToClassesDto> {
         //1. Fetch all the enrollnents with 'Pending' status
 
         const enrollments = await this.prisma.courseEnrollment.findMany({

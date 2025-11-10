@@ -8,11 +8,13 @@ import {
     Param, 
     Request,
     UseGuards,
-    UseInterceptors
+    UseInterceptors,
+    UsePipes,
+    ValidationPipe
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { CoursesService } from './courses.service';
-import { CreateCourseDto, UpdateCourseDto, ProcessEnrollmentsDto } from './courses.dto';
+import { CourseCreateDto, CourseUpdateDto, CourseProcessEnrollmentsDto } from './courses.dto';
 import { JwtGuard } from '../../common/guards/jwt.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -30,6 +32,7 @@ import {
 
 @ApiTags('courses')
 @UseGuards(JwtGuard, RolesGuard)
+@UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))
 @Controller('courses')
 export class CoursesController {
 
@@ -52,14 +55,14 @@ export class CoursesController {
     @Post()
     @Roles('Admin', 'Lecturer')
     @SwaggerCreateCourse()
-    async create(@Body() createCourseDto: CreateCourseDto) {
+    async create(@Body() createCourseDto: CourseCreateDto) {
         return this.coursesService.create(createCourseDto);
     }
 
     @Put(':id')
     @Roles('Admin', 'Lecturer')
     @SwaggerUpdateCourse()
-    async update(@Param('id') id: string, @Body() updateCourseDto: UpdateCourseDto) {
+    async update(@Param('id') id: string, @Body() updateCourseDto: CourseUpdateDto) {
         return this.coursesService.update(id, updateCourseDto);
     }
 
@@ -92,7 +95,7 @@ export class CoursesController {
     @Roles('Admin', 'Lecturer')
     @Post('enrollments/process')
     @SwaggerProcessEnrollments()
-    async processPendingEnrollments(@Body() dto: ProcessEnrollmentsDto) {
+    async processPendingEnrollments(@Body() dto: CourseProcessEnrollmentsDto) {
         const maxStudentsPerClass = dto.maxStudentsPerClass || 5;
         return this.coursesService.processPendingEnrollments(maxStudentsPerClass);
     }

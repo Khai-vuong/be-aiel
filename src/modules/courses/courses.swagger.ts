@@ -6,7 +6,7 @@ import {
   ApiParam,
   ApiBody,
 } from '@nestjs/swagger';
-import { CreateCourseDto, UpdateCourseDto, ProcessEnrollmentsDto, ResponseEnrollmentsToClassesDto } from './courses.dto';
+import { CourseCreateDto, CourseUpdateDto, CourseProcessEnrollmentsDto, CourseResponseEnrollmentsToClassesDto } from './courses.dto';
 
 export function SwaggerGetAllCourses() {
   return applyDecorators(
@@ -88,7 +88,7 @@ export function SwaggerCreateCourse() {
       summary: 'Create new course',
       description: 'Create a new course. Only accessible by Admin and Lecturer roles.'
     }),
-    ApiBody({ type: CreateCourseDto }),
+    ApiBody({ type: CourseCreateDto }),
     ApiResponse({
       status: 201,
       description: 'Course successfully created',
@@ -124,7 +124,7 @@ export function SwaggerUpdateCourse() {
       description: 'Course ID to update',
       example: 'course001'
     }),
-    ApiBody({ type: UpdateCourseDto }),
+    ApiBody({ type: CourseUpdateDto }),
     ApiResponse({
       status: 200,
       description: 'Course successfully updated',
@@ -345,11 +345,11 @@ export function SwaggerProcessEnrollments() {
       summary: 'Process pending enrollments',
       description: 'Process all pending enrollments and create classes. Groups students by course and creates multiple classes based on maxStudentsPerClass limit. Students are automatically assigned to classes via M-N relationship. Only Admin and Lecturers can access this.'
     }),
-    ApiBody({ type: ProcessEnrollmentsDto }),
+    ApiBody({ type: CourseProcessEnrollmentsDto }),
     ApiResponse({
       status: 201,
       description: 'Successfully processed pending enrollments and created classes',
-      type: ResponseEnrollmentsToClassesDto,
+      type: CourseResponseEnrollmentsToClassesDto,
       schema: {
         type: 'object',
         properties: {
