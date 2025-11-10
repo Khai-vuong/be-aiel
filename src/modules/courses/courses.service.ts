@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { PrismaService } from 'src/prisma.service';
 import { CreateCourseDto, UpdateCourseDto } from './courses.dto';
 import { Course } from '@prisma/client';
-
+import { ResponseEnrollmentsToClassesDto } from './courses.dto';
 @Injectable()
 export class CoursesService {
 
@@ -302,126 +302,7 @@ export class CoursesService {
      * @param maxStudentsPerClass - Maximum number of students per class (default: 5)
      * @returns Summary of created classes and updated enrollments
      */
-    // async processPendingEnrollments(maxStudentsPerClass: number = 5): Promise<any> {
-    //     // 1. Get all pending enrollments
-    //     const pendingEnrollments = await this.prisma.courseEnrollment.findMany({
-    //         where: {
-    //             status: 'Pending'
-    //         },
-    //         include: {
-    //             student: {
-    //                 select: {
-    //                     sid: true,
-    //                     name: true
-    //                 }
-    //             },
-    //             course: {
-    //                 include: {
-    //                     lecturer: true
-    //                 }
-    //             }
-    //         },
-    //         orderBy: {
-    //             enrolled_at: 'asc' // First come, first served
-    //         }
-    //     });
-
-    //     if (pendingEnrollments.length === 0) {
-    //         return {
-    //             message: 'No pending enrollments to process',
-    //             classesCreated: 0,
-    //             enrollmentsProcessed: 0
-    //         };
-    //     }
-
-    //     // 2. Group enrollments by course
-    //     const enrollmentsByCourse = new Map<string, typeof pendingEnrollments>();
-        
-    //     for (const enrollment of pendingEnrollments) {
-    //         const courseId = enrollment.course_id;
-    //         if (!enrollmentsByCourse.has(courseId)) {
-    //             enrollmentsByCourse.set(courseId, []);
-    //         }
-    //         enrollmentsByCourse.get(courseId)!.push(enrollment);
-    //     }
-
-    //     // 3. Process each course and create classes
-    //     const createdClasses: any[] = [];
-    //     let totalEnrollmentsProcessed = 0;
-
-    //     for (const [courseId, enrollments] of enrollmentsByCourse.entries()) {
-    //         const course = enrollments[0].course;
-    //         const courseCode = course.code;
-            
-    //         // Calculate how many classes we need for this course
-    //         const numberOfClasses = Math.ceil(enrollments.length / maxStudentsPerClass);
-            
-    //         // Get existing class count for this course to generate unique class names
-    //         const existingClassCount = await this.prisma.class.count({
-    //             where: {
-    //                 course_id: courseId
-    //             }
-    //         });
-
-    //         // Split students into groups (classes)
-    //         for (let i = 0; i < numberOfClasses; i++) {
-    //             const startIndex = i * maxStudentsPerClass;
-    //             const endIndex = Math.min(startIndex + maxStudentsPerClass, enrollments.length);
-    //             const studentsInClass = enrollments.slice(startIndex, endIndex);
-                
-    //             // Generate class name: CourseCode + ClassNumber (e.g., "CS101-1", "CS101-2")
-    //             const classNumber = existingClassCount + i + 1;
-    //             const className = `${courseCode}-${classNumber}`;
-
-    //             // Create the class
-    //             const newClass = await this.prisma.class.create({
-    //                 data: {
-    //                     name: className,
-    //                     course_id: courseId,
-    //                     lecturer_id: course.lecturer_id,
-    //                     status: 'active'
-    //                 }
-    //             });
-
-    //             // Update enrollment status to 'Active' for students in this class
-    //             const enrollmentIds = studentsInClass.map(e => e.ceid);
-    //             await this.prisma.courseEnrollment.updateMany({
-    //                 where: {
-    //                     ceid: {
-    //                         in: enrollmentIds
-    //                     }
-    //                 },
-    //                 data: {
-    //                     status: 'Active'
-    //                 }
-    //             });
-
-    //             totalEnrollmentsProcessed += studentsInClass.length;
-
-    //             createdClasses.push({
-    //                 classId: newClass.clid,
-    //                 className: newClass.name,
-    //                 courseCode: courseCode,
-    //                 courseName: course.name,
-    //                 studentCount: studentsInClass.length,
-    //                 students: studentsInClass.map(e => ({
-    //                     studentId: e.student.sid,
-    //                     studentName: e.student.name
-    //                 }))
-    //             });
-    //         }
-    //     }
-
-    //     return {
-    //         message: 'Successfully processed pending enrollments',
-    //         classesCreated: createdClasses.length,
-    //         enrollmentsProcessed: totalEnrollmentsProcessed,
-    //         maxStudentsPerClass,
-    //         classes: createdClasses
-    //     };
-    // }
-
-    async processPendingEnrollments(maxStudentsPerClass: number = 5): Promise<any> {
+    async processPendingEnrollments(maxStudentsPerClass: number = 5): Promise<ResponseEnrollmentsToClassesDto> {
         //1. Fetch all the enrollnents with 'Pending' status
 
         const enrollments = await this.prisma.courseEnrollment.findMany({
@@ -439,18 +320,75 @@ export class CoursesService {
                     select: {
                         cid: true,
                         code: true,
-                        name: true
+                        name: true,
+                        lecturer_id: true
                     }
                 }
             },
-                            orderBy: {
-                    enrolled_at: 'asc' 
-                }
+            orderBy: {
+                enrolled_at: 'asc' 
+            }
         })
 
         //2.Group them by course
 
+        let enrollmentsByCourse = new Map<typeof enrollments[0]['course'], typeof enrollments>();
+        enrollments.map(enrollment => {
+            if (!enrollmentsByCourse.has(enrollment.course)) {
+                enrollmentsByCourse.set(enrollment.course, []);
+            }
+            enrollmentsByCourse.get(enrollment.course)?.push(enrollment);
+        })
         //3. For each course, devide them into classes based on maxStudentsPerClass
+
+        let createdClasses: any[] = [];
+        enrollmentsByCourse.forEach(async (enrollments, course) => {
+            const numberOfClasses = Math.ceil(enrollments.length / maxStudentsPerClass);
+
+            Array.from({ length: numberOfClasses }).forEach(async (_, index) => {
+
+                // Get student IDs for M-N relationship
+
+                const startIndex = index * maxStudentsPerClass;
+                const endIndex = Math.min(startIndex + maxStudentsPerClass, enrollments.length);
+                const studentsInClass = enrollments.slice(startIndex, endIndex);
+                const studentIds = studentsInClass.map(enrollment => enrollment.student.sid);
+                
+                const className = `${course.code} - L${index + 1}`;
+
+                const newClass = await this.prisma.class.create({
+                    data: {
+                        name: className,
+                        course_id: course.cid,
+                        lecturer_id: course.lecturer_id,
+                        status: "Active",
+                        students: {
+                            connect: studentIds.map(sid => ({ sid }))
+                        }
+                    },
+                });
+
+                // Update enrollment status to 'Completed'
+                const enrollmentIds = studentsInClass.map(enrollment => enrollment.ceid);
+                await this.prisma.courseEnrollment.updateMany({
+                    where: {
+                        ceid: { in: enrollmentIds }
+                    },
+                    data: {
+                        status: 'Completed'
+                    }
+                });
+
+                createdClasses.push(newClass);       
+            });
+        })
+        
+        return {
+            number_of_classes_created: createdClasses.length,
+            number_of_enrollments_processed: enrollments.length,
+            maximum_students_per_class: maxStudentsPerClass,
+            created_classes: createdClasses
+        };
     }
 
 

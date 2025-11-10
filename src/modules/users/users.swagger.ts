@@ -7,7 +7,7 @@ import {
   ApiParam, 
   ApiBody 
 } from '@nestjs/swagger';
-import { LoginDto, RegisterDto, UpdateDto } from './users.dto';
+import { UsersLoginDto, UsersRegisterDto, UsersUpdateDto } from './users.dto';
 
 // Swagger decorator for Get All Users endpoint
 export function SwaggerGetAllUsers() {
@@ -48,7 +48,7 @@ export function SwaggerLogin() {
       summary: 'User login',
       description: 'Authenticate user and receive JWT token for subsequent requests'
     }),
-    ApiBody({ type: LoginDto }),
+    ApiBody({ type: UsersLoginDto }),
     ApiResponse({ 
       status: 200, 
       description: 'Successfully authenticated',
@@ -106,7 +106,7 @@ export function SwaggerRegister() {
       summary: 'Register new user',
       description: 'Create a new user account with the specified role (Student, Lecturer, or Admin)'
     }),
-    ApiBody({ type: RegisterDto }),
+    ApiBody({ type: UsersRegisterDto }),
     ApiResponse({ 
       status: 201, 
       description: 'User successfully created',
@@ -149,7 +149,7 @@ export function SwaggerUpdateUser() {
       description: 'User ID to update', 
       example: 'user004' 
     }),
-    ApiBody({ type: UpdateDto }),
+    ApiBody({ type: UsersUpdateDto }),
     ApiResponse({ 
       status: 200, 
       description: 'User successfully updated',

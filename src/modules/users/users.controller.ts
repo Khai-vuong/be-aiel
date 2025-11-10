@@ -12,7 +12,7 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 
 import { UsersService } from './users.service';
-import { LoginDto, RegisterDto, UpdateDto } from './users.dto';
+import { UsersLoginDto, UsersRegisterDto, UsersUpdateDto } from './users.dto';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { Public } from 'src/common/decorators/public.decorator';
@@ -45,7 +45,7 @@ export class UsersController {
     @Post("auth/login")
     @Public()
     @SwaggerLogin()
-    async login(@Body() loginDto: LoginDto, @Request() req) {
+    async login(@Body() loginDto: UsersLoginDto, @Request() req) {
         return this.usersService.login(loginDto);
     }
 
@@ -67,14 +67,14 @@ export class UsersController {
     @UseInterceptors(JsonParseInterceptor)
     @Public()
     @SwaggerRegister()
-    async register(@Body() registerDto: RegisterDto) {
+    async register(@Body() registerDto: UsersRegisterDto) {
         return this.usersService.register(registerDto);
     }
 
     @Put("update/:id")
     @UseInterceptors(JsonParseInterceptor)
     @SwaggerUpdateUser()
-    async update(@Param("id") id: string, @Body() updateDto: UpdateDto, @Request() req) {
+    async update(@Param("id") id: string, @Body() updateDto: UsersUpdateDto, @Request() req) {
         return (id) 
             ? this.usersService.update(id, updateDto) 
             : this.usersService.update(req.user.uid, updateDto);

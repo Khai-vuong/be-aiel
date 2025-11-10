@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { User } from '@prisma/client';
 import { PrismaService } from 'src/prisma.service';
-import { type RegisterDto, type LoginDto, AuthorizeDto, UpdateDto } from './users.dto';
+import { UsersRegisterDto, UsersLoginDto, UsersUpdateDto } from './users.dto';
 import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
@@ -46,7 +46,7 @@ export class UsersService {
         });
     }
     
-    async register(registerDto: RegisterDto): Promise<any> {
+    async register(registerDto: UsersRegisterDto): Promise<any> {
         if (registerDto.role === "Student") {
             return await this.prisma.user.create({
                 data: {
@@ -110,7 +110,7 @@ export class UsersService {
         }
     }
 
-    async login(loginDto: LoginDto): Promise<string> {
+    async login(loginDto: UsersLoginDto): Promise<string> {
         const user = await this.prisma.user.findUnique({
             where: { username: loginDto.username }
         });
@@ -135,7 +135,7 @@ export class UsersService {
         }
     }
 
-    async update(id: string, updateDto: UpdateDto): Promise<any> {
+    async update(id: string, updateDto: UsersUpdateDto): Promise<any> {
         const user = await this.prisma.user.findUnique({
             where: { uid: id }
         });
@@ -163,7 +163,7 @@ export class UsersService {
         })
     }
     
-    private updateBaseUser(tx : any, id: string, dto: UpdateDto) {
+    private updateBaseUser(tx : any, id: string, dto: UsersUpdateDto) {
     return tx.user.update({
         where: { uid: id },
         data: {
@@ -174,7 +174,7 @@ export class UsersService {
     });
     }
 
-    private updateStudent(tx, id: string, dto: UpdateDto) {
+    private updateStudent(tx, id: string, dto: UsersUpdateDto) {
     return tx.student.update({
         where: { user_id: id },
         data: {
@@ -184,7 +184,7 @@ export class UsersService {
     });
     }
 
-    private updateLecturer(tx, id: string, dto: UpdateDto) {
+    private updateLecturer(tx, id: string, dto: UsersUpdateDto) {
     return tx.lecturer.update({
         where: { user_id: id },
         data: {
@@ -193,7 +193,7 @@ export class UsersService {
     });
     }
 
-    private updateAdmin(tx, id: string, dto: UpdateDto) {
+    private updateAdmin(tx, id: string, dto: UsersUpdateDto) {
     return tx.admin.update({
         where: { user_id: id },
         data: {

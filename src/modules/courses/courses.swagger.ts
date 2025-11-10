@@ -6,7 +6,7 @@ import {
   ApiParam,
   ApiBody,
 } from '@nestjs/swagger';
-import { CreateCourseDto, UpdateCourseDto, ProcessEnrollmentsDto } from './courses.dto';
+import { CreateCourseDto, UpdateCourseDto, ProcessEnrollmentsDto, ResponseEnrollmentsToClassesDto } from './courses.dto';
 
 export function SwaggerGetAllCourses() {
   return applyDecorators(
@@ -343,26 +343,26 @@ export function SwaggerProcessEnrollments() {
     ApiBearerAuth('JWT-auth'),
     ApiOperation({
       summary: 'Process pending enrollments',
-      description: 'Process all pending enrollments and create classes. Groups students by course and creates multiple classes based on maxStudentsPerClass limit. Only Admin and Lecturers can access this.'
+      description: 'Process all pending enrollments and create classes. Groups students by course and creates multiple classes based on maxStudentsPerClass limit. Students are automatically assigned to classes via M-N relationship. Only Admin and Lecturers can access this.'
     }),
     ApiBody({ type: ProcessEnrollmentsDto }),
     ApiResponse({
       status: 201,
       description: 'Successfully processed pending enrollments and created classes',
+      type: ResponseEnrollmentsToClassesDto,
       schema: {
         type: 'object',
         properties: {
-          message: { type: 'string', example: 'Successfully processed pending enrollments' },
-          classesCreated: { type: 'number', example: 3 },
-          enrollmentsProcessed: { type: 'number', example: 12 },
-          maxStudentsPerClass: { type: 'number', example: 5 },
-          classes: {
+          number_of_enrollments_processed: { type: 'number', example: 12 },
+          number_of_classes_created: { type: 'number', example: 3 },
+          maximum_students_per_class: { type: 'number', example: 5 },
+          created_classes: {
             type: 'array',
             items: {
               type: 'object',
               properties: {
-                classId: { type: 'string', example: 'class_001' },
-                className: { type: 'string', example: 'CS101-1' },
+                classId: { type: 'string', example: 'class001' },
+                className: { type: 'string', example: 'CS101 - L1' },
                 courseCode: { type: 'string', example: 'CS101' },
                 courseName: { type: 'string', example: 'Introduction to Programming' },
                 studentCount: { type: 'number', example: 5 },
@@ -389,8 +389,8 @@ export function SwaggerProcessEnrollments() {
         type: 'object',
         properties: {
           message: { type: 'string', example: 'No pending enrollments to process' },
-          classesCreated: { type: 'number', example: 0 },
-          enrollmentsProcessed: { type: 'number', example: 0 }
+          number_of_classes_created: { type: 'number', example: 0 },
+          number_of_enrollments_processed: { type: 'number', example: 0 }
         }
       }
     }),
