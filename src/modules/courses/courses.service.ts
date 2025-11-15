@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ConsoleLogger } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { CourseCreateDto, CourseUpdateDto, CourseResponseEnrollmentsToClassesDto } from './courses.dto';
 import { Course } from '@prisma/client';
@@ -156,105 +156,131 @@ export class CoursesService {
         });
     }
 
-    async registerStudentToCourse(studentId: string, courseId: string): Promise<any> {
-        const course = this.prisma.course.findUnique({
+    async registerStudentToCourse(studentUserId: string, courseId: string): Promise<any> {
+
+        const studentIdQuery = this.prisma.student.findFirst({
+            where: { user_id: studentUserId }
+        }).then(student => student?.sid);
+        
+        const courseQuery = this.prisma.course.findUnique({
             where: { cid: courseId }
         });
+        
+        const [course, studentId] = await Promise.all([courseQuery, studentIdQuery]);
+        
+        if (!course) {
+            throw new NotFoundException(`Course with ID ${courseId} not found`);
+        }
 
-        const student = this.prisma.student.findUnique({
-            where: { sid: studentId }
+        if (!studentId) {
+            throw new NotFoundException(`Student with ID ${studentUserId} not found`);
+        }
+
+        console.log('Registering student', studentId, 'to course', courseId);
+
+        // Check if student is already enrolled in the course
+        const enrollment = await this.prisma.courseEnrollment.findFirst({
+            where: {
+                student_id: studentId,
+                course_id: courseId
+            }
         });
 
-        Promise.all([course, student]).then(async ([course, student]) => {
-            if (!course) {
-                throw new NotFoundException(`Course with ID ${courseId} not found`);
-            }
-
-            if (!student) {
-                throw new NotFoundException(`Student with ID ${studentId} not found`);
-            }
-
-            // Check if student is already enrolled in the course
-            const enrollment = await this.prisma.courseEnrollment.findFirst({
-                where: {
-                    student_id: studentId,
-                    course_id: courseId
-                }
-            });
-
-            if (enrollment) {
-                return this.prisma.courseEnrollment.update({
-                    where: {
-                        ceid: enrollment.ceid
-                    },
-                    data: {
-                        status: 'Pending'
-                    },
-                    include: {
-                        student: true,
-                        course: true
-                    }
-                });
-            }
-
-            // Enroll student in course
-            return this.prisma.courseEnrollment.create({
-                data: {
-                    student_id: studentId,
-                    course_id: courseId
-                },
-                include: {
-                    student: true,
-                    course: true
-                }
-            });
-        });
-    }
-
-    async unregisterStudentFromCourse(studentId: string, courseId: string): Promise<any> {
-        const course = this.prisma.course.findUnique({
-            where: { cid: courseId }
-        });
-
-        const student = this.prisma.student.findUnique({
-            where: { sid: studentId }
-        });
-
-        Promise.all([course, student]).then(async ([course, student]) => {
-            if (!course) {
-                throw new NotFoundException(`Course with ID ${courseId} not found`);
-            }
-
-            if (!student) {
-                throw new NotFoundException(`Student with ID ${studentId} not found`);
-            }
-
-            // Check if student is enrolled in the course
-            const enrollment = await this.prisma.courseEnrollment.findFirst({
-                where: {
-                    student_id: studentId,
-                    course_id: courseId
-                }
-            });
-
-            if (!enrollment) {
-                throw new BadRequestException(`Student with ID ${studentId} is not enrolled in course with ID ${courseId}`);
-            }
-
-            // Unenroll student from course
-            return this.prisma.courseEnrollment.update({
+        if (enrollment) {
+            console.log('Existing enrollment found:', enrollment);
+            const enrollmentRegister = await this.prisma.courseEnrollment.update({
                 where: {
                     ceid: enrollment.ceid
                 },
                 data: {
-                    status: 'Unregistered'
+                    status: 'Pending'
                 },
                 include: {
                     student: true,
                     course: true
                 }
             });
-        });        
+             
+            return {
+                "enrollment": enrollmentRegister,
+                "message": `Re-enrolled student with ID ${studentId} to course with ID ${courseId}`
+            };
+        }
+
+        // Enroll student in course
+        const enrollmentRegister = await this.prisma.courseEnrollment.create({
+            data: {
+                student_id: studentId,
+                course_id: courseId
+            },
+            include: {
+                student: true,
+                course: true
+            }
+        });
+
+        return {
+            "enrollment": enrollmentRegister,
+            "message": `Enrolled student with ID ${studentId} to course with ID ${courseId}`
+        };
+    }
+
+    async unregisterStudentFromCourse(studentUserId: string, courseId: string): Promise<any> {
+
+        console.log('Service recived params:', { studentUserId, courseId });
+
+        const studentIdQuery = this.prisma.student.findFirst({
+            where: { user_id: studentUserId }
+        }).then(student => student?.sid);
+
+        
+        const courseQuery = this.prisma.course.findUnique({
+            where: { cid: courseId }
+        });
+        
+        const [course, studentId] = await Promise.all([courseQuery, studentIdQuery]);
+        console.log('Unregistering student Service', studentId, 'from course', courseId);
+
+        if (!course) {
+            throw new NotFoundException(`Course with ID ${courseId} not found`);
+        }
+
+        if (!studentId) {
+            throw new NotFoundException(`Student with ID ${studentUserId} not found`);
+        }
+
+        // Check if student is enrolled in the course
+        const enrollment = await this.prisma.courseEnrollment.findFirst({
+            where: {
+                student_id: studentId,
+                course_id: courseId
+            }
+        });
+
+        if (!enrollment) {
+            throw new BadRequestException(`Student with ID ${studentId} is not enrolled in course with ID ${courseId}`);
+        }
+
+        // Unenroll student from course
+        const unregisteredEnrollment = await this.prisma.courseEnrollment.update({
+            where: {
+                ceid: enrollment.ceid
+            },
+            data: {
+                status: 'Unregistered'
+            },
+            include: {
+                student: true,
+                course: true
+            }
+        });
+
+        console.log('Unregistered enrollment:', unregisteredEnrollment);
+
+        return {
+            "enrollment": unregisteredEnrollment,
+            "message": `Unregistered student with ID ${studentId} from course with ID ${courseId}`
+        };
     }
 
     /**
