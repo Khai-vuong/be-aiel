@@ -32,7 +32,11 @@ import {
 
 @ApiTags('courses')
 @UseGuards(JwtGuard, RolesGuard)
-@UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }))
+@UsePipes(new ValidationPipe({ 
+    whitelist: true, 
+    forbidNonWhitelisted: true, 
+    transform: true 
+}))
 @Controller('courses')
 export class CoursesController {
 

@@ -8,7 +8,9 @@ import {
     Request, 
     Delete, 
     UseInterceptors, 
-    UseGuards } from '@nestjs/common';
+    UseGuards,
+    UsePipes,
+    ValidationPipe } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 
 import { UsersService } from './users.service';
@@ -30,6 +32,11 @@ import {
 
 @ApiTags('users')
 @UseGuards(JwtGuard, RolesGuard)
+@UsePipes(new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true
+}))
 @Controller('users')
 export class UsersController {
 

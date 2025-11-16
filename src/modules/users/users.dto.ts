@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { IsString, IsNotEmpty, IsEmail, IsOptional, IsEnum, MinLength } from 'class-validator';
 
 /**
  * UsersLoginDto
@@ -11,9 +12,14 @@ import { ApiProperty } from '@nestjs/swagger';
  */
 export class UsersLoginDto {
     @ApiProperty({ description: 'Username for login', example: 'student1' })
+    @IsString()
+    @IsNotEmpty()
     username: string;
 
     @ApiProperty({ description: 'Password for login (hashed)', example: 'student123' })
+    @IsString()
+    @IsNotEmpty()
+    @MinLength(process.env.PASSWORD_MIN_LENGTH ? parseInt(process.env.PASSWORD_MIN_LENGTH) : 6)
     hashed_password: string;
 }
 
@@ -33,24 +39,40 @@ export class UsersLoginDto {
  */
 export class UsersRegisterDto {
     @ApiProperty({ description: 'Unique username', example: 'newstudent' })
+    @IsString()
+    @IsNotEmpty()
+    @MinLength(3)
     username: string;
 
     @ApiProperty({ description: 'User email address', example: 'student@university.edu' })
+    @IsEmail()
+    @IsNotEmpty()
     email: string;
 
     @ApiProperty({ description: 'Password (will be hashed)', example: 'password123' })
+    @IsString()
+    @IsNotEmpty()
+    @MinLength(6)
     hashed_password: string;
 
     @ApiProperty({ description: 'User role in the system', enum: ['Student', 'Lecturer', 'Admin'], example: 'Student' })
+    @IsEnum(['Student', 'Lecturer', 'Admin'])
+    @IsNotEmpty()
     role: "Student" | "Lecturer" | "Admin";
 
     @ApiProperty({ description: 'Full name of the user', example: 'John Doe' })
+    @IsString()
+    @IsNotEmpty()
     name: string;
 
     @ApiProperty({ description: 'Personal information in JSON format', example: '{"address": "123 Main St", "phone": "+1234567890", "dob": "2000-01-01"}' })
+    @IsString()
+    @IsNotEmpty()
     personal_info_json: string;
 
     @ApiProperty({ description: 'Major field of study (for students)', example: 'Computer Science', required: false })
+    @IsString()
+    @IsOptional()
     major?: string;
 }
 
@@ -67,15 +89,24 @@ export class UsersRegisterDto {
  */
 export class UsersUpdateDto {
     @ApiProperty({ description: 'New password (hashed)', example: 'newpassword123', required: false })
+    @IsString()
+    @IsOptional()
+    @MinLength(6)
     hashed_password?: string;
 
     @ApiProperty({ description: 'User status', enum: ['Active', 'Logged_out', 'Expelled', 'Graduated'], example: 'Active', required: false })
+    @IsEnum(['Active', 'Logged_out', 'Expelled', 'Graduated'])
+    @IsOptional()
     status?: "Active" | "Logged_out" | "Expelled" | "Graduated";
 
     @ApiProperty({ description: 'Updated personal information in JSON format', example: '{"address": "456 New St", "phone": "+0987654321"}', required: false })
+    @IsString()
+    @IsOptional()
     personal_info_json?: string;
 
     @ApiProperty({ description: 'Updated major field of study', example: 'Mathematics', required: false })
+    @IsString()
+    @IsOptional()
     major?: string;
 }
 
