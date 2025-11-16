@@ -321,38 +321,49 @@ export class CoursesService {
             };
         }
 
-        // console.log('Pending enrollments fetched:', enrollments);
-
         //2.Group them by course
+        //This woulld create a map courseEnrollmentsMap: courseID -> enrollments[]
+        //And a map courseDetailsMap: courseID -> Course
+        //Couldn't use Course -> enrollments[] directly due to object reference issues
 
-        let enrollmentsByCourse = new Map<string, typeof enrollments>();
-        let courseByCourseID = new Map<string, typeof enrollments[0]['course']>();
+        let courseEnrollmentsMap = new Map<string, typeof enrollments>();
+        let courseDetailsMap = new Map<string, typeof enrollments[0]['course']>();
         enrollments.forEach(enrollment => {
             const courseId = enrollment.course.cid;
-            if (!enrollmentsByCourse.has(courseId)) {
-                enrollmentsByCourse.set(courseId, []);
-                courseByCourseID.set(courseId, enrollment.course);
+            if (!courseEnrollmentsMap.has(courseId)) {
+                courseEnrollmentsMap.set(courseId, []);
+                courseDetailsMap.set(courseId, enrollment.course);
             }
-            enrollmentsByCourse.get(courseId)?.push(enrollment);
+            courseEnrollmentsMap.get(courseId)?.push(enrollment);
         });
 
-        console.log('Enrollments grouped by course:', enrollmentsByCourse);
-        console.log('Courses by Course ID:', courseByCourseID);
 
         //3. For each course, devide them into classes based on maxStudentsPerClass
+        //To prevent unbalanced classes like 5,5,5,1, I implemented the baseSize
+        //Each class will have either baseSize or baseSize + 1 students to ensure balance
 
         let createdClasses: any[] = [];
-        for (const [courseId, enrollments] of enrollmentsByCourse) {
-            const course = courseByCourseID.get(courseId)!;
-            const numberOfClasses = Math.ceil(enrollments.length / maxStudentsPerClass);
+        for (const [courseId, enrollments] of courseEnrollmentsMap) {
+            const course = courseDetailsMap.get(courseId)!;
+            const totalStudents = enrollments.length;
+            const numberOfClasses = Math.ceil(totalStudents / maxStudentsPerClass);
 
+            // Calculate balanced partition sizes
+            const baseSize = Math.floor(totalStudents / numberOfClasses);
+            const remainder = totalStudents % numberOfClasses;
+            
+            // First 'remainder' classes get baseSize + 1, rest get baseSize
+            const classSizes: number[] = [];
+            for (let i = 0; i < numberOfClasses; i++) {
+                classSizes.push(i < remainder ? baseSize + 1 : baseSize);
+            }
+
+            let currentIndex = 0;
             for (let index = 0; index < numberOfClasses; index++) {
-                // Get student IDs for M-N relationship
-
-                const startIndex = index * maxStudentsPerClass;
-                const endIndex = Math.min(startIndex + maxStudentsPerClass, enrollments.length);
-                const studentsInClass = enrollments.slice(startIndex, endIndex);
+                const classSize = classSizes[index];
+                const studentsInClass = enrollments.slice(currentIndex, currentIndex + classSize);
                 const studentIds = studentsInClass.map(enrollment => enrollment.student.sid);
+                currentIndex += classSize;
                 
                 const className = `${course.code} - L${index + 1}`;
 
