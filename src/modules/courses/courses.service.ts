@@ -176,7 +176,6 @@ export class CoursesService {
             throw new NotFoundException(`Student with ID ${studentUserId} not found`);
         }
 
-        console.log('Registering student', studentId, 'to course', courseId);
 
         // Check if student is already enrolled in the course
         const enrollment = await this.prisma.courseEnrollment.findFirst({
@@ -187,7 +186,6 @@ export class CoursesService {
         });
 
         if (enrollment) {
-            console.log('Existing enrollment found:', enrollment);
             const enrollmentRegister = await this.prisma.courseEnrollment.update({
                 where: {
                     ceid: enrollment.ceid
@@ -227,7 +225,6 @@ export class CoursesService {
 
     async unregisterStudentFromCourse(studentUserId: string, courseId: string): Promise<any> {
 
-        console.log('Service recived params:', { studentUserId, courseId });
 
         const studentIdQuery = this.prisma.student.findFirst({
             where: { user_id: studentUserId }
@@ -239,7 +236,6 @@ export class CoursesService {
         });
         
         const [course, studentId] = await Promise.all([courseQuery, studentIdQuery]);
-        console.log('Unregistering student Service', studentId, 'from course', courseId);
 
         if (!course) {
             throw new NotFoundException(`Course with ID ${courseId} not found`);
@@ -275,7 +271,6 @@ export class CoursesService {
             }
         });
 
-        console.log('Unregistered enrollment:', unregisteredEnrollment);
 
         return {
             "enrollment": unregisteredEnrollment,
@@ -317,23 +312,41 @@ export class CoursesService {
             }
         })
 
+        if (enrollments.length === 0) {
+            return {
+                number_of_classes_created: 0,
+                number_of_enrollments_processed: 0,
+                maximum_students_per_class: maxStudentsPerClass,
+                created_classes: []
+            };
+        }
+
+        // console.log('Pending enrollments fetched:', enrollments);
+
         //2.Group them by course
 
-        let enrollmentsByCourse = new Map<typeof enrollments[0]['course'], typeof enrollments>();
-        enrollments.map(enrollment => {
-            if (!enrollmentsByCourse.has(enrollment.course)) {
-                enrollmentsByCourse.set(enrollment.course, []);
+        let enrollmentsByCourse = new Map<string, typeof enrollments>();
+        let courseByCourseID = new Map<string, typeof enrollments[0]['course']>();
+        enrollments.forEach(enrollment => {
+            const courseId = enrollment.course.cid;
+            if (!enrollmentsByCourse.has(courseId)) {
+                enrollmentsByCourse.set(courseId, []);
+                courseByCourseID.set(courseId, enrollment.course);
             }
-            enrollmentsByCourse.get(enrollment.course)?.push(enrollment);
-        })
+            enrollmentsByCourse.get(courseId)?.push(enrollment);
+        });
+
+        console.log('Enrollments grouped by course:', enrollmentsByCourse);
+        console.log('Courses by Course ID:', courseByCourseID);
+
         //3. For each course, devide them into classes based on maxStudentsPerClass
 
         let createdClasses: any[] = [];
-        enrollmentsByCourse.forEach(async (enrollments, course) => {
+        for (const [courseId, enrollments] of enrollmentsByCourse) {
+            const course = courseByCourseID.get(courseId)!;
             const numberOfClasses = Math.ceil(enrollments.length / maxStudentsPerClass);
 
-            Array.from({ length: numberOfClasses }).forEach(async (_, index) => {
-
+            for (let index = 0; index < numberOfClasses; index++) {
                 // Get student IDs for M-N relationship
 
                 const startIndex = index * maxStudentsPerClass;
@@ -367,8 +380,8 @@ export class CoursesService {
                 });
 
                 createdClasses.push(newClass);       
-            });
-        })
+            }
+        }
         
         return {
             number_of_classes_created: createdClasses.length,

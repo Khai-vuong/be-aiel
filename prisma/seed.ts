@@ -362,6 +362,58 @@ async function main() {
     },
   });
 
+  const student9User = await prisma.user.create({
+    data: {
+      uid: 'user015',
+      username: 'student9',
+      hashed_password: 'student123',
+      status: 'Active',
+      role: 'Student',
+      Student: {
+        create: {
+          sid: 'student009',
+          name: 'Isabella Rodriguez',
+          major: 'Computer Science',
+          personal_info_json: JSON.stringify({
+            address: '777 Student Plaza',
+            phone: '+1234567904',
+            dob: '2001-02-14',
+            year: 'Sophomore',
+          }),
+        },
+      },
+    },
+    include: {
+      Student: true,
+    },
+  });
+
+  const student10User = await prisma.user.create({
+    data: {
+      uid: 'user016',
+      username: 'student10',
+      hashed_password: 'student123',
+      status: 'Active',
+      role: 'Student',
+      Student: {
+        create: {
+          sid: 'student010',
+          name: 'Jack Peterson',
+          major: 'Computer Science',
+          personal_info_json: JSON.stringify({
+            address: '888 Campus Circle',
+            phone: '+1234567905',
+            dob: '2000-11-22',
+            year: 'Junior',
+          }),
+        },
+      },
+    },
+    include: {
+      Student: true,
+    },
+  });
+
   // Create Courses
   const course1 = await prisma.course.create({
     data: {
@@ -391,7 +443,7 @@ async function main() {
       ceid: 'enrollment001',
       student_id: student1User.Student!.sid,
       course_id: course1.cid,
-      status: 'Active',
+      status: 'Pending',
     },
   });
 
@@ -400,7 +452,7 @@ async function main() {
       ceid: 'enrollment002',
       student_id: student1User.Student!.sid,
       course_id: course2.cid,
-      status: 'Active',
+      status: 'Pending',
     },
   });
 
@@ -409,7 +461,79 @@ async function main() {
       ceid: 'enrollment003',
       student_id: student2User.Student!.sid,
       course_id: course1.cid,
-      status: 'Active',
+      status: 'Pending',
+    },
+  });
+
+  await prisma.courseEnrollment.create({
+    data: {
+      ceid: 'enrollment004',
+      student_id: student3User.Student!.sid,
+      course_id: course1.cid,
+      status: 'Pending',
+    },
+  });
+
+  await prisma.courseEnrollment.create({
+    data: {
+      ceid: 'enrollment005',
+      student_id: student4User.Student!.sid,
+      course_id: course1.cid,
+      status: 'Pending',
+    },
+  });
+
+  await prisma.courseEnrollment.create({
+    data: {
+      ceid: 'enrollment006',
+      student_id: student5User.Student!.sid,
+      course_id: course1.cid,
+      status: 'Pending',
+    },
+  });
+
+  await prisma.courseEnrollment.create({
+    data: {
+      ceid: 'enrollment007',
+      student_id: student6User.Student!.sid,
+      course_id: course1.cid,
+      status: 'Pending',
+    },
+  });
+
+  await prisma.courseEnrollment.create({
+    data: {
+      ceid: 'enrollment008',
+      student_id: student7User.Student!.sid,
+      course_id: course1.cid,
+      status: 'Pending',
+    },
+  });
+
+  await prisma.courseEnrollment.create({
+    data: {
+      ceid: 'enrollment009',
+      student_id: student8User.Student!.sid,
+      course_id: course1.cid,
+      status: 'Pending',
+    },
+  });
+
+  await prisma.courseEnrollment.create({
+    data: {
+      ceid: 'enrollment010',
+      student_id: student9User.Student!.sid,
+      course_id: course1.cid,
+      status: 'Pending',
+    },
+  });
+
+  await prisma.courseEnrollment.create({
+    data: {
+      ceid: 'enrollment011',
+      student_id: student10User.Student!.sid,
+      course_id: course1.cid,
+      status: 'Pending',
     },
   });
 
@@ -610,10 +734,10 @@ async function main() {
   console.log(`Created:`);
   console.log(`- 1 Admin user`);
   console.log(`- 5 Lecturer users`);
-  console.log(`- 8 Student users`);
+  console.log(`- 10 Student users`);
   console.log(`- 2 Courses (CS101, MT105)`);
   console.log(`- 3 Classes (CS101-L1, CS101-L2, MT105-L1)`);
-  console.log(`- 3 Course enrollments`);
+  console.log(`- 11 Course enrollments (10 students enrolled in CS101)`);
   console.log(`- 2 Files`);
   console.log(`- 1 Quiz with 2 questions`);
   console.log(`- 1 Quiz attempt with answers`);

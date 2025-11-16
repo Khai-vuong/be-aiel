@@ -94,7 +94,7 @@ export class CoursesController {
         return this.coursesService.unregisterStudentFromCourse(userId, courseId);
     }
 
-    @Roles('Admin', 'Lecturer')
+    @Roles('Admin')
     @Post('enrollments/process')
     @SwaggerProcessEnrollments()
     async processPendingEnrollments(@Body() dto: CourseProcessEnrollmentsDto) {
