@@ -78,7 +78,6 @@ export class CoursesController {
     @Post(':id/register')
     @SwaggerRegisterToCourse()
     async registerToCourse(@Request() req, @Param('id') id: string) {
-        console.log('Request user:', req.user);
         const userId = req.user.uid;
         const courseId = id;
         return this.coursesService.registerStudentToCourse(userId, courseId);
@@ -90,7 +89,6 @@ export class CoursesController {
     async unregisterFromCourse(@Request() req, @Param('id') id: string) {
         const userId = req.user.uid;
         const courseId = id;
-        console.log('Unregister request - User ID:', req.user, 'Course ID:', courseId);
         return this.coursesService.unregisterStudentFromCourse(userId, courseId);
     }
 

@@ -279,6 +279,60 @@ export class CoursesService {
     }
 
     /**
+     * Generate random schedule for a class
+     * @param courseDuration - Duration in hours (credits - 1)
+     * @returns Schedule JSON with day, start time, end time, and room
+     */
+    private generateRandomSchedule(courseDuration: number): string {
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const randomDay = days[Math.floor(Math.random() * days.length)];
+
+        // Morning slots: 7-10am, Afternoon slots: 12-4pm
+        const morningSlots = [7, 8, 9, 10];
+        const afternoonSlots = [12, 13, 14, 15, 16];
+
+        // Determine if morning or afternoon session
+        const isMorning = Math.random() < 0.5;
+        const availableSlots = isMorning ? morningSlots : afternoonSlots;
+
+        // Filter slots where class can fit without crossing session boundary
+        const sessionEnd = isMorning ? 12 : 18;
+        const validSlots = availableSlots.filter(slot => slot + courseDuration <= sessionEnd);
+
+        // Pick random valid start time
+        const startHour = validSlots[Math.floor(Math.random() * validSlots.length)];
+        const endHour = startHour + courseDuration;
+
+        // Format time as HH:00
+        const formatTime = (hour: number) => `${hour.toString().padStart(2, '0')}:00`;
+
+        return JSON.stringify({
+            day: randomDay,
+            start: formatTime(startHour),
+            end: formatTime(endHour),
+        });
+    }
+
+    /**
+     * Generate random location for a class
+     * @returns Location string
+     */
+    private generateRandomLocation(): string {
+        const buildings = [
+            { name: 'Computer Science Building', prefix: 'CS' },
+            { name: 'Mathematics Building', prefix: 'MATH' },
+            { name: 'Science Building', prefix: 'SCI' },
+            { name: 'Engineering Building', prefix: 'ENG' },
+            { name: 'Library Complex', prefix: 'LIB' }
+        ];
+
+        const building = buildings[Math.floor(Math.random() * buildings.length)];
+        const roomNumber = Math.floor(Math.random() * 500) + 100;
+
+        return `${building.name} - Room ${roomNumber}`;
+    }
+
+    /**
      * Process pending enrollments and create classes
      * Groups students by course and creates classes with max students per class
      * @param maxStudentsPerClass - Maximum number of students per class (default: 5)
@@ -303,6 +357,7 @@ export class CoursesService {
                         cid: true,
                         code: true,
                         name: true,
+                        credits: true,
                         lecturer_id: true
                     }
                 }
@@ -367,12 +422,19 @@ export class CoursesService {
                 
                 const className = `${course.code} - L${index + 1}`;
 
+                // Generate random schedule and location
+                const courseDuration = (course.credits || 3) - 1; // Default to 3 credits if not set
+                const scheduleJson = this.generateRandomSchedule(courseDuration);
+                const location = this.generateRandomLocation();
+
                 const newClass = await this.prisma.class.create({
                     data: {
                         name: className,
                         course_id: course.cid,
                         lecturer_id: course.lecturer_id,
                         status: "Active",
+                        schedule_json: scheduleJson,
+                        location: location,
                         students: {
                             connect: studentIds.map(sid => ({ sid }))
                         }
