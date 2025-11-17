@@ -9,10 +9,10 @@ generator client {
 }
 
 datasource db {
-  provider     = "postgresql"
-  url          = env("DATABASE_SUPABASE_URL_POOLING")
+  provider = "postgresql"
+  url      = env("DATABASE_SUPABASE_URL_POOLING")
   // url      = env("DATABASE_LOCAL_URL")
-  relationMode = "prisma"
+  // relationMode = "prisma"
 }
 
 model User {
