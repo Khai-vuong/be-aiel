@@ -25,9 +25,13 @@ import {
     SwaggerCreateCourse,
     SwaggerUpdateCourse,
     SwaggerDeleteCourse,
+    SwaggerAddLecturer,
+    SwaggerRemoveLecturer,
     SwaggerRegisterToCourse,
     SwaggerUnregisterFromCourse,
     SwaggerProcessEnrollments,
+    SwaggerGetMyEnrollments,
+    SwaggerGetMyCourses,
 } from './courses.swagger';
 
 @ApiTags('courses')
@@ -78,6 +82,26 @@ export class CoursesController {
         return { message: 'Course deleted successfully' };
     }
 
+    @Post(':courseId/lecturers/:lecturerId')
+    @Roles('Admin')
+    @SwaggerAddLecturer()
+    async addLecturer(
+        @Param('courseId') courseId: string,
+        @Param('lecturerId') lecturerId: string
+    ) {
+        return this.coursesService.addLecturer(courseId, lecturerId);
+    }
+
+    @Delete(':courseId/lecturers/:lecturerId')
+    @Roles('Admin')
+    @SwaggerRemoveLecturer()
+    async removeLecturer(
+        @Param('courseId') courseId: string,
+        @Param('lecturerId') lecturerId: string
+    ) {
+        return this.coursesService.removeLecturer(courseId, lecturerId);
+    }
+
     @Roles('Student')
     @Post(':id/register')
     @SwaggerRegisterToCourse()
@@ -102,6 +126,20 @@ export class CoursesController {
     async processPendingEnrollments(@Body() dto: CourseProcessEnrollmentsDto) {
         const maxStudentsPerClass = dto.maxStudentsPerClass || 5;
         return this.coursesService.processPendingEnrollments(maxStudentsPerClass);
+    }
+
+    @Roles('Student')
+    @Get('enrollments/me')
+    @SwaggerGetMyEnrollments()
+    async findEnrollmentsByUserId(@Request() req) {
+        return this.coursesService.findEnrollmentsByUserId(req.user.uid);
+    }
+
+    @Roles('Lecturer')
+    @Get('incharged/by/me')
+    @SwaggerGetMyCourses()
+    async findCoursesByUserId(@Request() req) {
+        return this.coursesService.findCoursesByUserId(req.user.uid);
     }
 
 }

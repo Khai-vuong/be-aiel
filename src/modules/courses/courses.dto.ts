@@ -1,18 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsOptional, IsNumber, IsPositive, Min } from 'class-validator'
 
-/**
- * CourseCreateDto
- * 
- * Example object:
- * {
- *   "code": "CS101",
- *   "name": "Introduction to Programming",
- *   "description": "Basic programming concepts using Python",
- *   "credits": 3,
- *   "lecturer_id": "lecturer001"
- * }
- */
+// CourseCreateDto
+// 
+// Example object:
+// {
+//   "code": "CS101",
+//   "name": "Introduction to Programming",
+//   "description": "Basic programming concepts using Python",
+//   "credits": 3,
+//   "lecturer_id": "lecturer001"
+// }
 export class CourseCreateDto {
   @ApiProperty({ description: 'Unique course code', example: 'CS101' })
   @IsString()
@@ -41,18 +39,15 @@ export class CourseCreateDto {
   lecturer_id: string;
 }
 
-/**
- * CourseUpdateDto
- * 
- * Example object (all fields are optional):
- * {
- *   "code": "CS101",
- *   "name": "Advanced Programming",
- *   "description": "Advanced programming concepts",
- *   "credits": 4,
- *   "lecturer_id": "lecturer002"
- * }
- */
+// CourseUpdateDto
+// 
+// Example object (all fields are optional):
+// {
+//   "code": "CS101",
+//   "name": "Advanced Programming",
+//   "description": "Advanced programming concepts",
+//   "credits": 4,
+// }
 export class CourseUpdateDto {
   @ApiProperty({ description: 'Course code', example: 'CS101', required: false })
   @IsString()
@@ -74,21 +69,14 @@ export class CourseUpdateDto {
   @IsPositive()
   @IsOptional()
   credits?: number;
-
-  @ApiProperty({ description: 'ID of the lecturer teaching this course', example: 'lecturer002', required: false })
-  @IsString()
-  @IsOptional()
-  lecturer_id?: string;
 }
 
-/**
- * CourseProcessEnrollmentsDto
- * 
- * Example object:
- * {
- *   "maxStudentsPerClass": 5
- * }
- */
+// CourseProcessEnrollmentsDto
+// 
+// Example object:
+// {
+//   "maxStudentsPerClass": 5
+// }
 export class CourseProcessEnrollmentsDto {
   @ApiProperty({ description: 'Maximum number of students per class', example: 5, default: 5, required: false })
   @IsNumber()
@@ -98,29 +86,27 @@ export class CourseProcessEnrollmentsDto {
   maxStudentsPerClass?: number;
 }
 
-/**
- * CourseResponseEnrollmentsToClassesDto
- * 
- * Example object:
- * {
- *   "number_of_enrollments_processed": 12,
- *   "number_of_classes_created": 3,
- *   "maximum_students_per_class": 5,
- *   "created_classes": [
- *     {
- *       "classId": "class001",
- *       "className": "CS101 - L1",
- *       "courseCode": "CS101",
- *       "courseName": "Introduction to Programming",
- *       "studentCount": 5,
- *       "students": [
- *         { "studentId": "student001", "studentName": "Alice Johnson" },
- *         { "studentId": "student002", "studentName": "Bob Wilson" }
- *       ]
- *     }
- *   ]
- * }
- */
+// CourseResponseEnrollmentsToClassesDto
+// 
+// Example object:
+// {
+//   "number_of_enrollments_processed": 12,
+//   "number_of_classes_created": 3,
+//   "maximum_students_per_class": 5,
+//   "created_classes": [
+//     {
+//       "classId": "class001",
+//       "className": "CS101 - L1",
+//       "courseCode": "CS101",
+//       "courseName": "Introduction to Programming",
+//       "studentCount": 5,
+//       "students": [
+//         { "studentId": "student001", "studentName": "Alice Johnson" },
+//         { "studentId": "student002", "studentName": "Bob Wilson" }
+//       ]
+//     }
+//   ]
+// }
 export class CourseResponseEnrollmentsToClassesDto {
   @ApiProperty({ description: 'Number of enrollments processed', example: 12 })
   number_of_enrollments_processed: number;
