@@ -11,7 +11,7 @@ export class CoursesService {
     async findAll(): Promise<Course[]> {
         return this.prisma.course.findMany({
             include: {
-                lecturer: {
+                lecturers: {
                     select: {
                         name: true,
                         lid: true,
@@ -30,7 +30,7 @@ export class CoursesService {
         const course = await this.prisma.course.findUnique({
             where: { cid: id },
             include: {
-                lecturer: {
+                lecturers: {
                     select: {
                         name: true,
                         lid: true,
@@ -69,10 +69,17 @@ export class CoursesService {
             throw new BadRequestException(`Course with code ${createCourseDto.code} already exists`);
         }
 
+        const { lecturer_id, ...courseData } = createCourseDto;
+
         return this.prisma.course.create({
-            data: createCourseDto,
+            data: {
+                ...courseData,
+                lecturers: {
+                    connect: { lid: lecturer_id }
+                }
+            },
             include: {
-                lecturer: true,
+                lecturers: true,
             }
         });
     }
@@ -109,11 +116,21 @@ export class CoursesService {
             }
         }
 
+        const { lecturer_id, ...courseData } = updateCourseDto;
+        const updateData: any = { ...courseData };
+
+        // If lecturer_id is provided, set the lecturers relationship
+        if (lecturer_id) {
+            updateData.lecturers = {
+                set: [{ lid: lecturer_id }]
+            };
+        }
+
         return this.prisma.course.update({
             where: { cid: id },
-            data: updateCourseDto,
+            data: updateData,
             include: {
-                lecturer: {
+                lecturers: {
                     include: {
                         user: {
                             select: {
@@ -358,7 +375,12 @@ export class CoursesService {
                         code: true,
                         name: true,
                         credits: true,
-                        lecturer_id: true
+                        lecturers: {
+                            select: {
+                                lid: true
+                            },
+                            take: 1
+                        }
                     }
                 }
             },
@@ -431,7 +453,7 @@ export class CoursesService {
                     data: {
                         name: className,
                         course_id: course.cid,
-                        lecturer_id: course.lecturer_id,
+                        lecturer_id: course.lecturers[0]?.lid || '',
                         status: "Active",
                         schedule_json: scheduleJson,
                         location: location,
