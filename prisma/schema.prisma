@@ -60,9 +60,9 @@ model Lecturer {
   user_id String @unique
   user    User   @relation(fields: [user_id], references: [uid])
 
-  Course Course[]
-  Class  Class[]
-  Quiz   Quiz[]
+  courses Course[] @relation("LecturerCourses")
+  Class   Class[]
+  Quiz    Quiz[]
 }
 
 model Admin {
@@ -81,8 +81,7 @@ model Course {
   description String?
   credits     Int?    @default(3)
 
-  lecturer_id String
-  lecturer    Lecturer @relation(fields: [lecturer_id], references: [lid])
+  lecturers Lecturer[] @relation("LecturerCourses")
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt

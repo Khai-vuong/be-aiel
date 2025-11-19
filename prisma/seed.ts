@@ -414,7 +414,7 @@ async function main() {
     },
   });
 
-  // Create Courses
+  // Create Courses with many-to-many lecturer relationship
   const course1 = await prisma.course.create({
     data: {
       cid: 'course001',
@@ -422,7 +422,12 @@ async function main() {
       name: 'Introduction to Programming',
       description: 'Basic programming concepts using Python',
       credits: 3,
-      lecturer_id: lecturer1User.Lecturer!.lid,
+      lecturers: {
+        connect: [
+          { lid: lecturer1User.Lecturer!.lid },
+          { lid: lecturer3User.Lecturer!.lid },
+        ]
+      }
     },
   });
 
@@ -433,7 +438,13 @@ async function main() {
       name: 'Calculus I',
       description: 'Differential and integral calculus',
       credits: 4,
-      lecturer_id: lecturer2User.Lecturer!.lid,
+      lecturers: {
+        connect: [
+          { lid: lecturer1User.Lecturer!.lid },
+          { lid: lecturer2User.Lecturer!.lid },
+          { lid: lecturer4User.Lecturer!.lid },
+        ]
+      }
     },
   });
 
@@ -732,7 +743,7 @@ async function main() {
   console.log(`- 1 Admin user`);
   console.log(`- 5 Lecturer users`);
   console.log(`- 10 Student users`);
-  console.log(`- 2 Courses (CS101, MT105)`);
+  console.log(`- 2 Courses (CS101 with 2 lecturers, MT105 with 2 lecturers)`);
   console.log(`- 3 Classes (CS101-L1, CS101-L2, MT105-L1)`);
   console.log(`- 11 Course enrollments (10 students enrolled in CS101)`);
   console.log(`- 2 Files`);
