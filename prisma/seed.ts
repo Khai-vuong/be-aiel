@@ -13,7 +13,7 @@ async function main() {
       hashed_password: 'admin123', // In production, this should be properly hashed
       status: 'Active',
       role: 'Admin',
-      Admin: {
+      admin: {
         create: {
           aid: 'admin001',
           name: 'System Administrator',
@@ -35,7 +35,7 @@ async function main() {
       hashed_password: 'lecturer123',
       status: 'Active',
       role: 'Lecturer',
-      Lecturer: {
+      lecturer: {
         create: {
           lid: 'lecturer001',
           name: 'Dr. John Smith',
@@ -49,7 +49,7 @@ async function main() {
       },
     },
     include: {
-      Lecturer: true,
+      lecturer: true,
     },
   });
 
@@ -60,7 +60,7 @@ async function main() {
       hashed_password: 'lecturer123',
       status: 'Active',
       role: 'Lecturer',
-      Lecturer: {
+      lecturer: {
         create: {
           lid: 'lecturer002',
           name: 'Dr. Jane Doe',
@@ -74,7 +74,7 @@ async function main() {
       },
     },
     include: {
-      Lecturer: true,
+      lecturer: true,
     },
   });
 
@@ -85,7 +85,7 @@ async function main() {
       hashed_password: 'lecturer123',
       status: 'Active',
       role: 'Lecturer',
-      Lecturer: {
+      lecturer: {
         create: {
           lid: 'lecturer003',
           name: 'Prof. Michael Chen',
@@ -99,7 +99,7 @@ async function main() {
       },
     },
     include: {
-      Lecturer: true,
+      lecturer: true,
     },
   });
 
@@ -110,7 +110,7 @@ async function main() {
       hashed_password: 'lecturer123',
       status: 'Active',
       role: 'Lecturer',
-      Lecturer: {
+      lecturer: {
         create: {
           lid: 'lecturer004',
           name: 'Dr. Sarah Williams',
@@ -124,7 +124,7 @@ async function main() {
       },
     },
     include: {
-      Lecturer: true,
+      lecturer: true,
     },
   });
 
@@ -135,7 +135,7 @@ async function main() {
       hashed_password: 'lecturer123',
       status: 'Active',
       role: 'Lecturer',
-      Lecturer: {
+      lecturer: {
         create: {
           lid: 'lecturer005',
           name: 'Prof. David Brown',
@@ -149,7 +149,7 @@ async function main() {
       },
     },
     include: {
-      Lecturer: true,
+      lecturer: true,
     },
   });
 
@@ -161,7 +161,7 @@ async function main() {
       hashed_password: 'student123',
       status: 'Active',
       role: 'Student',
-      Student: {
+      student: {
         create: {
           sid: 'student001',
           name: 'Alice Johnson',
@@ -176,7 +176,7 @@ async function main() {
       },
     },
     include: {
-      Student: true,
+      student: true,
     },
   });
 
@@ -187,7 +187,7 @@ async function main() {
       hashed_password: 'student123',
       status: 'Active',
       role: 'Student',
-      Student: {
+      student: {
         create: {
           sid: 'student002',
           name: 'Bob Wilson',
@@ -202,7 +202,7 @@ async function main() {
       },
     },
     include: {
-      Student: true,
+      student: true,
     },
   });
 
@@ -213,7 +213,7 @@ async function main() {
       hashed_password: 'student123',
       status: 'Active',
       role: 'Student',
-      Student: {
+      student: {
         create: {
           sid: 'student003',
           name: 'Charlie Davis',
@@ -228,7 +228,7 @@ async function main() {
       },
     },
     include: {
-      Student: true,
+      student: true,
     },
   });
 
@@ -239,7 +239,7 @@ async function main() {
       hashed_password: 'student123',
       status: 'Active',
       role: 'Student',
-      Student: {
+      student: {
         create: {
           sid: 'student004',
           name: 'Diana Martinez',
@@ -254,7 +254,7 @@ async function main() {
       },
     },
     include: {
-      Student: true,
+      student: true,
     },
   });
 
@@ -265,7 +265,7 @@ async function main() {
       hashed_password: 'student123',
       status: 'Active',
       role: 'Student',
-      Student: {
+      student: {
         create: {
           sid: 'student005',
           name: 'Eva Thompson',
@@ -280,7 +280,7 @@ async function main() {
       },
     },
     include: {
-      Student: true,
+      student: true,
     },
   });
 
@@ -291,7 +291,7 @@ async function main() {
       hashed_password: 'student123',
       status: 'Active',
       role: 'Student',
-      Student: {
+      student: {
         create: {
           sid: 'student006',
           name: 'Frank Garcia',
@@ -306,7 +306,7 @@ async function main() {
       },
     },
     include: {
-      Student: true,
+      student: true,
     },
   });
 
@@ -317,7 +317,7 @@ async function main() {
       hashed_password: 'student123',
       status: 'Active',
       role: 'Student',
-      Student: {
+      student: {
         create: {
           sid: 'student007',
           name: 'Grace Lee',
@@ -332,7 +332,7 @@ async function main() {
       },
     },
     include: {
-      Student: true,
+      student: true,
     },
   });
 
@@ -343,7 +343,7 @@ async function main() {
       hashed_password: 'student123',
       status: 'Active',
       role: 'Student',
-      Student: {
+      student: {
         create: {
           sid: 'student008',
           name: 'Henry Zhang',
@@ -358,7 +358,7 @@ async function main() {
       },
     },
     include: {
-      Student: true,
+      student: true,
     },
   });
 
@@ -369,7 +369,7 @@ async function main() {
       hashed_password: 'student123',
       status: 'Active',
       role: 'Student',
-      Student: {
+      student: {
         create: {
           sid: 'student009',
           name: 'Isabella Rodriguez',
@@ -384,7 +384,7 @@ async function main() {
       },
     },
     include: {
-      Student: true,
+      student: true,
     },
   });
 
@@ -395,7 +395,7 @@ async function main() {
       hashed_password: 'student123',
       status: 'Active',
       role: 'Student',
-      Student: {
+      student: {
         create: {
           sid: 'student010',
           name: 'Jack Peterson',
@@ -410,7 +410,7 @@ async function main() {
       },
     },
     include: {
-      Student: true,
+      student: true,
     },
   });
 
@@ -424,8 +424,8 @@ async function main() {
       credits: 3,
       lecturers: {
         connect: [
-          { lid: lecturer1User.Lecturer!.lid },
-          { lid: lecturer3User.Lecturer!.lid },
+          { lid: lecturer1User.lecturer!.lid },
+          { lid: lecturer3User.lecturer!.lid },
         ]
       }
     },
@@ -440,9 +440,9 @@ async function main() {
       credits: 4,
       lecturers: {
         connect: [
-          { lid: lecturer1User.Lecturer!.lid },
-          { lid: lecturer2User.Lecturer!.lid },
-          { lid: lecturer4User.Lecturer!.lid },
+          { lid: lecturer1User.lecturer!.lid },
+          { lid: lecturer2User.lecturer!.lid },
+          { lid: lecturer4User.lecturer!.lid },
         ]
       }
     },
@@ -452,7 +452,7 @@ async function main() {
   await prisma.courseEnrollment.create({
     data: {
       ceid: 'enrollment001',
-      student_id: student1User.Student!.sid,
+      student_id: student1User.student!.sid,
       course_id: course1.cid,
       status: 'Pending',
     },
@@ -461,7 +461,7 @@ async function main() {
   await prisma.courseEnrollment.create({
     data: {
       ceid: 'enrollment002',
-      student_id: student1User.Student!.sid,
+      student_id: student1User.student!.sid,
       course_id: course2.cid,
       status: 'Pending',
     },
@@ -470,7 +470,7 @@ async function main() {
   await prisma.courseEnrollment.create({
     data: {
       ceid: 'enrollment003',
-      student_id: student2User.Student!.sid,
+      student_id: student2User.student!.sid,
       course_id: course1.cid,
       status: 'Pending',
     },
@@ -479,7 +479,7 @@ async function main() {
   await prisma.courseEnrollment.create({
     data: {
       ceid: 'enrollment004',
-      student_id: student3User.Student!.sid,
+      student_id: student3User.student!.sid,
       course_id: course1.cid,
       status: 'Pending',
     },
@@ -488,7 +488,7 @@ async function main() {
   await prisma.courseEnrollment.create({
     data: {
       ceid: 'enrollment005',
-      student_id: student4User.Student!.sid,
+      student_id: student4User.student!.sid,
       course_id: course1.cid,
       status: 'Pending',
     },
@@ -497,7 +497,7 @@ async function main() {
   await prisma.courseEnrollment.create({
     data: {
       ceid: 'enrollment006',
-      student_id: student5User.Student!.sid,
+      student_id: student5User.student!.sid,
       course_id: course1.cid,
       status: 'Pending',
     },
@@ -506,7 +506,7 @@ async function main() {
   await prisma.courseEnrollment.create({
     data: {
       ceid: 'enrollment007',
-      student_id: student6User.Student!.sid,
+      student_id: student6User.student!.sid,
       course_id: course1.cid,
       status: 'Pending',
     },
@@ -515,7 +515,7 @@ async function main() {
   await prisma.courseEnrollment.create({
     data: {
       ceid: 'enrollment008',
-      student_id: student7User.Student!.sid,
+      student_id: student7User.student!.sid,
       course_id: course1.cid,
       status: 'Pending',
     },
@@ -524,7 +524,7 @@ async function main() {
   await prisma.courseEnrollment.create({
     data: {
       ceid: 'enrollment009',
-      student_id: student8User.Student!.sid,
+      student_id: student8User.student!.sid,
       course_id: course1.cid,
       status: 'Pending',
     },
@@ -533,7 +533,7 @@ async function main() {
   await prisma.courseEnrollment.create({
     data: {
       ceid: 'enrollment010',
-      student_id: student9User.Student!.sid,
+      student_id: student9User.student!.sid,
       course_id: course1.cid,
       status: 'Pending',
     },
@@ -542,7 +542,7 @@ async function main() {
   await prisma.courseEnrollment.create({
     data: {
       ceid: 'enrollment011',
-      student_id: student10User.Student!.sid,
+      student_id: student10User.student!.sid,
       course_id: course1.cid,
       status: 'Pending',
     },
@@ -561,12 +561,12 @@ async function main() {
       location: 'Computer Science Building - Room 101',
       status: 'Active',
       course_id: course1.cid,
-      lecturer_id: lecturer1User.Lecturer!.lid,
+      lecturer_id: lecturer1User.lecturer!.lid,
       students: {
         connect: [
-          { sid: student1User.Student!.sid },
-          { sid: student3User.Student!.sid },
-          { sid: student5User.Student!.sid },
+          { sid: student1User.student!.sid },
+          { sid: student3User.student!.sid },
+          { sid: student5User.student!.sid },
         ]
       }
     },
@@ -584,11 +584,11 @@ async function main() {
       location: 'Computer Science Building - Room 102',
       status: 'Active',
       course_id: course1.cid,
-      lecturer_id: lecturer3User.Lecturer!.lid,
+      lecturer_id: lecturer3User.lecturer!.lid,
       students: {
         connect: [
-          { sid: student2User.Student!.sid },
-          { sid: student7User.Student!.sid },
+          { sid: student2User.student!.sid },
+          { sid: student7User.student!.sid },
         ]
       }
     },
@@ -606,12 +606,12 @@ async function main() {
       location: 'Mathematics Building - Room 201',
       status: 'Active',
       course_id: course2.cid,
-      lecturer_id: lecturer2User.Lecturer!.lid,
+      lecturer_id: lecturer2User.lecturer!.lid,
       students: {
         connect: [
-          { sid: student4User.Student!.sid },
-          { sid: student6User.Student!.sid },
-          { sid: student8User.Student!.sid },
+          { sid: student4User.student!.sid },
+          { sid: student6User.student!.sid },
+          { sid: student8User.student!.sid },
         ]
       }
     },
@@ -660,7 +660,7 @@ async function main() {
       available_from: new Date('2024-01-15T09:00:00Z'),
       available_until: new Date('2024-01-22T23:59:59Z'),
       class_id: class1.clid,
-      creator_id: lecturer1User.Lecturer!.lid,
+      creator_id: lecturer1User.lecturer!.lid,
       status: 'published',
     },
   });
@@ -708,7 +708,7 @@ async function main() {
       status: 'graded',
       attempt_number: 1,
       quiz_id: quiz1.qid,
-      student_id: student1User.Student!.sid,
+      student_id: student1User.student!.sid,
       submitted_at: new Date('2024-01-16T10:30:00Z'),
     },
   });
@@ -722,7 +722,7 @@ async function main() {
       points_awarded: 2.0,
       attempt_id: attempt1.atid,
       question_id: question1.ques_id,
-      student_id: student1User.Student!.sid,
+      student_id: student1User.student!.sid,
     },
   });
 
@@ -734,7 +734,7 @@ async function main() {
       points_awarded: 2.0, // Partial credit
       attempt_id: attempt1.atid,
       question_id: question2.ques_id,
-      student_id: student1User.Student!.sid,
+      student_id: student1User.student!.sid,
     },
   });
 
