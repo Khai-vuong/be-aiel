@@ -19,7 +19,7 @@ export class UsersService {
     async findUserById(id: string): Promise<any> {
         const user = await this.prisma.user.findUnique({
             where: { uid: id },
-            include: { Student: true, Lecturer: true, Admin: true }
+            include: { student: true, lecturer: true, admin: true }
         });
 
         if (!user) {
@@ -54,7 +54,7 @@ export class UsersService {
                     hashed_password: registerDto.hashed_password,
                     role: registerDto.role,
                     status: "Active",
-                    Student: {
+                    student: {
                         create: {
                             name: registerDto.name,
                             personal_info_json: registerDto.personal_info_json,
@@ -63,7 +63,7 @@ export class UsersService {
                     }
                 },
                 include: {
-                    Student: true,
+                    student: true,
                 }
             });
         }
@@ -74,7 +74,7 @@ export class UsersService {
                     hashed_password: registerDto.hashed_password,
                     role: registerDto.role,
                     status: "Active",
-                    Lecturer: {
+                    lecturer: {
                         create: {
                             name: registerDto.name,
                             personal_info_json: registerDto.personal_info_json,
@@ -82,7 +82,7 @@ export class UsersService {
                     }
                 },
                 include: {
-                    Lecturer: true,
+                    lecturer: true,
                 }
             });
         }
@@ -93,7 +93,7 @@ export class UsersService {
                     hashed_password: registerDto.hashed_password,
                     role: registerDto.role,
                     status: "Active",
-                    Admin: {
+                    admin: {
                         create: {
                             name: registerDto.name,
                             personal_info: registerDto.personal_info_json,
@@ -101,7 +101,7 @@ export class UsersService {
                     }
                 },
                 include: {
-                    Admin: true,
+                    admin: true,
                 }
             });
         }

@@ -1,4 +1,4 @@
-import { Controller, Get, Put, Delete, Param, Body, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Controller, Get, Put, Delete, Param, Body, Request, UseGuards, UsePipes, ValidationPipe, UseInterceptors } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { JwtGuard } from 'src/common/guards/jwt.guard';
 import { RolesGuard } from 'src/common/guards/roles.guard';
@@ -10,6 +10,7 @@ import {
     SwaggerUpdateClass,
     SwaggerDeleteClass
 } from './classes.swagger';
+import { JsonParseInterceptor } from 'src/common/interceptors/json-parse.interceptor';
 
 @ApiTags('classes')
 @UseGuards(JwtGuard, RolesGuard)
@@ -23,22 +24,28 @@ export class ClassesController {
     constructor(private readonly classesService: ClassesService) { }
 
     @Get()
+    @UseInterceptors(JsonParseInterceptor)
+
     @SwaggerGetAllClasses()
     async findAll() {
         return this.classesService.findAll();
     }
 
+    @Get('me')
+    @UseInterceptors(JsonParseInterceptor)
+    @Roles('Student', 'Lecturer')
+    async findMyClasses(@Request() req) {
+        return this.classesService.findClassesByUserId(req.user.uid);
+    }
+
+
     @Get(':id')
+    @UseInterceptors(JsonParseInterceptor)
     @SwaggerGetClass()
     async findOne(@Param('id') id: string) {
         return this.classesService.findOne(id);
     }
 
-    @Get('me')
-    @Roles('Student', 'Lecturer')
-    async findMyClasses(@Body('userId') userId: string) {
-        return this.classesService.findClassesByUserId(userId);
-    }
 
     @Put(':id')
     @Roles('Admin', 'Lecturer')

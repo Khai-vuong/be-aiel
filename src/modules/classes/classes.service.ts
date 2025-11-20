@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { Class } from '@prisma/client';
+import { ClassesUpdateDto } from './classes.dto';
 
 @Injectable()
 export class ClassesService {
@@ -105,14 +106,67 @@ export class ClassesService {
         return classData;
     }
 
+    // Get classes for the logged-in user
+    async findClassesByUserId(userId: string): Promise<Class[]> {
+        // I dont use user.student/lecturer.classes because this way I can modify the query
+        const user = await this.prisma.user.findUnique({
+            where: { uid: userId },
+            include: {
+                student: true,
+                lecturer: true
+            }
+        });
+
+        if (!user) {
+            throw new NotFoundException(`User with ID ${userId} not found`);
+        }
+
+        // If user is a student, find classes they're enrolled in via M-N relationship
+        if (user.student) {
+            return this.prisma.class.findMany({
+                where: {
+                    students: {
+                        some: {
+                            sid: user.student.sid
+                        }
+                    }
+                },
+                include: {
+                    course: {
+                        select: {
+                            name: true,
+                        }
+                    },
+                    lecturer: {
+                        select: {
+                            name: true
+                        }
+                    },
+                },
+            });
+        }
+
+        // If user is a lecturer, find classes they're teaching
+        if (user.lecturer) {
+            return this.prisma.class.findMany({
+                where: {
+                    lecturer_id: user.lecturer.lid
+                },
+                include: {
+                    course: {
+                        select: {
+                            name: true,
+                        }
+                    },
+                },
+            });
+        }
+
+        return [];
+    }
+
     // Update a class
-    async update(id: string, updateData: {
-        name?: string;
-        schedule_json?: string;
-        location?: string;
-        status?: string;
-        lecturer_id?: string;
-    }): Promise<Class> {
+    async update(id: string, updateData: ClassesUpdateDto): Promise<Class> {
         const existingClass = await this.prisma.class.findUnique({
             where: { clid: id }
         });
@@ -132,19 +186,34 @@ export class ClassesService {
             }
         }
 
+        // Separate lecturer_id from other update data
+        // The below is  thhe shortcut for lecturer_id? update
+        // Also, prisma automatically disconnect the old lecturer when connecting a new one
+        const { lecturer_id, ...classData } = updateData;
+
         return this.prisma.class.update({
             where: { clid: id },
-            data: updateData,
+            data: {
+                ...classData,
+                ...(lecturer_id && {
+                    lecturer: {
+                        connect: { lid: lecturer_id }
+                    }
+                })
+            },
             include: {
                 course: true,
-                lecturer: true,
-                students: true
+                lecturer: {
+                    select: {
+                        name: true
+                    }
+                },
             }
         });
     }
 
     // Delete a class
-    async delete(id: string): Promise<void> {
+    async delete(id: string): Promise<Class> {
         const existingClass = await this.prisma.class.findUnique({
             where: { clid: id },
             include: {
@@ -162,107 +231,12 @@ export class ClassesService {
             throw new NotFoundException(`Class with ID ${id} not found`);
         }
 
-        // Optional: Check if class has dependencies
-        if (existingClass._count.students > 0 || existingClass._count.files > 0 || existingClass._count.quizzes > 0) {
-            throw new BadRequestException(
-                `Cannot delete class with ${existingClass._count.students} students, ${existingClass._count.files} files, and ${existingClass._count.quizzes} quizzes. Please remove dependencies first.`
-            );
-        }
-
-        await this.prisma.class.delete({
-            where: { clid: id }
-        });
+        return this.prisma.class.update({
+            where: { clid: id },
+            data: {
+                status: 'Canceled'
+            },
+        })
     }
 
-    async findClassesByUserId(userId: string): Promise<Class[]> {
-        // First, check if user is a student or lecturer
-        const student = await this.prisma.student.findUnique({
-            where: { user_id: userId }
-        });
-
-        const lecturer = await this.prisma.lecturer.findUnique({
-            where: { user_id: userId }
-        });
-
-        if (!student && !lecturer) {
-            throw new NotFoundException(`User with ID ${userId} is not a student or lecturer`);
-        }
-
-        // If user is a student, find classes they're enrolled in
-        if (student) {
-            return this.prisma.class.findMany({
-                where: {
-                    students: {
-                        some: {
-                            sid: student.sid
-                        }
-                    }
-                },
-                include: {
-                    course: {
-                        select: {
-                            cid: true,
-                            code: true,
-                            name: true,
-                            credits: true
-                        }
-                    },
-                    lecturer: {
-                        select: {
-                            lid: true,
-                            name: true
-                        }
-                    },
-                    _count: {
-                        select: {
-                            students: true,
-                            files: true,
-                            quizzes: true
-                        }
-                    }
-                },
-                orderBy: {
-                    created_at: 'desc'
-                }
-            });
-        }
-
-        // If user is a lecturer, find classes they're teaching
-        if (lecturer) {
-            return this.prisma.class.findMany({
-                where: {
-                    lecturer_id: lecturer.lid
-                },
-                include: {
-                    course: {
-                        select: {
-                            cid: true,
-                            code: true,
-                            name: true,
-                            credits: true
-                        }
-                    },
-                    students: {
-                        select: {
-                            sid: true,
-                            name: true,
-                            major: true
-                        }
-                    },
-                    _count: {
-                        select: {
-                            students: true,
-                            files: true,
-                            quizzes: true
-                        }
-                    }
-                },
-                orderBy: {
-                    created_at: 'desc'
-                }
-            });
-        }
-
-        return [];
-    }
 }
