@@ -1,8 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException, ConsoleLogger } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { CourseCreateDto, CourseUpdateDto, CourseResponseEnrollmentsToClassesDto } from './courses.dto';
-import { Course } from '@prisma/client';
-import { CourseEnrollment } from 'generated/prisma';
+import { Course, CourseEnrollment } from '@prisma/client';
 
 /**
  * CoursesService
