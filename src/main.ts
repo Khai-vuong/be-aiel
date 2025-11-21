@@ -14,6 +14,7 @@ async function bootstrap() {
     .addTag('users', 'User management endpoints')
     .addTag('auth', 'Authentication endpoints')
     .addTag('courses', 'Course management endpoints')
+    .addTag('classes', 'Class management endpoints')
     .addBearerAuth(
       {
         type: 'http',

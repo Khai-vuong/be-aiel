@@ -13,6 +13,7 @@ datasource db {
   url      = env("DATABASE_SUPABASE_URL_POOLING")
   // url      = env("DATABASE_LOCAL_URL")
   // relationMode = "prisma"
+  // Dont delete the url path, we're using the 6.18 version
 }
 
 model User {
@@ -25,9 +26,9 @@ model User {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  Student  Student?
-  Lecturer Lecturer?
-  Admin    Admin?
+  student  Student?
+  lecturer Lecturer?
+  admin    Admin?
   File     File[]
 
   @@index([status])
@@ -59,9 +60,9 @@ model Lecturer {
   user_id String @unique
   user    User   @relation(fields: [user_id], references: [uid])
 
-  Course Course[]
-  Class  Class[]
-  Quiz   Quiz[]
+  courses Course[] @relation("LecturerCourses")
+  classes Class[]
+  quizzes Quiz[]
 }
 
 model Admin {
@@ -80,8 +81,7 @@ model Course {
   description String?
   credits     Int?    @default(3)
 
-  lecturer_id String
-  lecturer    Lecturer @relation(fields: [lecturer_id], references: [lid])
+  lecturers Lecturer[] @relation("LecturerCourses")
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
@@ -191,7 +191,7 @@ model Question {
 
   updated_at DateTime @updatedAt
   created_at DateTime @default(now())
-  Answer     Answer[]
+  answers    Answer[]
 }
 
 model Attempt {

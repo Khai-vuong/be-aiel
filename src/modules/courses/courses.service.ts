@@ -2,6 +2,32 @@ import { Injectable, BadRequestException, NotFoundException, ConsoleLogger } fro
 import { PrismaService } from 'src/prisma.service';
 import { CourseCreateDto, CourseUpdateDto, CourseResponseEnrollmentsToClassesDto } from './courses.dto';
 import { Course } from '@prisma/client';
+import { CourseEnrollment } from 'generated/prisma';
+
+/**
+ * CoursesService
+ * 
+ * Service structure:
+ * {
+ *   // Public async methods (accessible from controller)
+ *   findAll: async () => Promise<Course[]>,                           // GET all courses with lecturers info
+ *   findOne: async (id: string) => Promise<Course>,                   // GET single course by ID
+ *   create: async (createCourseDto: CourseCreateDto) => Promise<Course>, // POST create new course
+ *   update: async (id: string, updateCourseDto: CourseUpdateDto) => Promise<Course>, // PUT update course
+ *   delete: async (id: string) => Promise<void>,                      // DELETE course
+ *   addLecturer: async (courseId: string, lecturerId: string) => Promise<Course>, // POST add lecturer to course
+ *   removeLecturer: async (courseId: string, lecturerId: string) => Promise<Course>, // DELETE remove lecturer from course
+ *   registerStudentToCourse: async (studentUserId: string, courseId: string) => Promise<any>, // POST student enrollment
+ *   unregisterStudentFromCourse: async (studentUserId: string, courseId: string) => Promise<any>, // PUT unregister student
+ *   processPendingEnrollments: async (maxStudentsPerClass?: number) => Promise<CourseResponseEnrollmentsToClassesDto>, // POST process enrollments into classes
+ *   findEnrollmentsByUserId: async (userId: string) => Promise<CourseEnrollment[]>, // GET enrollments by user ID
+ *   findCCoursesByLecturerId: async (lecturerId: string) => Promise<Course[]>, // GET courses by lecturer ID
+ * 
+ *   // Private methods (internal helper functions)
+ *   generateRandomSchedule: (courseDuration: number) => string,       // Generate schedule JSON
+ *   generateRandomLocation: () => string                              // Generate location string
+ * }
+ */
 @Injectable()
 export class CoursesService {
 
@@ -11,7 +37,7 @@ export class CoursesService {
     async findAll(): Promise<Course[]> {
         return this.prisma.course.findMany({
             include: {
-                lecturer: {
+                lecturers: {
                     select: {
                         name: true,
                         lid: true,
@@ -30,7 +56,7 @@ export class CoursesService {
         const course = await this.prisma.course.findUnique({
             where: { cid: id },
             include: {
-                lecturer: {
+                lecturers: {
                     select: {
                         name: true,
                         lid: true,
@@ -69,10 +95,17 @@ export class CoursesService {
             throw new BadRequestException(`Course with code ${createCourseDto.code} already exists`);
         }
 
+        const { lecturer_id, ...courseData } = createCourseDto;
+
         return this.prisma.course.create({
-            data: createCourseDto,
+            data: {
+                ...courseData,
+                lecturers: {
+                    connect: { lid: lecturer_id }
+                }
+            },
             include: {
-                lecturer: true,
+                lecturers: true,
             }
         });
     }
@@ -85,17 +118,6 @@ export class CoursesService {
 
         if (!course) {
             throw new NotFoundException(`Course with ID ${id} not found`);
-        }
-
-        // If updating lecturer, check if the new lecturer exists
-        if (updateCourseDto.lecturer_id) {
-            const lecturer = await this.prisma.lecturer.findUnique({
-                where: { lid: updateCourseDto.lecturer_id }
-            });
-
-            if (!lecturer) {
-                throw new BadRequestException(`Lecturer with ID ${updateCourseDto.lecturer_id} not found`);
-            }
         }
 
         // If updating code, check if new code already exists
@@ -113,7 +135,7 @@ export class CoursesService {
             where: { cid: id },
             data: updateCourseDto,
             include: {
-                lecturer: {
+                lecturers: {
                     include: {
                         user: {
                             select: {
@@ -153,6 +175,80 @@ export class CoursesService {
 
         await this.prisma.course.delete({
             where: { cid: id }
+        });
+    }
+
+    // Add a lecturer to a course
+    async addLecturer(courseId: string, lecturerId: string): Promise<Course> {
+        const course = await this.prisma.course.findUnique({
+            where: { cid: courseId }
+        });
+
+        if (!course) {
+            throw new NotFoundException(`Course with ID ${courseId} not found`);
+        }
+
+        const lecturer = await this.prisma.lecturer.findUnique({
+            where: { lid: lecturerId }
+        });
+
+        if (!lecturer) {
+            throw new NotFoundException(`Lecturer with ID ${lecturerId} not found`);
+        }
+
+        return this.prisma.course.update({
+            where: { cid: courseId },
+            data: {
+                lecturers: {
+                    connect: { lid: lecturerId }
+                }
+            },
+            include: {
+                lecturers: {
+                    select: {
+                        lid: true,
+                        name: true,
+                        personal_info_json: true
+                    }
+                }
+            }
+        });
+    }
+
+    // Remove a lecturer from a course
+    async removeLecturer(courseId: string, lecturerId: string): Promise<Course> {
+        const course = await this.prisma.course.findUnique({
+            where: { cid: courseId },
+            include: {
+                lecturers: true
+            }
+        });
+
+        if (!course) {
+            throw new NotFoundException(`Course with ID ${courseId} not found`);
+        }
+
+        const lecturerExists = course.lecturers.some(l => l.lid === lecturerId);
+        if (!lecturerExists) {
+            throw new BadRequestException(`Lecturer with ID ${lecturerId} is not teaching course ${courseId}`);
+        }
+
+        return this.prisma.course.update({
+            where: { cid: courseId },
+            data: {
+                lecturers: {
+                    disconnect: { lid: lecturerId }
+                }
+            },
+            include: {
+                lecturers: {
+                    select: {
+                        lid: true,
+                        name: true,
+                        personal_info_json: true
+                    }
+                }
+            }
         });
     }
 
@@ -358,7 +454,12 @@ export class CoursesService {
                         code: true,
                         name: true,
                         credits: true,
-                        lecturer_id: true
+                        lecturers: {
+                            select: {
+                                lid: true
+                            },
+                            take: 1
+                        }
                     }
                 }
             },
@@ -431,7 +532,7 @@ export class CoursesService {
                     data: {
                         name: className,
                         course_id: course.cid,
-                        lecturer_id: course.lecturer_id,
+                        lecturer_id: course.lecturers[0]?.lid || '',
                         status: "Active",
                         schedule_json: scheduleJson,
                         location: location,
@@ -462,6 +563,33 @@ export class CoursesService {
             maximum_students_per_class: maxStudentsPerClass,
             created_classes: createdClasses
         };
+    }
+
+    async findEnrollmentsByUserId(userId: string): Promise<CourseEnrollment[]> {
+        const student = await this.prisma.student.findUnique({
+            where: { user_id: userId },
+            include: {
+                enrollments: true
+            }
+        });
+
+        if (!student) {
+            throw new NotFoundException(`Student with user ID ${userId} not found`);
+        }
+        return student.enrollments;
+    }
+
+    async findCoursesByUserId(userId: string): Promise<Course[]> {
+        const lecturer = await this.prisma.lecturer.findUnique({
+            where: { user_id: userId },
+            include: {
+                courses: true
+            }
+        });
+        if (!lecturer) {
+            throw new NotFoundException(`Lecturer with user ID ${userId} not found`);
+        }
+        return lecturer.courses;
     }
 
 

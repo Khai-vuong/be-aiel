@@ -1,15 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsEmail, IsOptional, IsEnum, MinLength } from 'class-validator';
 
-/**
- * UsersLoginDto
- * 
- * Example object:
- * {
- *   "username": "student1",
- *   "hashed_password": "student123"
- * }
- */
+// UsersLoginDto
+// 
+// Example object:
+// {
+//   "username": "student1",
+//   "hashed_password": "student123"
+// }
 export class UsersLoginDto {
     @ApiProperty({ description: 'Username for login', example: 'student1' })
     @IsString()
@@ -23,20 +21,18 @@ export class UsersLoginDto {
     hashed_password: string;
 }
 
-/**
- * UsersRegisterDto
- * 
- * Example object:
- * {
- *   "username": "newstudent",
- *   "email": "student@university.edu",
- *   "hashed_password": "password123",
- *   "role": "Student",
- *   "name": "John Doe",
- *   "personal_info_json": "{\"address\": \"123 Main St\", \"phone\": \"+1234567890\", \"dob\": \"2000-01-01\"}",
- *   "major": "Computer Science"
- * }
- */
+// UsersRegisterDto
+// 
+// Example object:
+// {
+//   "username": "newstudent",
+//   "email": "student@university.edu",
+//   "hashed_password": "password123",
+//   "role": "Student",
+//   "name": "John Doe",
+//   "personal_info_json": "{\"address\": \"123 Main St\", \"phone\": \"+1234567890\", \"dob\": \"2000-01-01\"}",
+//   "major": "Computer Science"
+// }
 export class UsersRegisterDto {
     @ApiProperty({ description: 'Unique username', example: 'newstudent' })
     @IsString()
@@ -76,17 +72,15 @@ export class UsersRegisterDto {
     major?: string;
 }
 
-/**
- * UsersUpdateDto
- * 
- * Example object (all fields are optional):
- * {
- *   "hashed_password": "newpassword123",
- *   "status": "Active",
- *   "personal_info_json": "{\"address\": \"456 New St\", \"phone\": \"+0987654321\"}",
- *   "major": "Mathematics"
- * }
- */
+// UsersUpdateDto
+// 
+// Example object (all fields are optional):
+// {
+//   "hashed_password": "newpassword123",
+//   "status": "Active",
+//   "personal_info_json": "{\"address\": \"456 New St\", \"phone\": \"+0987654321\"}",
+//   "major": "Mathematics"
+// }
 export class UsersUpdateDto {
     @ApiProperty({ description: 'New password (hashed)', example: 'newpassword123', required: false })
     @IsString()

@@ -398,3 +398,156 @@ export function SwaggerProcessEnrollments() {
     ApiResponse({ status: 403, description: 'Forbidden - Only Admin and Lecturers can process enrollments' })
   );
 }
+
+export function SwaggerAddLecturer() {
+  return applyDecorators(
+    ApiBearerAuth('JWT-auth'),
+    ApiOperation({
+      summary: 'Add lecturer to course',
+      description: 'Add a lecturer to teach a course. Only accessible by Admin.'
+    }),
+    ApiParam({
+      name: 'courseId',
+      description: 'Course ID',
+      example: 'course001'
+    }),
+    ApiParam({
+      name: 'lecturerId',
+      description: 'Lecturer ID to add',
+      example: 'lecturer002'
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Successfully added lecturer to course',
+      schema: {
+        type: 'object',
+        properties: {
+          cid: { type: 'string', example: 'course001' },
+          code: { type: 'string', example: 'CS101' },
+          name: { type: 'string', example: 'Introduction to Programming' },
+          lecturers: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                lid: { type: 'string' },
+                name: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }),
+    ApiResponse({ status: 404, description: 'Course or Lecturer not found' }),
+    ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing JWT token' }),
+    ApiResponse({ status: 403, description: 'Forbidden - Only Admin can add lecturers to courses' })
+  );
+}
+
+export function SwaggerRemoveLecturer() {
+  return applyDecorators(
+    ApiBearerAuth('JWT-auth'),
+    ApiOperation({
+      summary: 'Remove lecturer from course',
+      description: 'Remove a lecturer from teaching a course. Only accessible by Admin.'
+    }),
+    ApiParam({
+      name: 'courseId',
+      description: 'Course ID',
+      example: 'course001'
+    }),
+    ApiParam({
+      name: 'lecturerId',
+      description: 'Lecturer ID to remove',
+      example: 'lecturer002'
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Successfully removed lecturer from course',
+      schema: {
+        type: 'object',
+        properties: {
+          cid: { type: 'string', example: 'course001' },
+          code: { type: 'string', example: 'CS101' },
+          name: { type: 'string', example: 'Introduction to Programming' },
+          lecturers: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                lid: { type: 'string' },
+                name: { type: 'string' }
+              }
+            }
+          }
+        }
+      }
+    }),
+    ApiResponse({ status: 400, description: 'Lecturer is not teaching this course' }),
+    ApiResponse({ status: 404, description: 'Course not found' }),
+    ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing JWT token' }),
+    ApiResponse({ status: 403, description: 'Forbidden - Only Admin can remove lecturers from courses' })
+  );
+}
+
+export function SwaggerGetMyEnrollments() {
+  return applyDecorators(
+    ApiBearerAuth('JWT-auth'),
+    ApiOperation({
+      summary: 'Get my enrollments',
+      description: 'Retrieve all course enrollments for the authenticated student user.'
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Successfully retrieved student enrollments',
+      schema: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            ceid: { type: 'string', example: 'enrollment001' },
+            student_id: { type: 'string', example: 'student001' },
+            course_id: { type: 'string', example: 'course001' },
+            enrolled_at: { type: 'string', format: 'date-time' },
+            status: { type: 'string', example: 'Pending', enum: ['Pending', 'Completed', 'Unregistered'] }
+          }
+        }
+      }
+    }),
+    ApiResponse({ status: 404, description: 'Student not found' }),
+    ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing JWT token' }),
+    ApiResponse({ status: 403, description: 'Forbidden - Only Students can access their enrollments' })
+  );
+}
+
+export function SwaggerGetMyCourses() {
+  return applyDecorators(
+    ApiBearerAuth('JWT-auth'),
+    ApiOperation({
+      summary: 'Get my courses',
+      description: 'Retrieve all courses taught by the authenticated lecturer user.'
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Successfully retrieved lecturer courses',
+      schema: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            cid: { type: 'string', example: 'course001' },
+            code: { type: 'string', example: 'CS101' },
+            name: { type: 'string', example: 'Introduction to Programming' },
+            description: { type: 'string', example: 'Basic programming concepts' },
+            credits: { type: 'number', example: 3 },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' }
+          }
+        }
+      }
+    }),
+    ApiResponse({ status: 404, description: 'Lecturer not found' }),
+    ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing JWT token' }),
+    ApiResponse({ status: 403, description: 'Forbidden - Only Lecturers can access their courses' })
+  );
+}
