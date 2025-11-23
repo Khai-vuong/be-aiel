@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from 'src/prisma.service';
 import { Class } from '@prisma/client';
 import { ClassesUpdateDto } from './classes.dto';
+import supabase from 'src/supabase/supabaseClient';
 
 @Injectable()
 export class ClassesService {
@@ -239,4 +240,92 @@ export class ClassesService {
         })
     }
 
+    // Add resource (file) to class
+    //     Uploaded file: {
+    //   fieldname: 'file',
+    //   originalname: 'Ahko.jpg',
+    //   encoding: '7bit',
+    //   mimetype: 'image/jpeg',
+    //   destination: './uploads',
+    //   filename: 'file-1763879520817-6296.jpg',
+    //   path: 'uploads\\file-1763879520817-6296.jpg',
+    //   size: 33767
+    // }
+    async addResource(userId: string, classId: string, file: Express.Multer.File) {
+        //UserId, clid and file have been verified by the guards
+
+        // Generate unique filename with timestamp
+        const timestamp = Date.now();
+        const fileExtension = file.originalname.split('.').pop();
+        const fileName = `${classId}/${timestamp}-${file.originalname}`;
+
+        // Upload file to Supabase Storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('class-files')
+            .upload(fileName, file.buffer, {
+                contentType: file.mimetype,
+                upsert: false
+            });
+
+        if (uploadError) {
+            throw new BadRequestException(`Failed to upload file: ${uploadError.message}`);
+        }
+
+        // Get public URL
+        const { data: urlData } = supabase.storage
+            .from('class-files')
+            .getPublicUrl(fileName);
+
+        if (!urlData || !urlData.publicUrl) {
+            throw new BadRequestException('Failed to get file URL');
+        }
+
+        // Determine file type based on mime type
+        let fileType = 'document';
+        if (file.mimetype.startsWith('video/')) {
+            fileType = 'video';
+        } else if (file.mimetype.startsWith('image/')) {
+            fileType = 'image';
+        } else if (file.mimetype.includes('pdf') || file.mimetype.includes('document')) {
+            fileType = 'document';
+        }
+
+        // Create file record in database
+        const createdFile = await this.prisma.file.create({
+            data: {
+                filename: file.originalname,
+                url: urlData.publicUrl,
+                size: file.size,
+                mime_type: file.mimetype,
+                file_type: fileType,
+                is_public: false,
+                class_id: classId,
+                uploader_id: userId
+            }
+        });
+
+        // Return the updated class with the new file
+        return this.prisma.class.findUnique({
+            where: { clid: classId },
+            include: {
+                files: {
+                    orderBy: {
+                        created_at: 'desc'
+                    }
+                },
+                course: {
+                    select: {
+                        name: true,
+                        code: true
+                    }
+                },
+                lecturer: {
+                    select: {
+                        name: true
+                    }
+                }
+            }
+        });
+    }
+    
 }

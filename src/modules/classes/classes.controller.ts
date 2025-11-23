@@ -1,7 +1,26 @@
-import { Controller, Get, Put, Delete, Param, Body, Request, UseGuards, UsePipes, ValidationPipe, UseInterceptors } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { 
+    Controller, 
+    Get, 
+    Put, 
+    Delete,
+    Post, 
+    Param, 
+    Body, 
+    Request, 
+    UseGuards, 
+    UsePipes, 
+    ValidationPipe, 
+    UseInterceptors, 
+    UploadedFile,
+    ParseFilePipe,
+    MaxFileSizeValidator,
+    FileTypeValidator
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiTags} from '@nestjs/swagger';
 import { JwtGuard } from 'src/common/guards/jwt.guard';
 import { RolesGuard } from 'src/common/guards/roles.guard';
+import { InChargeGuard } from 'src/common/guards/in-charge.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { ClassesService } from './classes.service';
 import {
@@ -11,12 +30,13 @@ import {
     SwaggerDeleteClass
 } from './classes.swagger';
 import { JsonParseInterceptor } from 'src/common/interceptors/json-parse.interceptor';
+import { FileValidationPipe } from 'src/common/pipes/file-validation.pipe';
 
 @ApiTags('classes')
 @UseGuards(JwtGuard, RolesGuard)
 @UsePipes(new ValidationPipe({ 
     whitelist: true, 
-    forbidNonWhitelisted: true, 
+    // forbidNonWhitelisted: true, 
     transform: true 
 }))
 @Controller('classes')
@@ -69,5 +89,18 @@ export class ClassesController {
     async delete(@Param('id') id: string) {
         await this.classesService.delete(id);
         return { message: `Class with ID ${id} deleted successfully` };
+    }
+
+    @Post('addResource/:clid')
+    @Roles('Lecturer')
+    @UseGuards(InChargeGuard)
+    @UseInterceptors(FileInterceptor('file'))
+    async addResource(
+        @Request() req, 
+        @Param('clid') clid: string, 
+        @UploadedFile(new FileValidationPipe(['image/jpg'], 0.001)) file: Express.Multer.File
+    ) {
+        console.log('Uploaded file:', file);
+        // return this.classesService.addResource(req.user.uid, clid, file);
     }
 }
