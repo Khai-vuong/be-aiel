@@ -6,6 +6,7 @@ import {
   ApiParam,
   ApiBody,
 } from '@nestjs/swagger';
+import { ClassCreateDto, ResponseCreateClassDto } from './classes.dto';
 
 export function SwaggerGetAllClasses() {
   return applyDecorators(
@@ -198,5 +199,68 @@ export function SwaggerDeleteClass() {
     ApiResponse({ status: 404, description: 'Class not found' }),
     ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing JWT token' }),
     ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions (Admin role required)' })
+  );
+}
+
+export function SwaggerProcessEnrollments() {
+  return applyDecorators(
+    ApiBearerAuth('JWT-auth'),
+    ApiOperation({
+      summary: 'Create classes from pending enrollments',
+      description: 'Process all pending course enrollments and automatically create classes. Groups students by course and creates multiple classes based on the maxStudentsPerClass limit. Students are automatically assigned to classes via many-to-many relationship. Only Admin can access this endpoint.'
+    }),
+    ApiBody({ type: ClassCreateDto }),
+    ApiResponse({
+      status: 201,
+      description: 'Successfully processed pending enrollments and created classes',
+      type: ResponseCreateClassDto,
+      schema: {
+        type: 'object',
+        properties: {
+          number_of_enrollments_processed: { type: 'number', example: 12, description: 'Total number of enrollments that were processed' },
+          number_of_classes_created: { type: 'number', example: 3, description: 'Total number of classes created' },
+          maximum_students_per_class: { type: 'number', example: 5, description: 'Maximum number of students allowed per class' },
+          created_classes: {
+            type: 'array',
+            description: 'Details of all created classes',
+            items: {
+              type: 'object',
+              properties: {
+                classId: { type: 'string', example: 'class001', description: 'Unique class ID' },
+                className: { type: 'string', example: 'CS101 - L1', description: 'Class name' },
+                courseCode: { type: 'string', example: 'CS101', description: 'Course code' },
+                courseName: { type: 'string', example: 'Introduction to Programming', description: 'Course name' },
+                studentCount: { type: 'number', example: 5, description: 'Number of students in this class' },
+                students: {
+                  type: 'array',
+                  description: 'List of students assigned to this class',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      studentId: { type: 'string', example: 'student001', description: 'Student ID' },
+                      studentName: { type: 'string', example: 'Alice Johnson', description: 'Student name' }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }),
+    ApiResponse({ 
+      status: 200, 
+      description: 'No pending enrollments to process',
+      schema: {
+        type: 'object',
+        properties: {
+          message: { type: 'string', example: 'No pending enrollments to process' },
+          number_of_classes_created: { type: 'number', example: 0 },
+          number_of_enrollments_processed: { type: 'number', example: 0 }
+        }
+      }
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing JWT token' }),
+    ApiResponse({ status: 403, description: 'Forbidden - Only Admin can process enrollments and create classes' })
   );
 }

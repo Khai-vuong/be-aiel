@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { CoursesService } from './courses.service';
-import { CourseCreateDto, CourseUpdateDto, CourseProcessEnrollmentsDto } from './courses.dto';
+import { CourseCreateDto, CourseUpdateDto } from './courses.dto';
 import { JwtGuard } from '../../common/guards/jwt.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -29,7 +29,6 @@ import {
     SwaggerRemoveLecturer,
     SwaggerRegisterToCourse,
     SwaggerUnregisterFromCourse,
-    SwaggerProcessEnrollments,
     SwaggerGetMyEnrollments,
     SwaggerGetMyCourses,
 } from './courses.swagger';
@@ -118,14 +117,6 @@ export class CoursesController {
         const userId = req.user.uid;
         const courseId = id;
         return this.coursesService.unregisterStudentFromCourse(userId, courseId);
-    }
-
-    @Roles('Admin')
-    @Post('enrollments/process')
-    @SwaggerProcessEnrollments()
-    async processPendingEnrollments(@Body() dto: CourseProcessEnrollmentsDto) {
-        const maxStudentsPerClass = dto.maxStudentsPerClass || 5;
-        return this.coursesService.processPendingEnrollments(maxStudentsPerClass);
     }
 
     @Roles('Student')

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { Class } from '@prisma/client';
-import { ClassesUpdateDto } from './classes.dto';
+import { ClassesUpdateDto, ResponseCreateClassDto } from './classes.dto';
 import supabase from 'src/supabase/supabaseClient';
 
 @Injectable()
@@ -327,5 +327,197 @@ export class ClassesService {
             }
         });
     }
+     
+    /**
+     * Process pending enrollments and create classes
+     * Groups students by course and creates classes with max students per class
+     * @param maxStudentsPerClass - Maximum number of students per class (default: 5)
+     * @returns Summary of created classes and updated enrollments
+     */
+    async createClassesFromEnrollments(maxStudentsPerClass: number = 5): Promise<ResponseCreateClassDto> {
+        //1. Fetch all the enrollnents with 'Pending' status
+
+        const enrollments = await this.prisma.courseEnrollment.findMany({
+            where: {
+                status: "Pending"
+            },
+            include: {
+                student: {
+                    select: {
+                        sid: true,
+                        name: true
+                    }
+                },
+                course: {
+                    select: {
+                        cid: true,
+                        code: true,
+                        name: true,
+                        credits: true,
+                        lecturers: {
+                            select: {
+                                lid: true
+                            },
+                            take: 1
+                        }
+                    }
+                }
+            },
+            orderBy: {
+                enrolled_at: 'asc' 
+            }
+        })
+
+        if (enrollments.length === 0) {
+            return {
+                number_of_classes_created: 0,
+                number_of_enrollments_processed: 0,
+                maximum_students_per_class: maxStudentsPerClass,
+                created_classes: []
+            };
+        }
+
+        //2.Group them by course
+        //This woulld create a map courseEnrollmentsMap: courseID -> enrollments[]
+        //And a map courseDetailsMap: courseID -> Course
+        //Couldn't use Course -> enrollments[] directly due to object reference issues
+
+        let courseEnrollmentsMap = new Map<string, typeof enrollments>();
+        let courseDetailsMap = new Map<string, typeof enrollments[0]['course']>();
+        enrollments.forEach(enrollment => {
+            const courseId = enrollment.course.cid;
+            if (!courseEnrollmentsMap.has(courseId)) {
+                courseEnrollmentsMap.set(courseId, []);
+                courseDetailsMap.set(courseId, enrollment.course);
+            }
+            courseEnrollmentsMap.get(courseId)?.push(enrollment);
+        });
+
+
+        //3. For each course, devide them into classes based on maxStudentsPerClass
+        //To prevent unbalanced classes like 5,5,5,1, I implemented the baseSize
+        //Each class will have either baseSize or baseSize + 1 students to ensure balance
+
+        let createdClasses: any[] = [];
+        for (const [courseId, enrollments] of courseEnrollmentsMap) {
+            const course = courseDetailsMap.get(courseId)!;
+            const totalStudents = enrollments.length;
+            const numberOfClasses = Math.ceil(totalStudents / maxStudentsPerClass);
+
+            // Calculate balanced partition sizes
+            const baseSize = Math.floor(totalStudents / numberOfClasses);
+            const remainder = totalStudents % numberOfClasses;
+            
+            // First 'remainder' classes get baseSize + 1, rest get baseSize
+            const classSizes: number[] = [];
+            for (let i = 0; i < numberOfClasses; i++) {
+                classSizes.push(i < remainder ? baseSize + 1 : baseSize);
+            }
+
+            let currentIndex = 0;
+            for (let index = 0; index < numberOfClasses; index++) {
+                const classSize = classSizes[index];
+                const studentsInClass = enrollments.slice(currentIndex, currentIndex + classSize);
+                const studentIds = studentsInClass.map(enrollment => enrollment.student.sid);
+                currentIndex += classSize;
+                
+                const className = `${course.code} - L${index + 1}`;
+
+                // Generate random schedule and location
+                const courseDuration = (course.credits || 3) - 1; // Default to 3 credits if not set
+                const scheduleJson = this.generateRandomSchedule(courseDuration);
+                const location = this.generateRandomLocation();
+
+                const newClass = await this.prisma.class.create({
+                    data: {
+                        name: className,
+                        course_id: course.cid,
+                        lecturer_id: course.lecturers[0]?.lid || '',
+                        status: "Active",
+                        schedule_json: scheduleJson,
+                        location: location,
+                        students: {
+                            connect: studentIds.map(sid => ({ sid }))
+                        }
+                    },
+                });
+
+                // Update enrollment status to 'Completed'
+                const enrollmentIds = studentsInClass.map(enrollment => enrollment.ceid);
+                await this.prisma.courseEnrollment.updateMany({
+                    where: {
+                        ceid: { in: enrollmentIds }
+                    },
+                    data: {
+                        status: 'Completed'
+                    }
+                });
+
+                createdClasses.push(newClass);       
+            }
+        }
+        
+        return {
+            number_of_classes_created: createdClasses.length,
+            number_of_enrollments_processed: enrollments.length,
+            maximum_students_per_class: maxStudentsPerClass,
+            created_classes: createdClasses
+        };
+    }
     
+
+    /**
+     * Generate random schedule for a class
+     * @param courseDuration - Duration in hours (credits - 1)
+     * @returns Schedule JSON with day, start time, end time, and room
+     */
+    private generateRandomSchedule(courseDuration: number): string {
+        const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const randomDay = days[Math.floor(Math.random() * days.length)];
+
+        // Morning slots: 7-10am, Afternoon slots: 12-4pm
+        const morningSlots = [7, 8, 9, 10];
+        const afternoonSlots = [12, 13, 14, 15, 16];
+
+        // Determine if morning or afternoon session
+        const isMorning = Math.random() < 0.5;
+        const availableSlots = isMorning ? morningSlots : afternoonSlots;
+
+        // Filter slots where class can fit without crossing session boundary
+        const sessionEnd = isMorning ? 12 : 18;
+        const validSlots = availableSlots.filter(slot => slot + courseDuration <= sessionEnd);
+
+        // Pick random valid start time
+        const startHour = validSlots[Math.floor(Math.random() * validSlots.length)];
+        const endHour = startHour + courseDuration;
+
+        // Format time as HH:00
+        const formatTime = (hour: number) => `${hour.toString().padStart(2, '0')}:00`;
+
+        return JSON.stringify({
+            day: randomDay,
+            start: formatTime(startHour),
+            end: formatTime(endHour),
+        });
+    }
+
+    /**
+     * Generate random location for a class
+     * @returns Location string
+     */
+    private generateRandomLocation(): string {
+        const buildings = [
+            { name: 'Computer Science Building', prefix: 'CS' },
+            { name: 'Mathematics Building', prefix: 'MATH' },
+            { name: 'Science Building', prefix: 'SCI' },
+            { name: 'Engineering Building', prefix: 'ENG' },
+            { name: 'Library Complex', prefix: 'LIB' }
+        ];
+
+        const building = buildings[Math.floor(Math.random() * buildings.length)];
+        const roomNumber = Math.floor(Math.random() * 500) + 100;
+
+        return `${building.name} - Room ${roomNumber}`;
+    }
+
 }

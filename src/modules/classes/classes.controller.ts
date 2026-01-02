@@ -27,10 +27,12 @@ import {
     SwaggerGetAllClasses,
     SwaggerGetClass,
     SwaggerUpdateClass,
-    SwaggerDeleteClass
+    SwaggerDeleteClass,
+    SwaggerProcessEnrollments
 } from './classes.swagger';
 import { JsonParseInterceptor } from 'src/common/interceptors/json-parse.interceptor';
 import { FileValidationPipe } from 'src/common/pipes/file-validation.pipe';
+import { ClassCreateDto } from './classes.dto';
 
 @ApiTags('classes')
 @UseGuards(JwtGuard, RolesGuard)
@@ -45,7 +47,6 @@ export class ClassesController {
 
     @Get()
     @UseInterceptors(JsonParseInterceptor)
-
     @SwaggerGetAllClasses()
     async findAll() {
         return this.classesService.findAll();
@@ -64,6 +65,14 @@ export class ClassesController {
     @SwaggerGetClass()
     async findOne(@Param('id') id: string) {
         return this.classesService.findOne(id);
+    }
+
+    @Roles('Admin')
+    @Post('createFromEnrollments')
+    @SwaggerProcessEnrollments()
+    async processPendingEnrollments(@Body() dto: ClassCreateDto) {
+        const maxStudentsPerClass = dto.maxStudentsPerClass || 5;
+        return this.classesService.createClassesFromEnrollments(maxStudentsPerClass);
     }
 
 
