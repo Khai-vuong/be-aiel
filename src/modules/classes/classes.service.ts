@@ -4,6 +4,25 @@ import { Class } from '@prisma/client';
 import { ClassesUpdateDto, ResponseCreateClassDto } from './classes.dto';
 import supabase from 'src/supabase/supabaseClient';
 
+/**
+ * ClassesService
+ * 
+ * Service structure:
+ * {
+ *   // Public async methods (accessible from controller)
+ *   findAll: async () => Promise<Class[]>,                           // GET all classes with course, lecturer, students info
+ *   findOne: async (id: string) => Promise<Class>,                   // GET single class by ID with full details
+ *   findClassesByUserId: async (userId: string) => Promise<Class[]>, // GET classes for logged-in user (student or lecturer)
+ *   update: async (id: string, updateData: ClassesUpdateDto) => Promise<Class>, // PUT update class information
+ *   delete: async (id: string) => Promise<Class>,                    // DELETE class (soft delete - sets status to 'Canceled')
+ *   addResource: async (userId: string, classId: string, file: Express.Multer.File) => Promise<Class>, // POST upload file to class
+ *   createClassesFromEnrollments: async (maxStudentsPerClass: number) => Promise<ResponseCreateClassDto>, // POST process pending enrollments and create classes
+ * 
+ *   // Private helper methods
+ *   generateRandomSchedule: (courseDuration: number) => string,      // Generate random schedule JSON for class
+ *   generateRandomLocation: () => string,                            // Generate random location for class
+ * }
+ */
 @Injectable()
 export class ClassesService {
 
