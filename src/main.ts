@@ -6,6 +6,12 @@ import supabase from './supabase/supabaseClient';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Enable CORS
+  app.enableCors({
+    origin: process.env.CORS_ORIGIN?.split(',') || '*',
+    credentials: true,
+  });
+
   // Swagger Configuration
   const config = new DocumentBuilder()
     .setTitle('AI-EL E-Learning Platform API')

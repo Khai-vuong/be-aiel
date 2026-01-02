@@ -7,7 +7,7 @@ import {
   ApiParam, 
   ApiBody 
 } from '@nestjs/swagger';
-import { UsersLoginDto, UsersRegisterDto, UsersUpdateDto } from './users.dto';
+import { UsersLoginDto, UsersRegisterDto, UsersUpdateDto, UserLoginResponseDto } from './users.dto';
 
 // Swagger decorator for Get All Users endpoint
 export function SwaggerGetAllUsers() {
@@ -46,15 +46,27 @@ export function SwaggerLogin() {
     ApiTags('auth'),
     ApiOperation({ 
       summary: 'User login',
-      description: 'Authenticate user and receive JWT token for subsequent requests'
+      description: 'Authenticate user credentials and receive a JWT token along with user role information. The token should be included in the Authorization header as "Bearer <token>" for subsequent authenticated requests.'
     }),
     ApiBody({ type: UsersLoginDto }),
     ApiResponse({ 
       status: 200, 
-      description: 'Successfully authenticated',
+      description: 'Successfully authenticated. Returns JWT token and user role.',
       schema: {
-        type: 'string',
-        example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+        type: 'object',
+        properties: {
+          userToken: {
+            type: 'string',
+            description: 'JWT authentication token',
+            example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJ1c2VyMDAxIiwidXNlcm5hbWUiOiJzdHVkZW50MSIsInJvbGUiOiJTdHVkZW50In0...'
+          },
+          role: {
+            type: 'string',
+            description: 'User role in the system',
+            enum: ['Student', 'Lecturer', 'Admin'],
+            example: 'Student'
+          }
+        }
       }
     }),
     ApiResponse({ status: 400, description: 'Bad Request - Invalid username or password' })

@@ -98,7 +98,7 @@ export class ClassesController {
     async addResource(
         @Request() req, 
         @Param('clid') clid: string, 
-        @UploadedFile(new FileValidationPipe(['image/jpg'], 0.001)) file: Express.Multer.File
+        @UploadedFile(new FileValidationPipe()) file: Express.Multer.File
     ) {
         console.log('Uploaded file:', file);
         // return this.classesService.addResource(req.user.uid, clid, file);

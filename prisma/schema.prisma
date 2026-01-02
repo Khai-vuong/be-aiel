@@ -12,6 +12,7 @@ datasource db {
   provider = "postgresql"
   // url      = env("DATABASE_SUPABASE_URL_POOLING")
   url      = env("DATABASE_LOCAL_URL")
+  // url      = env("DATABASE_URL_THOAI")
   // relationMode = "prisma"
   // Dont delete the url path, we're using the 6.18 version
 }

@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { User } from '@prisma/client';
 import { PrismaService } from 'src/prisma.service';
-import { UsersRegisterDto, UsersLoginDto, UsersUpdateDto } from './users.dto';
+import { UsersRegisterDto, UsersLoginDto, UsersUpdateDto, UserLoginResponseDto } from './users.dto';
 import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
@@ -110,7 +110,7 @@ export class UsersService {
         }
     }
 
-    async login(loginDto: UsersLoginDto): Promise<string> {
+    async login(loginDto: UsersLoginDto): Promise<UserLoginResponseDto> {
         const user = await this.prisma.user.findUnique({
             where: { username: loginDto.username }
         });
@@ -131,7 +131,12 @@ export class UsersService {
                 username: user.username,
                 role: user.role,
             }
-            return this.jwtService.signAsync(signPayload);
+            
+            const userToken = await this.jwtService.signAsync(signPayload);
+            return {
+                userToken: userToken,
+                role: user.role
+            };
         }
     }
 

@@ -21,6 +21,29 @@ export class UsersLoginDto {
     hashed_password: string;
 }
 
+// UserLoginResponseDto
+// 
+// Response object returned after successful login
+// Example object:
+// {
+//   "userToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJ1c2VyMDAxIiwidXNlcm5hbWUiOiJzdHVkZW50MSIsInJvbGUiOiJTdHVkZW50In0...",
+//   "role": "Student"
+// }
+export class UserLoginResponseDto {
+    @ApiProperty({ 
+        description: 'JWT token for authentication. Include this token in the Authorization header as "Bearer <token>" for subsequent requests.', 
+        example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJ1c2VyMDAxIiwidXNlcm5hbWUiOiJzdHVkZW50MSIsInJvbGUiOiJTdHVkZW50In0...'
+    })
+    userToken: string;
+
+    @ApiProperty({ 
+        description: 'User role in the system', 
+        enum: ['Student', 'Lecturer', 'Admin'], 
+        example: 'Student' 
+    })
+    role: string;
+}
+
 // UsersRegisterDto
 // 
 // Example object:
