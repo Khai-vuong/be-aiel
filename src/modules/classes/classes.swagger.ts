@@ -75,6 +75,58 @@ export function SwaggerGetAllClasses() {
   );
 }
 
+export function SwaggerGetMyClasses() {
+  return applyDecorators(
+    ApiBearerAuth('JWT-auth'),
+    ApiOperation({
+      summary: 'Get my classes',
+      description: 'Retrieve classes for the current authenticated user (Student or Lecturer)'
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'Successfully retrieved user classes',
+      schema: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            clid: { type: 'string', example: 'class001' },
+            name: { type: 'string', example: 'CS101 - L1' },
+            schedule_json: {
+              type: 'object',
+              properties: {
+                day: { type: 'string', example: 'Monday' },
+                start: { type: 'string', example: '09:00' },
+                end: { type: 'string', example: '11:00' }
+              }
+            },
+            location: { type: 'string', example: 'Computer Science Building - Room 101' },
+            status: { type: 'string', example: 'Active' },
+            course_id: { type: 'string', example: 'course001' },
+            lecturer_id: { type: 'string', example: 'lecturer001' },
+            created_at: { type: 'object' },
+            updated_at: { type: 'object' },
+            course: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', example: 'Introduction to Programming' }
+              }
+            },
+            lecturer: {
+              type: 'object',
+              properties: {
+                name: { type: 'string', example: 'Dr. John Smith' }
+              }
+            }
+          }
+        }
+      }
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing JWT token' }),
+    ApiResponse({ status: 403, description: 'Forbidden - Only Student and Lecturer roles can access this endpoint' })
+  );
+}
+
 export function SwaggerGetClass() {
   return applyDecorators(
     ApiBearerAuth('JWT-auth'),

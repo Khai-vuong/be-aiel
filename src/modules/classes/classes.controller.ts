@@ -25,6 +25,7 @@ import { Roles } from 'src/common/decorators/roles.decorator';
 import { ClassesService } from './classes.service';
 import {
     SwaggerGetAllClasses,
+    SwaggerGetMyClasses,
     SwaggerGetClass,
     SwaggerUpdateClass,
     SwaggerDeleteClass,
@@ -55,6 +56,7 @@ export class ClassesController {
     @Get('me')
     @UseInterceptors(JsonParseInterceptor)
     @Roles('Student', 'Lecturer')
+    @SwaggerGetMyClasses()
     async findMyClasses(@Request() req) {
         return this.classesService.findClassesByUserId(req.user.uid);
     }
