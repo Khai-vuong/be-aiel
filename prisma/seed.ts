@@ -587,6 +587,7 @@ async function main() {
       lecturer_id: lecturer3User.lecturer!.lid,
       students: {
         connect: [
+          { sid: student1User.student!.sid },
           { sid: student2User.student!.sid },
           { sid: student7User.student!.sid },
         ]
@@ -609,9 +610,56 @@ async function main() {
       lecturer_id: lecturer2User.lecturer!.lid,
       students: {
         connect: [
+          { sid: student1User.student!.sid },
           { sid: student4User.student!.sid },
           { sid: student6User.student!.sid },
           { sid: student8User.student!.sid },
+        ]
+      }
+    },
+  });
+
+  const class4 = await prisma.class.create({
+    data: {
+      clid: 'class004',
+      name: 'CS101 - L3',
+      schedule_json: JSON.stringify({
+        day: 'Thursday',
+        start: '13:00',
+        end: '15:00',
+      }),
+      location: 'Computer Science Building - Room 103',
+      status: 'Active',
+      course_id: course1.cid,
+      lecturer_id: lecturer5User.lecturer!.lid,
+      students: {
+        connect: [
+          { sid: student1User.student!.sid },
+          { sid: student9User.student!.sid },
+          { sid: student10User.student!.sid },
+        ]
+      }
+    },
+  });
+
+  const class5 = await prisma.class.create({
+    data: {
+      clid: 'class005',
+      name: 'MT105 - L2',
+      schedule_json: JSON.stringify({
+        day: 'Friday',
+        start: '15:00',
+        end: '17:00',
+      }),
+      location: 'Mathematics Building - Room 202',
+      status: 'Active',
+      course_id: course2.cid,
+      lecturer_id: lecturer4User.lecturer!.lid,
+      students: {
+        connect: [
+          { sid: student1User.student!.sid },
+          { sid: student3User.student!.sid },
+          { sid: student5User.student!.sid },
         ]
       }
     },
@@ -744,7 +792,8 @@ async function main() {
   console.log(`- 5 Lecturer users`);
   console.log(`- 10 Student users`);
   console.log(`- 2 Courses (CS101 with 2 lecturers, MT105 with 2 lecturers)`);
-  console.log(`- 3 Classes (CS101-L1, CS101-L2, MT105-L1)`);
+  console.log(`- 5 Classes (CS101-L1, CS101-L2, CS101-L3, MT105-L1, MT105-L2)`);
+  console.log(`- Student001 assigned to all 5 classes`);
   console.log(`- 11 Course enrollments (10 students enrolled in CS101)`);
   console.log(`- 2 Files`);
   console.log(`- 1 Quiz with 2 questions`);
