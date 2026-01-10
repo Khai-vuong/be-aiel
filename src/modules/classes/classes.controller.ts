@@ -7,6 +7,7 @@ import {
     Param, 
     Body, 
     Request, 
+    Res,
     UseGuards, 
     UsePipes, 
     ValidationPipe, 
@@ -14,7 +15,8 @@ import {
     UploadedFile,
     ParseFilePipe,
     MaxFileSizeValidator,
-    FileTypeValidator
+    FileTypeValidator,
+    StreamableFile
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags} from '@nestjs/swagger';
@@ -34,6 +36,8 @@ import {
 import { JsonParseInterceptor } from 'src/common/interceptors/json-parse.interceptor';
 import { FileValidationPipe } from 'src/common/pipes/file-validation.pipe';
 import { ClassCreateDto } from './classes.dto';
+import { Response } from 'express';
+import { createReadStream } from 'fs';
 
 
 @ApiTags('classes')
@@ -121,4 +125,24 @@ export class ClassesController {
         : this.classesService.uploadToLocal(req.user.uid, clid, file);
 
     }
+
+
+    @Get('download/:clid/:fid')
+    @Roles('Student', 'Lecturer', 'Admin')
+    async downloadFile(
+        @Request() req,
+        @Param('clid') clid: string,
+        @Param('fid') fid: string
+    ) {
+        // Check environment to determine storage method
+        const isProduction = process.env.NODE_ENV?.toLowerCase() === 'production';
+
+        return isProduction
+        ? this.classesService.downloadFromS3(fid)
+        : this.classesService.downloadFromLocal(fid);
+
+        
+
+    }
+
 }

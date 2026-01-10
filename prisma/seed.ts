@@ -1,6 +1,13 @@
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
+import { Pool } from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
 
-const prisma = new PrismaClient();
+const connectionString = process.env.DATABASE_LOCAL_URL;
+const pool = new Pool({ connectionString });
+const adapter = new PrismaPg(pool);
+
+const prisma = new PrismaClient({ adapter });
 
 async function main() {
   console.log('🌱 Seeding database...');
@@ -670,6 +677,7 @@ async function main() {
     data: {
       fid: 'file001',
       filename: 'CS101_Syllabus.pdf',
+      original_name: 'CS101_Syllabus.pdf',
       url: '/files/cs101_syllabus.pdf',
       size: 1024.5,
       mime_type: 'application/pdf',
@@ -684,6 +692,7 @@ async function main() {
     data: {
       fid: 'file002',
       filename: 'Python_Basics_Lecture1.pptx',
+      original_name: 'Python_Basics_Lecture1.pptx',
       url: '/files/python_basics_lecture1.pptx',
       size: 2048.75,
       mime_type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',

@@ -3,8 +3,12 @@ import { PrismaService } from 'src/prisma.service';
 import { Class } from '@prisma/client';
 import { ClassesUpdateDto, ResponseCreateClassDto } from './classes.dto';
 import supabase from 'src/supabase/supabaseClient';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client } from 'src/common/utils/s3.client';
+import { createReadStream } from 'fs';
+import { join } from 'path';
+import { Readable } from 'stream';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 /**
  * ClassesService
@@ -19,6 +23,8 @@ import { s3Client } from 'src/common/utils/s3.client';
  *   delete: async (id: string) => Promise<Class>,                    // DELETE class (soft delete - sets status to 'Canceled')
  *   uploadToLocal: async (userId: string, classId: string, file: Express.Multer.File) => Promise<Class>, // POST upload file to local storage
  *   uploadToS3: async (userId: string, classId: string, file: Express.Multer.File) => Promise<Class>, // POST upload file to S3/Supabase
+ *   downloadFromLocal: async (fid: string) => Promise<{file: File, filePath: string, storageType: 'local'}>, // GET download file from local storage
+ *   downloadFromS3: async (fid: string) => Promise<{file: File, downloadUrl: string, storageType: 's3'}>, // GET download file from S3
  *   createClassesFromEnrollments: async (maxStudentsPerClass: number) => Promise<ResponseCreateClassDto>, // POST process pending enrollments and create classes
  * 
  *   // Private helper methods
@@ -263,9 +269,13 @@ export class ClassesService {
     }
 
 
-    //#region Add resource (file) to class - Local storage
+    //#region Add resource (file) to class - S3 storage
     /**
-     * Uploaded file structure: {
+     * Uploads file to AWS S3 bucket and creates database record
+     * Steps:
+     * 1. Upload file to local folder ./uploads
+     * 2. Create file record in database with S3 URL
+     *       file {
      *   fieldname: 'file',
      *   originalname: 'Ahko.jpg',
      *   encoding: '7bit',
@@ -292,9 +302,10 @@ export class ClassesService {
         }
 
         // Create file record in database with local file path
-        const createdFile = await this.prisma.file.create({
+        return this.prisma.file.create({
             data: {
                 filename: file.originalname,
+                original_name: file.originalname,
                 url: file.path.replace(/\\/g, '/'), // Normalize path for cross-platform compatibility
                 size: file.size,
                 mime_type: file.mimetype,
@@ -309,38 +320,24 @@ export class ClassesService {
             }
         });
 
-        // Return the updated class with the new file
-        return this.prisma.class.findUnique({
-            where: { clid: classId },
-            include: {
-                files: {
-                    orderBy: {
-                        created_at: 'desc'
-                    }
-                },
-                course: {
-                    select: {
-                        name: true,
-                        code: true
-                    }
-                },
-                lecturer: {
-                    select: {
-                        name: true
-                    }
-                }
-            }
-        });
     }
 
     //#region Add resource (file) to class - S3 storage
     /**
      * Uploads file to AWS S3 bucket and creates database record
      * Steps:
-     * 1. Upload the actual file to S3
-     * 2. Generate S3 URL
-     * 3. Create file record in database with S3 URL
-     * 4. Return updated class with new file
+     * 1. Upload file to S3 in folder class-files/{classId}/
+     * 2. Create file record in database with S3 URL
+     *       file {
+     *   fieldname: 'file',
+     *   originalname: 'Ahko.jpg',
+     *   encoding: '7bit',
+     *   mimetype: 'image/jpeg',
+     *   destination: './uploads',
+     *   filename: 'file-1763879520817-6296.jpg',
+     *   path: 'uploads\\file-1763879520817-6296.jpg',
+     *   size: 33767
+     * }
      */
     //#endregion
     async uploadToS3(userId: string, classId: string, file: Express.Multer.File) {
@@ -386,9 +383,11 @@ export class ClassesService {
         }
 
         // Create file record in database
-        const createdFile = await this.prisma.file.create({
+        return this.prisma.file.create({
             data: {
-                filename: file.originalname,
+                // filename: file.originalname,
+                filename: file.filename,
+                original_name: file.originalname,
                 url: fileUrl,
                 size: file.size,
                 mime_type: file.mimetype,
@@ -403,28 +402,97 @@ export class ClassesService {
             }
         });
 
-        // Return the updated class with the new file
-        return this.prisma.class.findUnique({
-            where: { clid: classId },
+        
+    }
+
+    //#region Download file from local storage
+    /**
+     * Download a file from local storage by its ID
+     * Returns the file metadata and local file path for streaming
+     * @param fid - File ID
+     * @returns File metadata with local file path
+     */
+    //#endregion
+    async downloadFromLocal(fid: string) {
+        // Find the file in database
+        const file = await this.prisma.file.findUnique({
+            where: { fid },
             include: {
-                files: {
-                    orderBy: {
-                        created_at: 'desc'
-                    }
-                },
-                course: {
+                class: {
                     select: {
                         name: true,
-                        code: true
                     }
                 },
-                lecturer: {
+                uploader: {
                     select: {
-                        name: true
+                        username: true
                     }
                 }
             }
         });
+
+        if (!file) {
+            throw new NotFoundException(`File with ID ${fid} not found`);
+        }
+
+        // Get absolute file path
+        const filePath = join(process.cwd(), file.url);
+        
+        return {
+            file,
+            filePath,
+            storageType: 'local' as const
+        };
+    }
+
+
+    //#region Download file from S3 storage
+    /**
+     * Download a file from S3 storage by its ID
+     * Generates a signed URL valid for 1 hour
+     * @param fid - File ID
+     * @returns File metadata with signed download URL
+     */
+    // //#endregion
+    async downloadFromS3(fid: string) {
+        // Find the file in database
+        const file = await this.prisma.file.findUnique({
+            where: { fid },
+        });
+
+        if (!file) {
+            throw new NotFoundException(`File with ID ${fid} not found`);
+        }
+        // Parse S3 URL to extract bucket and key
+        const urlParts = file.url.match(/https:\/\/([^.]+)\.s3\.([^.]+)\.amazonaws\.com\/(.+)/);
+        
+        if (!urlParts) {
+            throw new BadRequestException('Invalid S3 URL format');
+        }
+
+        console.log("URL parts:", urlParts);
+
+        const [, bucket, , key] = urlParts;
+        
+        // Generate signed URL (valid for 1 hour)
+        const command = new GetObjectCommand({
+            Bucket: bucket,
+            Key: decodeURIComponent(key),
+            ResponseContentDisposition: `attachment; filename="${file.original_name}"`,
+            ResponseContentType: file.mime_type || 'application/octet-stream',
+        });
+
+        try {
+            //Equivalent to s3Client.send(command) but return a signed URL
+            const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+            
+            return {
+                file,
+                downloadUrl: signedUrl,
+            };
+        } catch (error) {
+            throw new BadRequestException(`Failed to generate download URL: ${error.message}`);
+        }
     }
      
     /**
