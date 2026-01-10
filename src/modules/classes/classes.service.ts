@@ -3,6 +3,8 @@ import { PrismaService } from 'src/prisma.service';
 import { Class } from '@prisma/client';
 import { ClassesUpdateDto, ResponseCreateClassDto } from './classes.dto';
 import supabase from 'src/supabase/supabaseClient';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { s3Client } from 'src/common/utils/s3.client';
 
 /**
  * ClassesService
@@ -15,7 +17,8 @@ import supabase from 'src/supabase/supabaseClient';
  *   findClassesByUserId: async (userId: string) => Promise<Class[]>, // GET classes for logged-in user (student or lecturer)
  *   update: async (id: string, updateData: ClassesUpdateDto) => Promise<Class>, // PUT update class information
  *   delete: async (id: string) => Promise<Class>,                    // DELETE class (soft delete - sets status to 'Canceled')
- *   addResource: async (userId: string, classId: string, file: Express.Multer.File) => Promise<Class>, // POST upload file to class
+ *   uploadToLocal: async (userId: string, classId: string, file: Express.Multer.File) => Promise<Class>, // POST upload file to local storage
+ *   uploadToS3: async (userId: string, classId: string, file: Express.Multer.File) => Promise<Class>, // POST upload file to S3/Supabase
  *   createClassesFromEnrollments: async (maxStudentsPerClass: number) => Promise<ResponseCreateClassDto>, // POST process pending enrollments and create classes
  * 
  *   // Private helper methods
@@ -259,45 +262,118 @@ export class ClassesService {
         })
     }
 
-    // Add resource (file) to class
-    //     Uploaded file: {
-    //   fieldname: 'file',
-    //   originalname: 'Ahko.jpg',
-    //   encoding: '7bit',
-    //   mimetype: 'image/jpeg',
-    //   destination: './uploads',
-    //   filename: 'file-1763879520817-6296.jpg',
-    //   path: 'uploads\\file-1763879520817-6296.jpg',
-    //   size: 33767
-    // }
-    async addResource(userId: string, classId: string, file: Express.Multer.File) {
-        //UserId, clid and file have been verified by the guards
 
+    //#region Add resource (file) to class - Local storage
+    /**
+     * Uploaded file structure: {
+     *   fieldname: 'file',
+     *   originalname: 'Ahko.jpg',
+     *   encoding: '7bit',
+     *   mimetype: 'image/jpeg',
+     *   destination: './uploads',
+     *   filename: 'file-1763879520817-6296.jpg',
+     *   path: 'uploads\\file-1763879520817-6296.jpg',
+     *   size: 33767
+     * }
+     */
+    //#endregion
+    async uploadToLocal(userId: string, classId: string, file: Express.Multer.File) {
+        //UserId, clid and file have been verified by the guards
+        // File is already saved to disk by Multer
+
+        // Determine file type based on mime type
+        let fileType = 'document';
+        if (file.mimetype.startsWith('video/')) {
+            fileType = 'video';
+        } else if (file.mimetype.startsWith('image/')) {
+            fileType = 'image';
+        } else if (file.mimetype.includes('pdf') || file.mimetype.includes('document')) {
+            fileType = 'document';
+        }
+
+        // Create file record in database with local file path
+        const createdFile = await this.prisma.file.create({
+            data: {
+                filename: file.originalname,
+                url: file.path.replace(/\\/g, '/'), // Normalize path for cross-platform compatibility
+                size: file.size,
+                mime_type: file.mimetype,
+                file_type: fileType,
+                is_public: false,
+                class: {
+                    connect: { clid: classId }
+                },
+                uploader: {
+                    connect: { uid: userId }
+                }
+            }
+        });
+
+        // Return the updated class with the new file
+        return this.prisma.class.findUnique({
+            where: { clid: classId },
+            include: {
+                files: {
+                    orderBy: {
+                        created_at: 'desc'
+                    }
+                },
+                course: {
+                    select: {
+                        name: true,
+                        code: true
+                    }
+                },
+                lecturer: {
+                    select: {
+                        name: true
+                    }
+                }
+            }
+        });
+    }
+
+    //#region Add resource (file) to class - S3 storage
+    /**
+     * Uploads file to AWS S3 bucket and creates database record
+     * Steps:
+     * 1. Upload the actual file to S3
+     * 2. Generate S3 URL
+     * 3. Create file record in database with S3 URL
+     * 4. Return updated class with new file
+     */
+    //#endregion
+    async uploadToS3(userId: string, classId: string, file: Express.Multer.File) {
+
+        console.log("access key:", process.env.AWS_ACCESS_KEY);
+        console.log("secret key:", process.env.AWS_SECRET_ACCESS_KEY);
+        console.log("region:", process.env.AWS_S3_REGION);
+        console.log("bucket:", process.env.AWS_S3_BUCKET);
+
+
+
+        // Step 1: Upload the actual file to S3
         // Generate unique filename with timestamp
         const timestamp = Date.now();
-        const fileExtension = file.originalname.split('.').pop();
-        const fileName = `${classId}/${timestamp}-${file.originalname}`;
+        const fileName = `class-files/${classId}/${timestamp}-${file.originalname}`;
 
-        // Upload file to Supabase Storage
-        const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('class-files')
-            .upload(fileName, file.buffer, {
-                contentType: file.mimetype,
-                upsert: false
-            });
+        // Upload file to S3
+        const uploadCommand = new PutObjectCommand({
+            Bucket: process.env.AWS_S3_BUCKET || 'tkedu',
+            Key: fileName,
+            Body: file.buffer,
+            ContentType: file.mimetype,
+        });
 
-        if (uploadError) {
-            throw new BadRequestException(`Failed to upload file: ${uploadError.message}`);
+        try {
+            await s3Client.send(uploadCommand);
+        } catch (error) {
+            throw new BadRequestException(`Failed to upload file to S3: ${error.message}`);
         }
 
-        // Get public URL
-        const { data: urlData } = supabase.storage
-            .from('class-files')
-            .getPublicUrl(fileName);
-
-        if (!urlData || !urlData.publicUrl) {
-            throw new BadRequestException('Failed to get file URL');
-        }
+        // Step 2: Create file record in database
+        // Generate S3 URL
+        const fileUrl = `https://${process.env.AWS_S3_BUCKET || 'tkedu'}.s3.${process.env.AWS_S3_REGION || 'ap-southeast-2'}.amazonaws.com/${fileName}`;
 
         // Determine file type based on mime type
         let fileType = 'document';
@@ -313,13 +389,17 @@ export class ClassesService {
         const createdFile = await this.prisma.file.create({
             data: {
                 filename: file.originalname,
-                url: urlData.publicUrl,
+                url: fileUrl,
                 size: file.size,
                 mime_type: file.mimetype,
                 file_type: fileType,
                 is_public: false,
-                class_id: classId,
-                uploader_id: userId
+                class: {
+                    connect: { clid: classId }
+                },
+                uploader: {
+                    connect: { uid: userId }
+                }
             }
         });
 

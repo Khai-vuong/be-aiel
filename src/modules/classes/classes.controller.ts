@@ -35,6 +35,7 @@ import { JsonParseInterceptor } from 'src/common/interceptors/json-parse.interce
 import { FileValidationPipe } from 'src/common/pipes/file-validation.pipe';
 import { ClassCreateDto } from './classes.dto';
 
+
 @ApiTags('classes')
 @UseGuards(JwtGuard, RolesGuard)
 @UsePipes(new ValidationPipe({ 
@@ -102,7 +103,8 @@ export class ClassesController {
         return { message: `Class with ID ${id} deleted successfully` };
     }
 
-    @Post('addResource/:clid')
+    
+    @Post('upload/:clid')
     @Roles('Lecturer')
     @UseGuards(InChargeGuard)
     @UseInterceptors(FileInterceptor('file'))
@@ -111,7 +113,12 @@ export class ClassesController {
         @Param('clid') clid: string, 
         @UploadedFile(new FileValidationPipe()) file: Express.Multer.File
     ) {
-        console.log('Uploaded file:', file);
-        // return this.classesService.addResource(req.user.uid, clid, file);
+        // Check environment to determine storage method
+        const isProduction = process.env.NODE_ENV?.toLowerCase() === 'production';
+
+        return isProduction
+        ? this.classesService.uploadToS3(req.user.uid, clid, file)
+        : this.classesService.uploadToLocal(req.user.uid, clid, file);
+
     }
 }
