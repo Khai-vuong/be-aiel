@@ -2,9 +2,11 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from 'src/prisma.service';
 import { Class } from '@prisma/client';
 import { ClassesUpdateDto, ResponseCreateClassDto } from './classes.dto';
-import supabase from 'src/supabase/supabaseClient';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { s3Client } from 'src/common/utils/s3.client';
+import { join } from 'path';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import * as fs from 'fs';
 
 /**
  * ClassesService
@@ -337,10 +339,19 @@ export class ClassesService {
     /**
      * Uploads file to AWS S3 bucket and creates database record
      * Steps:
-     * 1. Upload the actual file to S3
-     * 2. Generate S3 URL
-     * 3. Create file record in database with S3 URL
-     * 4. Return updated class with new file
+     * 1. Upload file to S3 in folder class-files/{classId}/
+     * 2. Create file record in database with S3 URL
+     * 3. Delete the file from local storage after upload
+     *       file {
+     *   fieldname: 'file',
+     *   originalname: 'Ahko.jpg',
+     *   encoding: '7bit',
+     *   mimetype: 'image/jpeg',
+     *   destination: './uploads',
+     *   filename: 'file-1763879520817-6296.jpg',
+     *   path: 'uploads\\file-1763879520817-6296.jpg',
+     *   size: 33767
+     * }
      */
     //#endregion
     async uploadToS3(userId: string, classId: string, file: Express.Multer.File) {
@@ -350,19 +361,28 @@ export class ClassesService {
         console.log("region:", process.env.AWS_S3_REGION);
         console.log("bucket:", process.env.AWS_S3_BUCKET);
 
-
-
         // Step 1: Upload the actual file to S3
         // Generate unique filename with timestamp
         const timestamp = Date.now();
         const fileName = `class-files/${classId}/${timestamp}-${file.originalname}`;
 
+        // Read file content - use buffer if available (memory storage), otherwise read from disk
+        let fileContent: Buffer;
+        if (file.buffer) {
+            fileContent = file.buffer;
+        } else if (file.path) {
+            fileContent = fs.readFileSync(file.path);
+        } else {
+            throw new BadRequestException('File content not available');
+        }
+
         // Upload file to S3
         const uploadCommand = new PutObjectCommand({
             Bucket: process.env.AWS_S3_BUCKET || 'tkedu',
             Key: fileName,
-            Body: file.buffer,
+            Body: fileContent,
             ContentType: file.mimetype,
+            ContentDisposition: `attachment; filename="${file.originalname}"`,
         });
 
         try {
@@ -375,7 +395,7 @@ export class ClassesService {
         // Generate S3 URL
         const fileUrl = `https://${process.env.AWS_S3_BUCKET || 'tkedu'}.s3.${process.env.AWS_S3_REGION || 'ap-southeast-2'}.amazonaws.com/${fileName}`;
 
-        // Determine file type based on mime type
+        // Reduce mime type to general file type for better search in app
         let fileType = 'document';
         if (file.mimetype.startsWith('video/')) {
             fileType = 'video';
@@ -386,14 +406,15 @@ export class ClassesService {
         }
 
         // Create file record in database
-        const createdFile = await this.prisma.file.create({
+        const newFile =  this.prisma.file.create({
             data: {
-                filename: file.originalname,
+                filename: file.filename || file.originalname,
+                original_name: file.originalname,
                 url: fileUrl,
                 size: file.size,
                 mime_type: file.mimetype,
                 file_type: fileType,
-                is_public: false,
+                is_public: true,
                 class: {
                     connect: { clid: classId }
                 },
@@ -403,9 +424,27 @@ export class ClassesService {
             }
         });
 
-        // Return the updated class with the new file
-        return this.prisma.class.findUnique({
-            where: { clid: classId },
+        // Step 3: Delete the file from local storage if it was saved there
+        if (file.path) {
+            console.log("Deleting local file:", file.path);
+            fs.unlinkSync(file.path);
+        }
+
+        return newFile;        
+    }
+
+    //#region Download file from local storage
+    /**
+     * Download a file from local storage by its ID
+     * Returns the file metadata and local file path for streaming
+     * @param fid - File ID
+     * @returns File metadata with local file path
+     */
+    //#endregion
+    async downloadFromLocal(fid: string) {
+        // Find the file in database
+        const file = await this.prisma.file.findUnique({
+            where: { fid },
             include: {
                 files: {
                     orderBy: {
@@ -425,6 +464,69 @@ export class ClassesService {
                 }
             }
         });
+
+        if (!file) {
+            throw new NotFoundException(`File with ID ${fid} not found`);
+        }
+
+        // Get absolute file path
+        const filePath = join(process.cwd(), file.url);
+        
+        return {
+            file,
+            filePath,
+            storageType: 'local' as const
+        };
+    }
+
+
+    //#region Download from S3
+    /**
+     * Download a file from S3 storage by its ID
+     * Generates a signed URL valid for 1 hour
+     * @param fid - File ID
+     * @returns File metadata with signed download URL
+     */
+    // //#endregion
+    async downloadFromS3(fid: string) {
+        // Find the file in database
+        const file = await this.prisma.file.findUnique({
+            where: { fid },
+        });
+
+        if (!file) {
+            throw new NotFoundException(`File with ID ${fid} not found`);
+        }
+        // Parse S3 URL to extract bucket and key
+        const urlParts = file.url.match(/https:\/\/([^.]+)\.s3\.([^.]+)\.amazonaws\.com\/(.+)/);
+        
+        if (!urlParts) {
+            throw new BadRequestException('Invalid S3 URL format');
+        }
+
+        console.log("URL parts:", urlParts);
+
+        const [, bucket, , key] = urlParts;
+        
+        // Generate signed URL
+        const command = new GetObjectCommand({
+            Bucket: bucket,
+            Key: decodeURIComponent(key),
+            ResponseContentDisposition: `attachment; filename="${file.original_name}"`,
+            ResponseContentType: file.mime_type || 'application/octet-stream',
+        });
+
+        try {
+            //Equivalent to s3Client.send(command) but return a signed URL
+            const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 30});
+            
+            return {
+                file,
+                downloadUrl: signedUrl,
+            };
+        } catch (error) {
+            throw new BadRequestException(`Failed to generate download URL: ${error.message}`);
+        }
     }
      
     /**
