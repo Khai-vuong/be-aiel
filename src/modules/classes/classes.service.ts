@@ -280,7 +280,7 @@ export class ClassesService {
      */
     //#endregion
     async uploadToLocal(userId: string, classId: string, file: Express.Multer.File) {
-        //UserId, clid and file have been verified by the guards
+        // UserId, clid and file have been verified by the guards
         // File is already saved to disk by Multer
 
         // Determine file type based on mime type
@@ -465,18 +465,14 @@ export class ClassesService {
             }
         });
 
-        if (!file) {
+        if (!file || !file.url) {
             throw new NotFoundException(`File with ID ${fid} not found`);
         }
 
         // Get absolute file path
         const filePath = join(process.cwd(), file.url);
         
-        return {
-            file,
-            filePath,
-            storageType: 'local' as const
-        };
+        return {file, filePath};
     }
 
 

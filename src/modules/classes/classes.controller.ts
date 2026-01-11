@@ -14,7 +14,7 @@ import {
     UploadedFile,
     ParseFilePipe,
     MaxFileSizeValidator,
-    FileTypeValidator
+    FileTypeValidator,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiTags} from '@nestjs/swagger';
@@ -34,6 +34,7 @@ import {
 import { JsonParseInterceptor } from 'src/common/interceptors/json-parse.interceptor';
 import { FileValidationPipe } from 'src/common/pipes/file-validation.pipe';
 import { ClassCreateDto } from './classes.dto';
+import type { Response } from 'express';
 
 
 @ApiTags('classes')
@@ -122,45 +123,23 @@ export class ClassesController {
 
     }
 
-
     @Get('download/:clid/:fid')
     @Roles('Student', 'Lecturer', 'Admin')
     async downloadFile(
-        @Request() req,
         @Param('clid') clid: string,
         @Param('fid') fid: string,
-        @Res() res: any
+        @Res() res: Response
     ) {
         // Check environment to determine storage method
         const isProduction = process.env.NODE_ENV?.toLowerCase() === 'production';
 
-        return isProduction
-        ? this.classesService.downloadFromS3(fid)
-        : this.classesService.downloadFromLocal(fid);
-
-        // if (isProduction) {
-        //     // For S3: Return the signed URL as JSON
-        //     const result = await this.classesService.downloadFromS3(fid);
-        //     return res.json({
-        //         downloadUrl: result.downloadUrl,
-        //         filename: result.file.original_name || result.file.filename,
-        //         mimeType: result.file.mime_type,
-        //         size: result.file.size
-        //     });
-        // } else {
-        //     // For local storage: Stream the file
-        //     const { file, filePath } = await this.classesService.downloadFromLocal(fid);
-        //     const fileStream = createReadStream(filePath);
-            
-        //     res.set({
-        //         'Content-Type': file.mime_type || 'application/octet-stream',
-        //         'Content-Disposition': `attachment; filename="${file.original_name || file.filename}"`,
-        //     });
-            
-        //     fileStream.pipe(res);
-        // }
-
-
+        if (isProduction) {
+            return this.classesService.downloadFromS3(fid);
+        }
+        else {
+            const {file, filePath} = await this.classesService.downloadFromLocal(fid);
+            return res.download(filePath, file.original_name!);
+        }
     }
 
 }
