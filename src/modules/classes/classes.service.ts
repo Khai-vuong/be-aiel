@@ -264,10 +264,12 @@ export class ClassesService {
         })
     }
 
-
-    //#region Add resource (file) to class - Local storage
     /**
-     * Uploaded file structure: {
+     * Uploads file to AWS S3 bucket and creates database record
+     * Steps:
+     * 1. Upload file to local folder ./uploads (Multer handled this)
+     * 2. Create file record in database
+     *       file {
      *   fieldname: 'file',
      *   originalname: 'Ahko.jpg',
      *   encoding: '7bit',
@@ -335,7 +337,6 @@ export class ClassesService {
         });
     }
 
-    //#region Add resource (file) to class - S3 storage
     /**
      * Uploads file to AWS S3 bucket and creates database record
      * Steps:
@@ -355,12 +356,6 @@ export class ClassesService {
      */
     //#endregion
     async uploadToS3(userId: string, classId: string, file: Express.Multer.File) {
-
-        console.log("access key:", process.env.AWS_ACCESS_KEY);
-        console.log("secret key:", process.env.AWS_SECRET_ACCESS_KEY);
-        console.log("region:", process.env.AWS_S3_REGION);
-        console.log("bucket:", process.env.AWS_S3_BUCKET);
-
         // Step 1: Upload the actual file to S3
         // Generate unique filename with timestamp
         const timestamp = Date.now();
@@ -433,7 +428,6 @@ export class ClassesService {
         return newFile;        
     }
 
-    //#region Download file from local storage
     /**
      * Download a file from local storage by its ID
      * Returns the file metadata and local file path for streaming
@@ -476,7 +470,6 @@ export class ClassesService {
     }
 
 
-    //#region Download from S3
     /**
      * Download a file from S3 storage by its ID
      * Generates a signed URL valid for 1 hour

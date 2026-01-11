@@ -316,3 +316,120 @@ export function SwaggerProcessEnrollments() {
     ApiResponse({ status: 403, description: 'Forbidden - Only Admin can process enrollments and create classes' })
   );
 }
+
+export function SwaggerUploadFile() {
+  return applyDecorators(
+    ApiBearerAuth('JWT-auth'),
+    ApiOperation({
+      summary: 'Upload file to class',
+      description: `Upload a file resource to a class. The file will be stored in local storage (development) or AWS S3 (production) based on NODE_ENV. 
+
+**Storage Behavior:**
+- Development (NODE_ENV !== 'production'): Files saved to ./uploads folder on disk
+- Production (NODE_ENV === 'production'): Files uploaded to AWS S3 bucket and local temp file deleted after upload
+
+**Supported File Types:** Images, Videos, Documents (PDF, Word, etc.)
+
+**Access Control:** Only the lecturer assigned to the class can upload files (enforced by InChargeGuard)`
+    }),
+    ApiParam({
+      name: 'clid',
+      description: 'Class ID to upload file to',
+      example: 'class001'
+    }),
+    ApiResponse({
+      status: 201,
+      description: 'File successfully uploaded',
+      schema: {
+        type: 'object',
+        properties: {
+          fid: { type: 'string', example: 'file001', description: 'Unique file ID' },
+          filename: { type: 'string', example: 'lecture-notes.pdf', description: 'Stored filename' },
+          original_name: { type: 'string', example: 'Chapter 1 Notes.pdf', description: 'Original filename from upload' },
+          url: { type: 'string', example: 'https://bucket.s3.region.amazonaws.com/class-files/class001/1234567890-file.pdf', description: 'File URL (local path or S3 URL)' },
+          size: { type: 'number', example: 1024576, description: 'File size in bytes' },
+          mime_type: { type: 'string', example: 'application/pdf', description: 'MIME type of the file' },
+          file_type: { type: 'string', example: 'document', enum: ['image', 'video', 'document'], description: 'General file category' },
+          is_public: { type: 'boolean', example: true, description: 'Whether file is publicly accessible' },
+          class_id: { type: 'string', example: 'class001', description: 'Associated class ID' },
+          uploader_id: { type: 'string', example: 'user001', description: 'ID of user who uploaded the file' },
+          created_at: { type: 'string', format: 'date-time', description: 'Upload timestamp' }
+        }
+      }
+    }),
+    ApiResponse({ status: 400, description: 'Bad Request - Invalid file type, size exceeds limit, or S3 upload failed' }),
+    ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing JWT token' }),
+    ApiResponse({ status: 403, description: 'Forbidden - Only the assigned lecturer can upload files to this class' }),
+    ApiResponse({ status: 404, description: 'Class not found' })
+  );
+}
+
+export function SwaggerDownloadFile() {
+  return applyDecorators(
+    ApiBearerAuth('JWT-auth'),
+    ApiOperation({
+      summary: 'Download file from class',
+      description: `Download a file from a class. The download method depends on storage location:
+
+**Local Storage (Development):**
+- Direct file download via Express res.download()
+- Returns file stream with proper Content-Disposition headers
+
+**S3 Storage (Production):**
+- Returns JSON with signed URL valid for 1 hour
+- Client must use the signed URL to download directly from S3
+- Reduces server load and bandwidth
+
+**Access Control:** Students, Lecturers, and Admins can download class files`
+    }),
+    ApiParam({
+      name: 'clid',
+      description: 'Class ID',
+      example: 'class001'
+    }),
+    ApiParam({
+      name: 'fid',
+      description: 'File ID to download',
+      example: 'file001'
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'File download initiated (local) or signed URL returned (S3)',
+      schema: {
+        oneOf: [
+          {
+            type: 'object',
+            description: 'S3 Response (Production)',
+            properties: {
+              file: {
+                type: 'object',
+                properties: {
+                  fid: { type: 'string', example: 'file001' },
+                  filename: { type: 'string', example: 'lecture-notes.pdf' },
+                  original_name: { type: 'string', example: 'Chapter 1 Notes.pdf' },
+                  size: { type: 'number', example: 1024576 },
+                  mime_type: { type: 'string', example: 'application/pdf' },
+                  file_type: { type: 'string', example: 'document' }
+                }
+              },
+              downloadUrl: { 
+                type: 'string', 
+                example: 'https://bucket.s3.region.amazonaws.com/class-files/class001/file.pdf?X-Amz-Algorithm=...&X-Amz-Expires=3600',
+                description: 'Pre-signed S3 URL valid for 1 hour'
+              }
+            }
+          },
+          {
+            type: 'string',
+            format: 'binary',
+            description: 'Local file download (Development) - Direct file stream'
+          }
+        ]
+      }
+    }),
+    ApiResponse({ status: 400, description: 'Bad Request - Invalid S3 URL format or failed to generate download URL' }),
+    ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing JWT token' }),
+    ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions to access this file' }),
+    ApiResponse({ status: 404, description: 'File not found' })
+  );
+}

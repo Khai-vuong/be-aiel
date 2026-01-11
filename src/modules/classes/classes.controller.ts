@@ -29,7 +29,9 @@ import {
     SwaggerGetClass,
     SwaggerUpdateClass,
     SwaggerDeleteClass,
-    SwaggerProcessEnrollments
+    SwaggerProcessEnrollments,
+    SwaggerUploadFile,
+    SwaggerDownloadFile
 } from './classes.swagger';
 import { JsonParseInterceptor } from 'src/common/interceptors/json-parse.interceptor';
 import { FileValidationPipe } from 'src/common/pipes/file-validation.pipe';
@@ -109,6 +111,7 @@ export class ClassesController {
     @Roles('Lecturer')
     @UseGuards(InChargeGuard)
     @UseInterceptors(FileInterceptor('file'))
+    @SwaggerUploadFile()
     async addResource(
         @Request() req, 
         @Param('clid') clid: string, 
@@ -125,6 +128,7 @@ export class ClassesController {
 
     @Get('download/:clid/:fid')
     @Roles('Student', 'Lecturer', 'Admin')
+    @SwaggerDownloadFile()
     async downloadFile(
         @Param('clid') clid: string,
         @Param('fid') fid: string,
