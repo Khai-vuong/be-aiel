@@ -9,7 +9,7 @@ import {
     UseGuards, 
     UsePipes, 
     ValidationPipe,
-    UseInterceptors
+    UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { JwtGuard } from 'src/common/guards/jwt.guard';
