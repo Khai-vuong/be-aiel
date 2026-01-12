@@ -1,7 +1,9 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { Quiz } from '@prisma/client';
-import { CreateQuizDto, UpdateQuizDto } from './quizzes.dto';
+import { CreateQuizDto, UpdateQuizDto, CreateQuestionDto } from './quizzes.dto';
+import { createClient } from '@supabase/supabase-js';
+import { AnswerScalarFieldEnum } from 'generated/prisma/internal/prismaNamespace';
 
 /**
  * QuizzesService
@@ -90,6 +92,7 @@ export class QuizzesService {
                         ques_id: true,
                         content: true,
                         options_json: true,
+                        answer_key_json: true,
                         points: true
                     }
                 },
@@ -137,8 +140,8 @@ export class QuizzesService {
         });
     }
 
-    // Create a new quiz
-    async create(clid: string, createData: CreateQuizDto): Promise<Quiz> {
+    // Create a new quiz with questions
+    async create(createData: CreateQuizDto): Promise<Quiz> {
         // Check if creator (lecturer) exists
         const lecturerExists = await this.prisma.lecturer.findUnique({
             where: { lid: createData.creator_id }
@@ -148,15 +151,13 @@ export class QuizzesService {
             throw new BadRequestException(`Lecturer with ID ${createData.creator_id} not found`);
         }
 
-        // Check if class exists (if provided)
-        if (clid) {
-            const classExists = await this.prisma.class.findUnique({
-                where: { clid: clid }
-            });
+        // Check if class exists
+        const classExists = await this.prisma.class.findUnique({
+            where: { clid: createData.class_id }
+        });
 
-            if (!classExists) {
-                throw new BadRequestException(`Class with ID ${clid} not found`);
-            }
+        if (!classExists) {
+            throw new BadRequestException(`Class with ID ${createData.class_id} not found`);
         }
 
         // Validate date range if both dates are provided
@@ -166,6 +167,17 @@ export class QuizzesService {
             }
         }
 
+        // Build questions data for nested creation
+        const questionsCreateData = (createData.questions && createData.questions.length > 0)
+        ?   createData.questions.map((question, index) => ({
+                    content: question.content,
+                    options_json: question.options_json || null,
+                    answer_key_json: question.answer_key_json,
+                    points: question.points || 1.0
+                }))
+        :   [];
+
+        // Create the quiz with nested questions creation
         return this.prisma.quiz.create({
             data: {
                 name: createData.name,
@@ -177,9 +189,12 @@ export class QuizzesService {
                 creator: {
                     connect: { lid: createData.creator_id }
                 },
-                class: { 
-                    connect: { clid: clid } 
-                } 
+                class: {
+                    connect: { clid: createData.class_id }
+                },
+                questions: questionsCreateData.length > 0 ? {
+                    create: questionsCreateData
+                } : undefined
             },
             include: {
                 class: {
@@ -192,6 +207,14 @@ export class QuizzesService {
                     select: {
                         lid: true,
                         name: true
+                    }
+                },
+                questions: {
+                    select: {
+                        ques_id: true,
+                        content: true,
+                        options_json: true,
+                        points: true
                     }
                 }
             }

@@ -8,7 +8,8 @@ import {
     Body, 
     UseGuards, 
     UsePipes, 
-    ValidationPipe
+    ValidationPipe,
+    UseInterceptors
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { JwtGuard } from 'src/common/guards/jwt.guard';
@@ -25,6 +26,7 @@ import {
     SwaggerDeleteQuiz
 } from './quizzes.swagger';
 import { InChargeGuard } from 'src/common/guards/in-charge.guard';
+import { JsonParseInterceptor } from 'src/common/interceptors/json-parse.interceptor';
 
 @ApiTags('quizzes')
 @UseGuards(JwtGuard, RolesGuard)
@@ -37,12 +39,14 @@ export class QuizzesController {
     constructor(private readonly quizzesService: QuizzesService) { }
 
     @Get()
+    @UseInterceptors(JsonParseInterceptor)
     @SwaggerGetAllQuizzes()
     async findAll() {
         return this.quizzesService.findAll();
     }
 
     @Get(':id')
+    @UseInterceptors(JsonParseInterceptor)
     @SwaggerGetQuiz()
     async findOne(@Param('id') id: string) {
         return this.quizzesService.findOne(id);
@@ -54,23 +58,21 @@ export class QuizzesController {
         return this.quizzesService.findQuizzesByClassId(clid);
     }
 
-    @Post('class/:clid')
+    @Post()
     @Roles('Admin', 'Lecturer')
     @UseGuards(InChargeGuard)
     @SwaggerCreateQuiz()
     async create(
-        @Param('clid') clid: string,
         @Body() createQuizDto: CreateQuizDto
     ) {
-        return this.quizzesService.create(clid, createQuizDto);
+        return this.quizzesService.create(createQuizDto);
     }
 
-    @Put('class/:clid/:qid')
+    @Put(':qid')
     @Roles('Admin', 'Lecturer')
     @UseGuards(InChargeGuard)
     @SwaggerUpdateQuiz()
     async update(
-        @Param('clid') clid: string,
         @Param('qid') qid: string,
         @Body() updateQuizDto: UpdateQuizDto
     ) {

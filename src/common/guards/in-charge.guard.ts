@@ -12,10 +12,17 @@ import { PrismaService } from 'src/prisma.service';
 export class InChargeGuard implements CanActivate {
     constructor(private readonly prisma: PrismaService) {}
 
+    // user: {
+    //     uid: payload.uid,
+    //     username: payload.username,
+    //     role: payload.role
+    // }
+
     async canActivate(context: ExecutionContext): Promise<boolean> {
         const request = context.switchToHttp().getRequest();
         const user = request.user;
-        const classId = request.params.clid;
+        const classId = request.params.clid ? request.params.clid : request.body.clid;
+        
         if (!user) {
             throw new ForbiddenException('User not authenticated');
         }
@@ -24,37 +31,35 @@ export class InChargeGuard implements CanActivate {
             throw new BadRequestException('Class ID not provided');
         }
 
-        // Check if user is a lecturer or an admin
-        const adminSearch = this.prisma.admin.findUnique({
-            where: { user_id: user.uid }
-        });
 
-        const lecturerSearch = this.prisma.lecturer.findUnique({
-            where: { user_id: user.uid }
-        });
-
-        const classSearch = this.prisma.class.findUnique({
-            where: { clid: classId }
-        });
-
-        const [admin, lecturer, classData] = await Promise.all([adminSearch, lecturerSearch, classSearch]);
+        if (user.role === 'Admin') { return true; }
+        else if (user.role === 'Student') {
+            throw new ForbiddenException('Students are not allowed to modify classes');
+        }
+        else if (user.role === 'Lecturer') {
+            const lecturerSearch = this.prisma.lecturer.findUnique({
+                where: { user_id: user.uid }
+            });
     
-        if (admin) {
-            return true;
+            const classSearch = this.prisma.class.findUnique({
+                where: { clid: classId }
+            });
+    
+            const [lecturer, classData] = await Promise.all([lecturerSearch, classSearch]);
+        
+    
+            if (!lecturer) {
+                throw new NotFoundException('Only lecturers can add resources to classes');
+            }
+    
+            if (!classData) {
+                throw new NotFoundException(`Class with ID ${classId} not found`);
+            }
+    
+            if (classData.lecturer_id !== lecturer.lid) {
+                throw new ForbiddenException('You are not in charge of this class');
+            }
         }
-
-        if (!lecturer) {
-            throw new NotFoundException('Only lecturers can add resources to classes');
-        }
-
-        if (!classData) {
-            throw new NotFoundException(`Class with ID ${classId} not found`);
-        }
-
-        if (classData.lecturer_id !== lecturer.lid) {
-            throw new ForbiddenException('You are not in charge of this class');
-        }
-
         return true;
     }
 }

@@ -180,7 +180,7 @@ export function SwaggerCreateQuiz() {
     ApiBearerAuth('JWT-auth'),
     ApiOperation({
       summary: 'Create a new quiz',
-      description: 'Create a new quiz for a class. Only accessible by Admin and Lecturer roles.'
+      description: 'Create a new quiz for a class with optional questions. Only accessible by Admin and Lecturer roles.'
     }),
     ApiBody({ type: CreateQuizDto }),
     ApiResponse({
@@ -195,7 +195,19 @@ export function SwaggerCreateQuiz() {
           status: { type: 'string', example: 'draft' },
           available_from: { type: 'string', format: 'date-time' },
           available_until: { type: 'string', format: 'date-time' },
-          created_at: { type: 'string', format: 'date-time' }
+          created_at: { type: 'string', format: 'date-time' },
+          questions: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                ques_id: { type: 'string' },
+                content: { type: 'string' },
+                options_json: { type: 'string' },
+                points: { type: 'number' }
+              }
+            }
+          }
         }
       }
     }),

@@ -1,6 +1,25 @@
-import { IsString, IsOptional, IsEnum, IsDate } from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsDate, IsArray, IsObject, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+
+export class CreateQuestionDto {
+    @ApiProperty({ example: 'What is the capital of France?', description: 'Question content' })
+    @IsString()
+    content: string;
+
+    @ApiPropertyOptional({ example: '{"A": "Paris", "B": "London", "C": "Berlin"}', description: 'Question options as JSON string' })
+    @IsString()
+    @IsOptional()
+    options_json?: string;
+
+    @ApiProperty({ example: '{"correct": "A"}', description: 'Answer key as JSON string' })
+    @IsString()
+    answer_key_json: string;
+
+    @ApiPropertyOptional({ example: 1, description: 'Points for this question' })
+    @IsOptional()
+    points?: number;
+}
 
 export class CreateQuizDto {
     @ApiProperty({ example: 'Midterm Quiz', description: 'Name of the quiz' })
@@ -11,6 +30,10 @@ export class CreateQuizDto {
     @IsString()
     @IsOptional()
     description?: string;
+
+    @ApiProperty({ example: 'class001', description: 'Class ID' })
+    @IsString()
+    class_id: string;
 
     @ApiProperty({ example: 'draft', enum: ['draft', 'published', 'archived'], description: 'Status of the quiz' })
     @IsEnum(['draft', 'published', 'archived'])
@@ -36,6 +59,13 @@ export class CreateQuizDto {
     @IsString()
     @IsOptional()
     settings_json?: string;
+
+    @ApiPropertyOptional({ description: 'Array of questions to be created with the quiz' })
+    @IsArray()
+    @IsOptional()
+    @ValidateNested({ each: true })
+    @Type(() => CreateQuestionDto)
+    questions?: CreateQuestionDto[];
 }
 
 export class UpdateQuizDto {
@@ -48,6 +78,11 @@ export class UpdateQuizDto {
     @IsString()
     @IsOptional()
     description?: string;
+
+    @ApiPropertyOptional({ example: 'class001', description: 'Class ID' })
+    @IsString()
+    @IsOptional()
+    class_id?: string;
 
     @ApiPropertyOptional({ example: 'published', enum: ['draft', 'published', 'archived'], description: 'Status of the quiz' })
     @IsEnum(['draft', 'published', 'archived'])
