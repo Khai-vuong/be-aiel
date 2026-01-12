@@ -376,7 +376,7 @@ export function SwaggerDownloadFile() {
 - Returns file stream with proper Content-Disposition headers
 
 **S3 Storage (Production):**
-- Returns JSON with signed URL valid for 1 hour
+- Returns JSON with signed URL valid for 30s
 - Client must use the signed URL to download directly from S3
 - Reduces server load and bandwidth
 

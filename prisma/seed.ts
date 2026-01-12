@@ -694,7 +694,7 @@ async function main() {
     },
   });
 
-  // Create Quiz
+  // Create Quizzes for class001 (CS101 - L1) created by lecturer001
   const quiz1 = await prisma.quiz.create({
     data: {
       qid: 'quiz001',
@@ -710,6 +710,78 @@ async function main() {
       class_id: class1.clid,
       creator_id: lecturer1User.lecturer!.lid,
       status: 'published',
+    },
+  });
+
+  const quiz2 = await prisma.quiz.create({
+    data: {
+      qid: 'quiz002',
+      name: 'Variables and Data Types',
+      description: 'Quiz on Python variables, data types, and type conversion',
+      settings_json: JSON.stringify({
+        timeLimit: 25,
+        maxAttempts: 2,
+        shuffleQuestions: false,
+      }),
+      available_from: new Date('2024-01-20T10:00:00Z'),
+      available_until: new Date('2024-01-27T23:59:59Z'),
+      class_id: class1.clid,
+      creator_id: lecturer1User.lecturer!.lid,
+      status: 'published',
+    },
+  });
+
+  const quiz3 = await prisma.quiz.create({
+    data: {
+      qid: 'quiz003',
+      name: 'Control Flow and Loops',
+      description: 'Assessment on if statements, for loops, and while loops',
+      settings_json: JSON.stringify({
+        timeLimit: 40,
+        maxAttempts: 3,
+        shuffleQuestions: true,
+      }),
+      available_from: new Date('2024-02-01T09:00:00Z'),
+      available_until: new Date('2024-02-08T23:59:59Z'),
+      class_id: class1.clid,
+      creator_id: lecturer1User.lecturer!.lid,
+      status: 'published',
+    },
+  });
+
+  const quiz4 = await prisma.quiz.create({
+    data: {
+      qid: 'quiz004',
+      name: 'Functions and Modules',
+      description: 'Quiz covering function definition, parameters, return values, and importing modules',
+      settings_json: JSON.stringify({
+        timeLimit: 35,
+        maxAttempts: 2,
+        shuffleQuestions: true,
+      }),
+      available_from: new Date('2024-02-10T10:00:00Z'),
+      available_until: new Date('2024-02-17T23:59:59Z'),
+      class_id: class1.clid,
+      creator_id: lecturer1User.lecturer!.lid,
+      status: 'draft',
+    },
+  });
+
+  const quiz5 = await prisma.quiz.create({
+    data: {
+      qid: 'quiz005',
+      name: 'Lists, Dictionaries, and Sets',
+      description: 'Comprehensive assessment on Python collections and data structures',
+      settings_json: JSON.stringify({
+        timeLimit: 45,
+        maxAttempts: 2,
+        shuffleQuestions: true,
+      }),
+      available_from: new Date('2024-02-20T09:00:00Z'),
+      available_until: new Date('2024-02-27T23:59:59Z'),
+      class_id: class1.clid,
+      creator_id: lecturer1User.lecturer!.lid,
+      status: 'draft',
     },
   });
 
@@ -796,7 +868,8 @@ async function main() {
   console.log(`- Student001 assigned to all 5 classes`);
   console.log(`- 11 Course enrollments (10 students enrolled in CS101)`);
   console.log(`- 2 Files`);
-  console.log(`- 1 Quiz with 2 questions`);
+  console.log(`- 5 Quizzes for class001 (CS101-L1) created by lecturer001`);
+  console.log(`- 2 Questions (for quiz001)`);
   console.log(`- 1 Quiz attempt with answers`);
 }
 

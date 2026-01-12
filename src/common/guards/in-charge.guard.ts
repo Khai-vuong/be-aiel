@@ -24,7 +24,11 @@ export class InChargeGuard implements CanActivate {
             throw new BadRequestException('Class ID not provided');
         }
 
-        // Check if user is a lecturer
+        // Check if user is a lecturer or an admin
+        const adminSearch = this.prisma.admin.findUnique({
+            where: { user_id: user.uid }
+        });
+
         const lecturerSearch = this.prisma.lecturer.findUnique({
             where: { user_id: user.uid }
         });
@@ -33,8 +37,12 @@ export class InChargeGuard implements CanActivate {
             where: { clid: classId }
         });
 
-        const [lecturer, classData] = await Promise.all([lecturerSearch, classSearch]);
+        const [admin, lecturer, classData] = await Promise.all([adminSearch, lecturerSearch, classSearch]);
     
+        if (admin) {
+            return true;
+        }
+
         if (!lecturer) {
             throw new NotFoundException('Only lecturers can add resources to classes');
         }
