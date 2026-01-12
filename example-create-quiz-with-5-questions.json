@@ -1,0 +1,41 @@
+{
+  "name": "Kiểm tra giữa kỳ - Lập trình Python",
+  "description": "Bài kiểm tra bao gồm các kiến thức cơ bản về Python: biến, kiểu dữ liệu, câu lệnh điều kiện, vòng lặp và hàm",
+  "status": "published",
+  "available_from": "2026-01-15T08:00:00Z",
+  "available_until": "2026-01-20T23:59:59Z",
+  "creator_id": "lecturer001",
+  "settings_json": "{\"timeLimit\": 60, \"maxAttempts\": 3, \"shuffleQuestions\": true, \"showResults\": false}",
+  "questions": [
+    {
+      "content": "Câu 1: Kiểu dữ liệu nào sau đây là immutable (không thể thay đổi) trong Python?",
+      "options_json": "{\"A\": \"List\", \"B\": \"Dictionary\", \"C\": \"Tuple\", \"D\": \"Set\"}",
+      "answer_key_json": "{\"correct\": \"C\", \"explanation\": \"Tuple là immutable, không thể thay đổi sau khi tạo\"}",
+      "points": 2
+    },
+    {
+      "content": "Câu 2: Đoạn code nào sau đây sẽ in ra số từ 0 đến 4?",
+      "options_json": "{\"A\": \"for i in range(5): print(i)\", \"B\": \"for i in range(1, 5): print(i)\", \"C\": \"for i in range(0, 4): print(i)\", \"D\": \"for i in range(1, 6): print(i)\"}",
+      "answer_key_json": "{\"correct\": \"A\", \"explanation\": \"range(5) tạo dãy số từ 0 đến 4 (5 số)\"}",
+      "points": 2
+    },
+    {
+      "content": "Câu 3: Hàm nào được sử dụng để lấy độ dài của một list trong Python?",
+      "options_json": "{\"A\": \"count()\", \"B\": \"size()\", \"C\": \"length()\", \"D\": \"len()\"}",
+      "answer_key_json": "{\"correct\": \"D\", \"explanation\": \"Hàm len() được sử dụng để lấy độ dài của các kiểu dữ liệu như list, string, tuple\"}",
+      "points": 1
+    },
+    {
+      "content": "Câu 4: Đâu là cách đúng để khai báo một dictionary trong Python?",
+      "options_json": "{\"A\": \"dict = {1, 2, 3}\", \"B\": \"dict = [1, 2, 3]\", \"C\": \"dict = {\\\"key\\\": \\\"value\\\"}\", \"D\": \"dict = (1, 2, 3)\"}",
+      "answer_key_json": "{\"correct\": \"C\", \"explanation\": \"Dictionary sử dụng cặp key-value trong dấu ngoặc nhọn {}\"}",
+      "points": 2
+    },
+    {
+      "content": "Câu 5: Điều gì sẽ xảy ra khi bạn cố gắng chia một số cho 0 trong Python?",
+      "options_json": "{\"A\": \"Trả về giá trị None\", \"B\": \"Ném ra exception ZeroDivisionError\", \"C\": \"Trả về giá trị 0\", \"D\": \"Trả về giá trị Infinity\"}",
+      "answer_key_json": "{\"correct\": \"B\", \"explanation\": \"Python sẽ ném ra exception ZeroDivisionError khi chia cho 0\"}",
+      "points": 3
+    }
+  ]
+}

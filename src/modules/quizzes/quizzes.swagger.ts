@@ -141,7 +141,7 @@ export function SwaggerGetQuizzesByClass() {
       description: 'Retrieve all quizzes for a specific class'
     }),
     ApiParam({
-      name: 'classId',
+      name: 'clid',
       description: 'Class ID',
       example: 'class001'
     }),
@@ -180,7 +180,7 @@ export function SwaggerCreateQuiz() {
     ApiBearerAuth('JWT-auth'),
     ApiOperation({
       summary: 'Create a new quiz',
-      description: 'Create a new quiz for a class with optional questions. Only accessible by Admin and Lecturer roles.'
+      description: 'Create a new quiz for a class with optional questions. Class ID must be provided in the request body. Only accessible by Admin and Lecturer roles.'
     }),
     ApiBody({ type: CreateQuizDto }),
     ApiResponse({
@@ -195,7 +195,8 @@ export function SwaggerCreateQuiz() {
           status: { type: 'string', example: 'draft' },
           available_from: { type: 'string', format: 'date-time' },
           available_until: { type: 'string', format: 'date-time' },
-          created_at: { type: 'string', format: 'date-time' },
+          class_id: { type: 'string', example: 'class001' },
+
           questions: {
             type: 'array',
             items: {
@@ -222,7 +223,7 @@ export function SwaggerUpdateQuiz() {
     ApiBearerAuth('JWT-auth'),
     ApiOperation({
       summary: 'Update quiz',
-      description: 'Update quiz information. Only accessible by Admin and Lecturer roles.'
+      description: 'Update quiz information. Class ID can optionally be updated in the request body. Only accessible by Admin and Lecturer roles.'
     }),
     ApiParam({
       name: 'qid',
@@ -242,7 +243,7 @@ export function SwaggerUpdateQuiz() {
           status: { type: 'string' },
           available_from: { type: 'string', format: 'date-time' },
           available_until: { type: 'string', format: 'date-time' },
-          updated_at: { type: 'string', format: 'date-time' }
+          class_id: { type: 'string', example: 'class001' }
         }
       }
     }),

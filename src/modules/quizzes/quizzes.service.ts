@@ -8,16 +8,27 @@ import { AnswerScalarFieldEnum } from 'generated/prisma/internal/prismaNamespace
 /**
  * QuizzesService
  * 
- * Service structure:
- * {
- *   // Public async methods (accessible from controller)
- *   findAll: async () => Promise<Quiz[]>,                           // GET all quizzes with class info
- *   findOne: async (id: string) => Promise<Quiz>,                   // GET single quiz by ID with full details
- *   findQuizzesByClassId: async (classId: string) => Promise<Quiz[]>, // GET quizzes for a specific class
- *   create: async (createData: CreateQuizDto) => Promise<Quiz>,     // POST create new quiz
- *   update: async (id: string, updateData: UpdateQuizDto) => Promise<Quiz>, // PUT update quiz information
- *   delete: async (id: string) => Promise<Quiz>,                    // DELETE quiz (soft delete - sets status to 'Archived')
- * }
+ * Manages quiz operations including CRUD operations and quiz retrieval by class.
+ * 
+ * Public Methods:
+ * - findAll(): Promise<Quiz[]>
+ *     Retrieves all quizzes with class information and attempt counts
+ * 
+ * - findOne(id: string): Promise<Quiz>
+ *     Retrieves a single quiz by ID with full details including questions
+ * 
+ * - findQuizzesByClassId(classId: string): Promise<Quiz[]>
+ *     Retrieves all quizzes for a specific class
+ * 
+ * - create(createData: CreateQuizDto): Promise<Quiz>
+ *     Creates a new quiz with optional questions. Class ID must be provided in CreateQuizDto.
+ *     Validates that lecturer and class exist before creation.
+ * 
+ * - update(id: string, updateData: UpdateQuizDto): Promise<Quiz>
+ *     Updates quiz information. Validates quiz existence and date ranges if applicable.
+ * 
+ * - delete(id: string): Promise<Quiz>
+ *     Soft deletes a quiz by setting its status to 'archived'
  */
 @Injectable()
 export class QuizzesService {
