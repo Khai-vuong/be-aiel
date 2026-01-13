@@ -61,8 +61,25 @@ export function SwaggerSubmitAttempt() {
                     atid: { type: 'string' },
                     quiz_id: { type: 'string' },
                     student_id: { type: 'string' },
+                    quiz: {
+                        type: 'object',
+                        properties: {
+                            qid: { type: 'string' },
+                            name: { type: 'string' }
+                        }
+                    },
+                    student: {
+                        type: 'object',
+                        properties: {
+                            sid: { type: 'string' },
+                            name: { type: 'string' }
+                        }
+                    },
                     status: { type: 'string', example: 'submitted' },
                     attempt_number: { type: 'number' },
+                    score: { type: 'number' },
+                    max_score: { type: 'number' },
+                    percentage: { type: 'number' },
                     started_at: { type: 'string', format: 'date-time' },
                     submitted_at: { type: 'string', format: 'date-time' },
                     answers: {
@@ -70,11 +87,18 @@ export function SwaggerSubmitAttempt() {
                         items: {
                             type: 'object',
                             properties: {
-                                ansid: { type: 'string' },
-                                question_id: { type: 'string' },
                                 answer_json: { type: 'string' },
-                                is_correct: { type: 'boolean', nullable: true },
-                                points_awarded: { type: 'number', nullable: true }
+                                is_correct: { type: 'boolean' },
+                                points_awarded: { type: 'number' },
+                                question: {
+                                    type: 'object',
+                                    properties: {
+                                        ques_id: { type: 'string' },
+                                        content: { type: 'string' },
+                                        answer_key_json: { type: 'string' },
+                                        points: { type: 'number' }
+                                    }
+                                }
                             }
                         }
                     }
@@ -235,8 +259,9 @@ export function SwaggerGetAttempt() {
                                 question: {
                                     type: 'object',
                                     properties: {
-                                        ques_id: { type: 'string' },
                                         content: { type: 'string' },
+                                        options_json: { type: 'string' },
+                                        answer_key_json: { type: 'string' },
                                         points: { type: 'number' }
                                     }
                                 }

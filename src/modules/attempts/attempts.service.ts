@@ -232,8 +232,7 @@ export class AttemptsService {
                 answer_json: answer.answer_json,
                 is_correct: isCorrect,
                 points_awarded: pointsAwarded,
-                student_id: attempt.student_id,
-                attempt_id: attemptId
+                student_id: attempt.student_id
             };
         });
 
@@ -269,6 +268,11 @@ export class AttemptsService {
                     }
                 },
                 answers: {
+                    select: {
+                        answer_json: true,
+                        is_correct: true,
+                        points_awarded: true
+                    },
                     include: {
                         question: {
                             select: {
@@ -312,11 +316,7 @@ export class AttemptsService {
                         name: true
                     }
                 },
-                _count: {
-                    select: {
-                        answers: true
-                    }
-                }
+                answers: true,
             },
             orderBy: {
                 started_at: 'desc'
@@ -327,20 +327,21 @@ export class AttemptsService {
     // Get all attempts for a specific student in a specific quiz
     async findByQuizAndStudent(quizId: string, studentId: string): Promise<Attempt[]> {
         // Check if quiz exists
-        const quizExists = await this.prisma.quiz.findUnique({
+        const quizExists =  this.prisma.quiz.findUnique({
             where: { qid: quizId }
         });
 
-        if (!quizExists) {
-            throw new NotFoundException(`Quiz with ID ${quizId} not found`);
-        }
-
         // Check if student exists
-        const studentExists = await this.prisma.student.findUnique({
+        const studentExists =  this.prisma.student.findUnique({
             where: { sid: studentId }
         });
 
-        if (!studentExists) {
+        const [quiz, student] = await Promise.all([quizExists, studentExists]);
+
+        if (!quiz) {
+            throw new NotFoundException(`Quiz with ID ${quizId} not found`);
+        }
+        if (!student) {
             throw new NotFoundException(`Student with ID ${studentId} not found`);
         }
 
@@ -356,20 +357,6 @@ export class AttemptsService {
                         name: true
                     }
                 },
-                answers: {
-                    select: {
-                        ansid: true,
-                        question_id: true,
-                        answer_json: true,
-                        is_correct: true,
-                        points_awarded: true
-                    }
-                },
-                _count: {
-                    select: {
-                        answers: true
-                    }
-                }
             },
             orderBy: {
                 attempt_number: 'asc'
@@ -384,29 +371,29 @@ export class AttemptsService {
             include: {
                 quiz: {
                     select: {
-                        qid: true,
                         name: true,
                         settings_json: true
                     }
                 },
                 student: {
                     select: {
-                        sid: true,
                         name: true
                     }
                 },
                 answers: {
-                    include: {
+                    select: {
+                        answer_json: true,
+                        is_correct: true,
+                        points_awarded: true, 
                         question: {
                             select: {
-                                ques_id: true,
                                 content: true,
                                 options_json: true,
                                 answer_key_json: true,
                                 points: true
                             }
-                        }
-                    }
+                        }                       
+                    },
                 }
             }
         });
@@ -428,9 +415,15 @@ export class AttemptsService {
             throw new NotFoundException(`Attempt with ID ${attemptId} not found`);
         }
 
+        const percentage = updateData.score && updateData.max_score
+            ? (updateData.score / updateData.max_score) * 100
+            : undefined;
+
+        const updatedData = { ...updateData, percentage };
+
         return this.prisma.attempt.update({
             where: { atid: attemptId },
-            data: updateData,
+            data: updatedData,
             include: {
                 quiz: {
                     select: {
@@ -444,11 +437,6 @@ export class AttemptsService {
                         name: true
                     }
                 },
-                _count: {
-                    select: {
-                        answers: true
-                    }
-                }
             }
         });
     }

@@ -22,6 +22,7 @@ async function bootstrap() {
     .addTag('courses', 'Course management endpoints')
     .addTag('classes', 'Class management endpoints')
     .addTag('quizzes', 'Quiz management endpoints')
+    .addTag('attempts', 'Quiz attempt management endpoints')
     .addBearerAuth(
       {
         type: 'http',

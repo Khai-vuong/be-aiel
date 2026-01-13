@@ -6,9 +6,10 @@ import { CoursesModule } from './modules/courses/courses.module';
 import { TestModule } from './modules/test/test.module';
 import { ClassesModule } from './modules/classes/classes.module';
 import { QuizzesModule } from './modules/quizzes/quizzes.module';
+import { AttemptsModule } from './modules/attempts/attempts.module';
 
 @Module({
-  imports: [UsersModule, CoursesModule, TestModule, ClassesModule, QuizzesModule],
+  imports: [UsersModule, CoursesModule, TestModule, ClassesModule, QuizzesModule, AttemptsModule],
   controllers: [AppController],
   providers: [AppService],
 })

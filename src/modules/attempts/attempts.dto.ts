@@ -55,9 +55,4 @@ export class UpdateAttemptDto {
     @IsNumber()
     @IsOptional()
     max_score?: number;
-
-    @ApiPropertyOptional({ example: 85.5, description: 'Percentage score' })
-    @IsNumber()
-    @IsOptional()
-    percentage?: number;
 }
