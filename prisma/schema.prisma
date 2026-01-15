@@ -27,10 +27,12 @@ model User {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  student  Student?
-  lecturer Lecturer?
-  admin    Admin?
-  File     File[]
+  student       Student?
+  lecturer      Lecturer?
+  admin         Admin?
+  File          File[]
+  notifications Notification[]
+  logs          Log[]
 
   @@index([status])
   @@index([created_at])
@@ -235,4 +237,45 @@ model Answer {
 
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
+}
+
+model Notification {
+  nid String @id @default(cuid())
+
+  title   String
+  message String
+  type    String  @default("general") // general, quiz_posted, grade_released, enrollment_status, deadline_reminder, assignment_submitted
+  is_read Boolean @default(false)
+
+  // Link to resource (quiz, course, assignment, etc.)
+  related_type String? // Quiz, Course, Attempt, Assignment, etc.
+  related_id   String? // ID of the related resource
+
+  user_id String
+  user    User   @relation(fields: [user_id], references: [uid])
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  @@index([user_id])
+  @@index([type])
+  @@index([created_at])
+}
+
+model Log {
+  logid String @id @default(cuid())
+
+  action        String  @default("unknown") // login, logout, create_quiz, edit_quiz, delete_quiz, submit_attempt, grade_attempt, upload_file, etc.
+  resource_type String? // User, Quiz, Attempt, Answer, Course, Class, File, etc.
+  resource_id   String? // ID of the affected resource
+
+  // Actor information
+  user_id String
+  user    User   @relation(fields: [user_id], references: [uid])
+
+  created_at DateTime @default(now())
+
+  @@index([user_id])
+  @@index([action])
+  @@index([created_at])
 }
