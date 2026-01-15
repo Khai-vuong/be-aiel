@@ -785,7 +785,7 @@ async function main() {
     },
   });
 
-  // Create Questions
+  // Create Questions for Python Basics Quiz (5 questions)
   const question1 = await prisma.question.create({
     data: {
       ques_id: 'question001',
@@ -797,7 +797,7 @@ async function main() {
         D: 'declare x = 10',
       }),
       answer_key_json: JSON.stringify({ correct: 'B' }),
-      points: 2.0,
+      points: 1.0,
       quiz_id: quiz1.qid,
     },
   });
@@ -805,26 +805,74 @@ async function main() {
   const question2 = await prisma.question.create({
     data: {
       ques_id: 'question002',
-      content: 'Which of the following are Python data types? (Select all that apply)',
+      content: 'What is the output of the following code: print(type(3.14))?',
       options_json: JSON.stringify({
-        A: 'int',
-        B: 'string',
-        C: 'list',
-        D: 'boolean',
+        A: '<class \'int\'>',
+        B: '<class \'float\'>',
+        C: '<class \'str\'>',
+        D: '<class \'number\'>',
       }),
-      answer_key_json: JSON.stringify({ correct: ['A', 'C', 'D'] }),
-      points: 3.0,
+      answer_key_json: JSON.stringify({ correct: 'B' }),
+      points: 1.0,
       quiz_id: quiz1.qid,
     },
   });
 
-  // Create Quiz Attempt
+  const question3 = await prisma.question.create({
+    data: {
+      ques_id: 'question003',
+      content: 'Which of the following are valid Python variable names?',
+      options_json: JSON.stringify({
+        A: '1variable',
+        B: '_variable123',
+        C: 'my-variable',
+        D: 'MyVariable',
+      }),
+      answer_key_json: JSON.stringify({ correct: ['B', 'D'] }),
+      points: 1.0,
+      quiz_id: quiz1.qid,
+    },
+  });
+
+  const question4 = await prisma.question.create({
+    data: {
+      ques_id: 'question004',
+      content: 'What does the len() function return for the string "Python"?',
+      options_json: JSON.stringify({
+        A: '5',
+        B: '6',
+        C: '7',
+        D: 'None',
+      }),
+      answer_key_json: JSON.stringify({ correct: 'B' }),
+      points: 1.0,
+      quiz_id: quiz1.qid,
+    },
+  });
+
+  const question5 = await prisma.question.create({
+    data: {
+      ques_id: 'question005',
+      content: 'How do you create a list in Python?',
+      options_json: JSON.stringify({
+        A: 'list = {1, 2, 3}',
+        B: 'list = [1, 2, 3]',
+        C: 'list = (1, 2, 3)',
+        D: 'list = <1, 2, 3>',
+      }),
+      answer_key_json: JSON.stringify({ correct: 'B' }),
+      points: 1.0,
+      quiz_id: quiz1.qid,
+    },
+  });
+
+  // Create Quiz Attempt for student001 with 3/5 correct answers
   const attempt1 = await prisma.attempt.create({
     data: {
       atid: 'attempt001',
-      score: 4.0,
+      score: 3.0,
       max_score: 5.0,
-      percentage: 80.0,
+      percentage: 60.0,
       status: 'graded',
       attempt_number: 1,
       quiz_id: quiz1.qid,
@@ -833,13 +881,13 @@ async function main() {
     },
   });
 
-  // Create Answers
+  // Create Answers for the attempt (3 correct, 2 incorrect)
   await prisma.answer.create({
     data: {
       ansid: 'answer001',
       answer_json: JSON.stringify({ selected: 'B' }),
       is_correct: true,
-      points_awarded: 2.0,
+      points_awarded: 1.0,
       attempt_id: attempt1.atid,
       question_id: question1.ques_id,
       student_id: student1User.student!.sid,
@@ -849,11 +897,47 @@ async function main() {
   await prisma.answer.create({
     data: {
       ansid: 'answer002',
-      answer_json: JSON.stringify({ selected: ['A', 'C'] }),
+      answer_json: JSON.stringify({ selected: 'C' }), // Wrong answer
       is_correct: false,
-      points_awarded: 2.0, // Partial credit
+      points_awarded: 0.0,
       attempt_id: attempt1.atid,
       question_id: question2.ques_id,
+      student_id: student1User.student!.sid,
+    },
+  });
+
+  await prisma.answer.create({
+    data: {
+      ansid: 'answer003',
+      answer_json: JSON.stringify({ selected: ['B', 'D'] }),
+      is_correct: true,
+      points_awarded: 1.0,
+      attempt_id: attempt1.atid,
+      question_id: question3.ques_id,
+      student_id: student1User.student!.sid,
+    },
+  });
+
+  await prisma.answer.create({
+    data: {
+      ansid: 'answer004',
+      answer_json: JSON.stringify({ selected: 'A' }), // Wrong answer
+      is_correct: false,
+      points_awarded: 0.0,
+      attempt_id: attempt1.atid,
+      question_id: question4.ques_id,
+      student_id: student1User.student!.sid,
+    },
+  });
+
+  await prisma.answer.create({
+    data: {
+      ansid: 'answer005',
+      answer_json: JSON.stringify({ selected: 'B' }),
+      is_correct: true,
+      points_awarded: 1.0,
+      attempt_id: attempt1.atid,
+      question_id: question5.ques_id,
       student_id: student1User.student!.sid,
     },
   });
@@ -869,8 +953,9 @@ async function main() {
   console.log(`- 11 Course enrollments (10 students enrolled in CS101)`);
   console.log(`- 2 Files`);
   console.log(`- 5 Quizzes for class001 (CS101-L1) created by lecturer001`);
-  console.log(`- 2 Questions (for quiz001)`);
-  console.log(`- 1 Quiz attempt with answers`);
+  console.log(`- 5 Questions for Python Basics Quiz`);
+  console.log(`- 1 Quiz attempt by student001 with 3/5 correct answers (60%)`);
+  console.log(`- 5 Answers with mixed correct/incorrect responses`);
 }
 
 main()

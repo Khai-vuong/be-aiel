@@ -118,7 +118,6 @@ export class NotificationsService {
         message: createData.message,
         type: createData.type || 'general',
         is_read: false,
-        details_json: createData.details_json || null,
         related_type: createData.related_type || null,
         related_id: createData.related_id || null,
         user_id: createData.user_id,
@@ -140,7 +139,6 @@ export class NotificationsService {
         message: updateData.message || notification.message,
         is_read: updateData.is_read !== undefined ? updateData.is_read : notification.is_read,
         type: updateData.type || notification.type,
-        details_json: updateData.details_json !== undefined ? updateData.details_json : notification.details_json,
       },
     });
   }

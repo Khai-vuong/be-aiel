@@ -438,25 +438,7 @@ export class ClassesService {
     async downloadFromLocal(fid: string) {
         // Find the file in database
         const file = await this.prisma.file.findUnique({
-            where: { fid },
-            include: {
-                files: {
-                    orderBy: {
-                        created_at: 'desc'
-                    }
-                },
-                course: {
-                    select: {
-                        name: true,
-                        code: true
-                    }
-                },
-                lecturer: {
-                    select: {
-                        name: true
-                    }
-                }
-            }
+            where: { fid }
         });
 
         if (!file || !file.url) {

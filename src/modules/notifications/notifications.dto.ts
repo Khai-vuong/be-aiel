@@ -44,14 +44,6 @@ export class CreateNotificationDto {
   type?: string;
 
   @ApiPropertyOptional({
-    example: '{"dueDate": "2024-01-20", "subject": "Midterm"}',
-    description: 'Additional details as JSON string',
-  })
-  @IsOptional()
-  @IsString()
-  details_json?: string;
-
-  @ApiPropertyOptional({
     example: RelatedResourceType.QUIZ,
     enum: RelatedResourceType,
     description: 'Type of the related resource',
@@ -109,14 +101,6 @@ export class UpdateNotificationDto {
   @IsOptional()
   @IsEnum(NotificationType)
   type?: string;
-
-  @ApiPropertyOptional({
-    example: '{"updated": "details"}',
-    description: 'Updated details as JSON string',
-  })
-  @IsOptional()
-  @IsString()
-  details_json?: string;
 }
 
 export class GetNotificationsFilterDto {

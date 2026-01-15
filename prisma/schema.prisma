@@ -132,11 +132,12 @@ model Class {
 }
 
 model File {
-  fid       String @id @default(cuid())
-  filename  String
-  url       String
-  size      Float?
-  mime_type String // e.g. application/pdf, image/png, video/mp4
+  fid           String  @id @default(cuid())
+  filename      String
+  original_name String?
+  url           String
+  size          Float?
+  mime_type     String // e.g. application/pdf, image/png, video/mp4
 
   // File categorization
   file_type String  @default("document") // document, video, image, assignment
