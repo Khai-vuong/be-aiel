@@ -12,3 +12,4 @@ export default defineConfig({
     // url: env("DATABASE_SUPABASE_URL_POOLING")
   }
 });
+
