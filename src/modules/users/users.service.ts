@@ -49,6 +49,7 @@ export class UsersService {
     }
     
     async register(registerDto: UsersRegisterDto): Promise<any> {
+        //This route doesn't require authentication, so we need explicit uid in logging
         if (registerDto.role === "Student") {
             const newUser = await this.prisma.user.create({
                 data: {
@@ -68,7 +69,8 @@ export class UsersService {
                     student: true,
                 }
             });
-            await this.logService.createLog('create_user', 'User', newUser.uid);
+            // createLog('action', 'resourceType', 'resourceId', 'uid')
+            await this.logService.createLog('create_user', 'User', newUser.uid, newUser.uid);
             return newUser;
         }
         else if (registerDto.role === "Lecturer") {
@@ -89,7 +91,7 @@ export class UsersService {
                     lecturer: true,
                 }
             });
-            await this.logService.createLog('create_user', 'User', newUser.uid);
+            await this.logService.createLog('create_user', 'User', newUser.uid, newUser.uid);
             return newUser;
         }
         else if (registerDto.role === "Admin") {
@@ -110,7 +112,7 @@ export class UsersService {
                     admin: true,
                 }
             });
-            await this.logService.createLog('create_user', 'User', newUser.uid);
+            await this.logService.createLog('create_user', 'User', newUser.uid, newUser.uid);
             return newUser;
         }
         else {

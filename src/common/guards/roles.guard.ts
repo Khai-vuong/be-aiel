@@ -2,10 +2,14 @@ import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import { RequestContextService } from '../context';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(
+    private reflector: Reflector,
+    private requestContextService: RequestContextService,
+  ) {}
 
   canActivate(context: ExecutionContext): boolean {
     const requiredRoles = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, [
@@ -33,6 +37,13 @@ export class RolesGuard implements CanActivate {
     if (!user.role) {
       throw new ForbiddenException('User role not found');
     }
+
+    // Set user context for the entire request lifecycle
+    this.requestContextService.setContext({
+      uid: user.uid,
+      username: user.username,
+      role: user.role,
+    });
 
     const isPermitted = requiredRoles.some((role) => user.role === role);
     
