@@ -12,6 +12,9 @@ yarn-debug.log*
 yarn-error.log*
 lerna-debug.log*
 
+# Exception: Include the logs module
+!src/modules/logs/**
+
 # OS
 .DS_Store
 

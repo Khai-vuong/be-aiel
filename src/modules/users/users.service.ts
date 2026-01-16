@@ -3,13 +3,15 @@ import { User } from '@prisma/client';
 import { PrismaService } from 'src/prisma.service';
 import { UsersRegisterDto, UsersLoginDto, UsersUpdateDto, UserLoginResponseDto } from './users.dto';
 import { JwtService } from '@nestjs/jwt';
+import { LogService } from '../logs';
 
 @Injectable()
 export class UsersService {
 
     constructor (
         private readonly prisma: PrismaService,
-        private readonly jwtService: JwtService
+        private readonly jwtService: JwtService,
+        private readonly logService: LogService,
     ) { }
 
     async findAll(): Promise<User[]> {
@@ -48,7 +50,7 @@ export class UsersService {
     
     async register(registerDto: UsersRegisterDto): Promise<any> {
         if (registerDto.role === "Student") {
-            return await this.prisma.user.create({
+            const newUser = await this.prisma.user.create({
                 data: {
                     username: registerDto.username,
                     hashed_password: registerDto.hashed_password,
@@ -66,9 +68,11 @@ export class UsersService {
                     student: true,
                 }
             });
+            await this.logService.createLog('create_user', 'User', newUser.uid);
+            return newUser;
         }
         else if (registerDto.role === "Lecturer") {
-            return await this.prisma.user.create({
+            const newUser = await this.prisma.user.create({
                 data: {
                     username: registerDto.username,
                     hashed_password: registerDto.hashed_password,
@@ -85,9 +89,11 @@ export class UsersService {
                     lecturer: true,
                 }
             });
+            await this.logService.createLog('create_user', 'User', newUser.uid);
+            return newUser;
         }
         else if (registerDto.role === "Admin") {
-            return await this.prisma.user.create({
+            const newUser = await this.prisma.user.create({
                 data: {
                     username: registerDto.username,
                     hashed_password: registerDto.hashed_password,
@@ -104,6 +110,8 @@ export class UsersService {
                     admin: true,
                 }
             });
+            await this.logService.createLog('create_user', 'User', newUser.uid);
+            return newUser;
         }
         else {
             throw new BadRequestException("Invalid role specified");
@@ -120,11 +128,15 @@ export class UsersService {
             if (user.hashed_password !== loginDto.hashed_password) {
                 throw new BadRequestException("Invalid password");
             }
+
+            if (user.status === "Deleted") {
+                throw new BadRequestException("User account is deleted");
+            }
             
-            this.prisma.user.update({
-                where: {uid: user.uid},
-                data: {status: "Active"}
-            })
+            // this.prisma.user.update({
+            //     where: {uid: user.uid},
+            //     data: {status: "Active"}
+            // })
 
             const signPayload = {
                 uid: user.uid,
@@ -149,7 +161,7 @@ export class UsersService {
             throw new BadRequestException("User not found");
         }
 
-        return this.prisma.$transaction( async (tx) => {
+        const result = await this.prisma.$transaction( async (tx) => {
             const updatedBaseUser = await this.updateBaseUser(tx, id, updateDto);
             let roleSpecificData = null;
             
@@ -165,7 +177,10 @@ export class UsersService {
                     return { ...updatedBaseUser, Admin: roleSpecificData };
                 default: throw new BadRequestException("Invalid user role");
             }
-        })
+        });
+
+        await this.logService.createLog('update_user', 'User', id);
+        return result;
     }
     
     private updateBaseUser(tx : any, id: string, dto: UsersUpdateDto) {
@@ -216,20 +231,28 @@ export class UsersService {
             throw new BadRequestException("User not found");
         }
 
-        return this.prisma.$transaction(async (tx) => {
-            await tx.user.delete({
-                where: { uid: id }
-            });
-            const deleteStudent =  tx.student.deleteMany({
-                where: { user_id: id }
-            });
-            const deleteLecturer =  tx.lecturer.deleteMany({
-                where: { user_id: id }
-            });
-            const deleteAdmin =  tx.admin.deleteMany({
-                where: { user_id: id }
-            });
-            await Promise.all([deleteStudent, deleteLecturer, deleteAdmin]);
+        // return this.prisma.$transaction(async (tx) => {
+        //     await tx.user.delete({
+        //         where: { uid: id }
+        //     });
+        //     const deleteStudent =  tx.student.deleteMany({
+        //         where: { user_id: id }
+        //     });
+        //     const deleteLecturer =  tx.lecturer.deleteMany({
+        //         where: { user_id: id }
+        //     });
+        //     const deleteAdmin =  tx.admin.deleteMany({
+        //         where: { user_id: id }
+        //     });
+        //     await Promise.all([deleteStudent, deleteLecturer, deleteAdmin]);
+        // });
+
+        const result = await this.prisma.user.update({
+            where: {uid : id},
+            data: {status: "Deleted"},
         });
+
+        await this.logService.createLog('delete_user', 'User', id);
+        return result;
     }
 }
