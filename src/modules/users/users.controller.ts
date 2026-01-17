@@ -52,7 +52,7 @@ export class UsersController {
     @Post("auth/login")
     @Public()
     @SwaggerLogin()
-    async login(@Body() loginDto: UsersLoginDto, @Request() req) {
+    async login(@Body() loginDto: UsersLoginDto) {
         return this.usersService.login(loginDto);
     }
 

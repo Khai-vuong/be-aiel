@@ -942,6 +942,46 @@ async function main() {
     },
   });
 
+  // Create Notifications for student001 (2 unread, 1 read)
+  await prisma.notification.create({
+    data: {
+      nid: 'notification001',
+      title: 'New Quiz Available',
+      message: 'A new quiz "Variables and Data Types" has been posted for CS101 - L1. Available until Jan 27, 2024.',
+      type: 'quiz_posted',
+      is_read: false,
+      related_type: 'Quiz',
+      related_id: quiz2.qid,
+      user_id: student1User.uid,
+    },
+  });
+
+  await prisma.notification.create({
+    data: {
+      nid: 'notification002',
+      title: 'Quiz Results Available',
+      message: 'Your results for "Python Basics Quiz" are now available. You scored 60% (3/5 correct).',
+      type: 'grade_released',
+      is_read: false,
+      related_type: 'Attempt',
+      related_id: attempt1.atid,
+      user_id: student1User.uid,
+    },
+  });
+
+  await prisma.notification.create({
+    data: {
+      nid: 'notification003',
+      title: 'Welcome to CS101',
+      message: 'Welcome to CS101 - Introduction to Programming! Please check the course materials and syllabus.',
+      type: 'general',
+      is_read: true,
+      related_type: 'Course',
+      related_id: course1.cid,
+      user_id: student1User.uid,
+    },
+  });
+
   console.log('✅ Database seeded successfully!');
   console.log(`Created:`);
   console.log(`- 1 Admin user`);
@@ -956,6 +996,7 @@ async function main() {
   console.log(`- 5 Questions for Python Basics Quiz`);
   console.log(`- 1 Quiz attempt by student001 with 3/5 correct answers (60%)`);
   console.log(`- 5 Answers with mixed correct/incorrect responses`);
+  console.log(`- 3 Notifications for student001 (2 unread, 1 read)`);
 }
 
 main()

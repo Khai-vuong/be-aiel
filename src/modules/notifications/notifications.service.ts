@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { Notification } from '@prisma/client';
 import { CreateNotificationDto, UpdateNotificationDto, GetNotificationsFilterDto } from './notifications.dto';
@@ -9,51 +9,50 @@ import { CreateNotificationDto, UpdateNotificationDto, GetNotificationsFilterDto
  * Manages notification operations for users.
  *
  * Public Methods:
- * - findAll(userId: string, filter?: GetNotificationsFilterDto): Promise<Notification[]>
+ * - findAll(filter?: GetNotificationsFilterDto): Promise<Notification[]>
+ *     Retrieves all notifications with optional filtering (no user filtering)
+ *
+ * - findAllOfUser(userId: string, filter?: GetNotificationsFilterDto): Promise<Notification[]>
  *     Retrieves all notifications for a user with optional filtering
  *
- * - findOne(id: string, userId: string): Promise<Notification>
- *     Retrieves a single notification by ID, verifying ownership
+ * - findOne(nid: string): Promise<Notification>
+ *     Retrieves a single notification by ID
  *
- * - findUnread(userId: string): Promise<Notification[]>
+ * - getUnreadCount(userId: string): Promise<number>
+ *     Gets the count of unread notifications for a user
+ *
+ * - getUnreadNotifications(userId: string): Promise<Notification[]>
  *     Retrieves all unread notifications for a user
  *
- * - create(createData: CreateNotificationDto): Promise<Notification>
- *     Creates a new notification for a user
- *
- * - update(id: string, userId: string, updateData: UpdateNotificationDto): Promise<Notification>
- *     Updates a notification (usually to mark as read)
- *
- * - delete(id: string, userId: string): Promise<Notification>
- *     Deletes a notification
- *
- * - markAsRead(id: string, userId: string): Promise<Notification>
+ * - markAsRead(nid: string): Promise<Notification>
  *     Marks a single notification as read
  *
  * - markAllAsRead(userId: string): Promise<{ count: number }>
  *     Marks all notifications for a user as read
  *
- * - createForUser(userId: string, createData: CreateNotificationDto): Promise<Notification>
- *     Internal method to create a notification for a specific user
+ * - create(createData: CreateNotificationDto): Promise<Notification>
+ *     Creates a new notification for a user
  *
- * - notifyUsers(userIds: string[], createData: Omit<CreateNotificationDto, 'user_id'>): Promise<Notification[]>
- *     Creates notifications for multiple users at once
+ * - update(nid: string, updaterUid: string, updateData: UpdateNotificationDto): Promise<Notification>
+ *     Updates a notification with permission verification
+ *
+ * - delete(nid: string, requesterUid: string): Promise<Notification>
+ *     Deletes a notification with permission verification
+ *
+ * - notifyOneUser(createData: CreateNotificationDto): Promise<Notification>
+ *     Creates a notification for a single user (used by other services)
+ *
+ * - notifyUsers(userIds: string[], createData: Omit<CreateNotificationDto, 'recipient_uid'>): Promise<Notification[]>
+ *     Creates notifications for multiple users at once (used by other services)
  */
 @Injectable()
 export class NotificationsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * Get all notifications for a user
-   */
-  async findAll(userId: string, filter?: GetNotificationsFilterDto): Promise<Notification[]> {
-    // Verify user exists
-    await this.verifyUserExists(userId);
-
+  async findAll(filter?: GetNotificationsFilterDto): Promise<Notification[]> {
     return this.prisma.notification.findMany({
       where: {
-        user_id: userId,
-        ...(filter?.is_read !== undefined && { is_read: filter.is_read }),
+        ...(filter?.is_read !== undefined && { is_read: filter.is_read }), //spread the filter property if exists
         ...(filter?.type && { type: filter.type }),
       },
       orderBy: {
@@ -64,29 +63,48 @@ export class NotificationsService {
     });
   }
 
-  /**
-   * Get a single notification
-   */
-  async findOne(id: string, userId: string): Promise<Notification> {
+  async findAllOfUser(userId: string, filter?: GetNotificationsFilterDto): Promise<Notification[]> {
+    await this.verifyUserExists(userId);
+
+    return this.prisma.notification.findMany({
+      where: {
+        user_id: userId,
+        ...(filter?.is_read !== undefined && { is_read: filter.is_read }), //spread the filter property if exists
+        ...(filter?.type && { type: filter.type }),
+      },
+      orderBy: {
+        created_at: 'desc',
+      },
+      take: filter?.limit || 50,
+      skip: filter?.skip || 0,
+    });
+  }
+
+  async findOne(nid: string): Promise<Notification> {
     const notification = await this.prisma.notification.findUnique({
-      where: { nid: id },
+      where: { nid: nid },
     });
 
     if (!notification) {
-      throw new NotFoundException(`Notification with ID ${id} not found`);
-    }
-
-    if (notification.user_id !== userId) {
-      throw new BadRequestException('You do not have permission to access this notification');
+      throw new NotFoundException(`Notification with ID ${nid} not found`);
     }
 
     return notification;
   }
 
-  /**
-   * Get unread notifications for a user
-   */
-  async findUnread(userId: string): Promise<Notification[]> {
+  async getUnreadCount(userId: string): Promise<number> 
+  {
+    await this.verifyUserExists(userId);
+
+    return this.prisma.notification.count({
+      where: {
+        user_id: userId,
+        is_read: false,
+      },
+    });
+  }
+
+  async getUnreadNotifications(userId: string): Promise<Notification[]> {
     await this.verifyUserExists(userId);
 
     return this.prisma.notification.findMany({
@@ -100,77 +118,15 @@ export class NotificationsService {
     });
   }
 
-  /**
-   * Create a notification for a user
-   */
-  async create(createData: CreateNotificationDto): Promise<Notification> {
-    // Verify user exists
-    await this.verifyUserExists(createData.user_id);
-
-    // Validate related resource if provided
-    if (createData.related_id && createData.related_type) {
-      await this.verifyRelatedResource(createData.related_type, createData.related_id);
-    }
-
-    return this.prisma.notification.create({
-      data: {
-        title: createData.title,
-        message: createData.message,
-        type: createData.type || 'general',
-        is_read: false,
-        related_type: createData.related_type || null,
-        related_id: createData.related_id || null,
-        user_id: createData.user_id,
-      },
-    });
-  }
-
-  /**
-   * Update a notification
-   */
-  async update(id: string, userId: string, updateData: UpdateNotificationDto): Promise<Notification> {
-    // Verify ownership
-    const notification = await this.findOne(id, userId);
+  async markAsRead(nid: string): Promise<Notification> {
+    await this.findOne(nid);
 
     return this.prisma.notification.update({
-      where: { nid: id },
-      data: {
-        title: updateData.title || notification.title,
-        message: updateData.message || notification.message,
-        is_read: updateData.is_read !== undefined ? updateData.is_read : notification.is_read,
-        type: updateData.type || notification.type,
-      },
-    });
-  }
-
-  /**
-   * Delete a notification
-   */
-  async delete(id: string, userId: string): Promise<Notification> {
-    // Verify ownership
-    await this.findOne(id, userId);
-
-    return this.prisma.notification.delete({
-      where: { nid: id },
-    });
-  }
-
-  /**
-   * Mark a single notification as read
-   */
-  async markAsRead(id: string, userId: string): Promise<Notification> {
-    // Verify ownership
-    await this.findOne(id, userId);
-
-    return this.prisma.notification.update({
-      where: { nid: id },
+      where: { nid: nid },
       data: { is_read: true },
     });
   }
 
-  /**
-   * Mark all notifications as read for a user
-   */
   async markAllAsRead(userId: string): Promise<{ count: number }> {
     await this.verifyUserExists(userId);
 
@@ -187,47 +143,77 @@ export class NotificationsService {
     return { count: result.count };
   }
 
-  /**
-   * Create a notification for a specific user (internal use)
-   */
-  async createForUser(userId: string, createData: Omit<CreateNotificationDto, 'user_id'>): Promise<Notification> {
-    return this.create({
-      ...createData,
-      user_id: userId,
-    });
-  }
 
-  /**
-   * Create notifications for multiple users at once
-   */
-  async notifyUsers(
-    userIds: string[],
-    createData: Omit<CreateNotificationDto, 'user_id'>,
-  ): Promise<Notification[]> {
-    // Verify all users exist
-    const users = await this.prisma.user.findMany({
-      where: {
-        uid: { in: userIds },
+  async create(createData: CreateNotificationDto): Promise<Notification> {
+    await this.verifyUserExists(createData.recipient_uid);
+
+    return this.prisma.notification.create({
+      data: {
+        title: createData.title,
+        message: createData.message,
+        type: createData.type || 'general',
+        is_read: false,
+        related_type: createData.related_type || null,
+        related_id: createData.related_id || null,
+        user_id: createData.recipient_uid,
       },
     });
+  }
 
-    if (users.length !== userIds.length) {
-      throw new BadRequestException('One or more users do not exist');
-    }
+  async update(nid: string, updaterUid: string, updateData: UpdateNotificationDto): Promise<Notification> {
+    await this.verifyUserPermission(updaterUid, nid);
 
-    const notifications = await Promise.all(
-      userIds.map((userId) =>
-        this.createForUser(userId, createData),
-      ),
-    );
+    return this.prisma.notification.update({
+      where: { nid: nid },
+      data: {
+        title: updateData.title,
+        message: updateData.message,
+        type: updateData.type,
+      },
+    });
+  }
 
-    return notifications;
+  async delete(nid: string, requesterUid: string): Promise<Notification> {
+    await this.verifyUserPermission(requesterUid, nid);
+
+    return this.prisma.notification.delete({
+      where: { nid: nid },
+    });
   }
 
   /**
-   * Helper method to verify user exists
+   * region: For Other Services
    */
-  private async verifyUserExists(userId: string): Promise<void> {
+
+  async notifyOneUser(createData: CreateNotificationDto): Promise<Notification> 
+  {
+    await this.verifyUserExists(createData.recipient_uid);
+
+    return this.create({
+      ...createData,
+    });
+  }
+
+  async notifyUsers(
+    userIds: string[],
+    createData: Omit<CreateNotificationDto, 'recipient_uid'>
+  ): Promise<Notification[]>
+    {
+      await Promise.all(userIds.map(uid => this.verifyUserExists(uid)));
+
+      const notifications = await Promise.all(
+        userIds.map((userId) =>
+          this.create({
+            ...createData,
+            recipient_uid: userId,
+          }),
+        ),
+      );
+      return notifications;
+    }
+
+  /**region: Helpers */
+  private async verifyUserExists(userId: string): Promise<boolean> {
     const user = await this.prisma.user.findUnique({
       where: { uid: userId },
     });
@@ -235,66 +221,37 @@ export class NotificationsService {
     if (!user) {
       throw new NotFoundException(`User with ID ${userId} not found`);
     }
+    return true;
   }
 
-  /**
-   * Helper method to verify related resource exists
-   */
-  private async verifyRelatedResource(resourceType: string, resourceId: string): Promise<void> {
-    switch (resourceType) {
-      case 'Quiz':
-        const quiz = await this.prisma.quiz.findUnique({
-          where: { qid: resourceId },
-        });
-        if (!quiz) {
-          throw new NotFoundException(`Quiz with ID ${resourceId} not found`);
-        }
-        break;
+  private async verifyUserPermission(userId: string, nid: string)
+    : Promise<{ user: any; notification: Notification }> 
+  {
+    const userExist = this.prisma.user.findUnique({
+      where: { uid: userId },
+    });
 
-      case 'Course':
-        const course = await this.prisma.course.findUnique({
-          where: { cid: resourceId },
-        });
-        if (!course) {
-          throw new NotFoundException(`Course with ID ${resourceId} not found`);
-        }
-        break;
+    const notificationExist =  this.prisma.notification.findUnique({
+      where : {nid},
+    })
 
-      case 'Attempt':
-        const attempt = await this.prisma.attempt.findUnique({
-          where: { atid: resourceId },
-        });
-        if (!attempt) {
-          throw new NotFoundException(`Attempt with ID ${resourceId} not found`);
-        }
-        break;
+    const [user, notification] = await Promise.all([userExist, notificationExist]);
 
-      case 'Class':
-        const cls = await this.prisma.class.findUnique({
-          where: { clid: resourceId },
-        });
-        if (!cls) {
-          throw new NotFoundException(`Class with ID ${resourceId} not found`);
-        }
-        break;
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+    
+    if (!notification) {
+      throw new NotFoundException(`Notification with ID ${nid} not found`);
+    }
 
-      default:
-        // For unknown types, we won't validate
-        break;
+    if (notification.user_id !== userId && user.role !== 'Admin') {
+      throw new UnauthorizedException(`User with ID ${userId} does not have permission for notification ID ${nid}`);
+    }
+
+    return {
+      user, notification
     }
   }
 
-  /**
-   * Get unread count for a user
-   */
-  async getUnreadCount(userId: string): Promise<number> {
-    await this.verifyUserExists(userId);
-
-    return this.prisma.notification.count({
-      where: {
-        user_id: userId,
-        is_read: false,
-      },
-    });
-  }
 }

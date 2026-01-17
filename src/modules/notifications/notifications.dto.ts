@@ -65,7 +65,7 @@ export class CreateNotificationDto {
     description: 'User ID to send notification to',
   })
   @IsString()
-  user_id: string;
+  recipient_uid: string;
 }
 
 export class UpdateNotificationDto {
@@ -84,14 +84,6 @@ export class UpdateNotificationDto {
   @IsOptional()
   @IsString()
   message?: string;
-
-  @ApiPropertyOptional({
-    example: true,
-    description: 'Mark as read status',
-  })
-  @IsOptional()
-  @IsBoolean()
-  is_read?: boolean;
 
   @ApiPropertyOptional({
     example: NotificationType.GENERAL,
@@ -142,4 +134,64 @@ export class GetNotificationsFilterDto {
   @Type(() => Number)
   @Min(0)
   skip?: number;
+}
+
+export class CreateBulkNotificationDto {
+  @ApiProperty({
+    example: ['user_12345', 'user_67890'],
+    description: 'Array of user IDs to send notifications to',
+    type: [String],
+  })
+  @IsString({ each: true })
+  recipients: string[];
+
+  @ApiProperty({
+    example: {
+      title: 'New Quiz Available',
+      message: 'A new quiz has been posted for your class',
+      type: 'quiz_posted',
+      related_type: 'Quiz',
+      related_id: 'quiz_12345',
+    },
+    description: 'Notification data to send to all recipients',
+  })
+  @ApiProperty({
+    example: 'New Quiz Available',
+    description: 'Title of the notification',
+  })
+  @IsString()
+  title: string;
+
+  @ApiProperty({
+    example: 'A new quiz has been posted for your class',
+    description: 'Message content of the notification',
+  })
+  @IsString()
+  message: string;
+
+  @ApiPropertyOptional({
+    example: NotificationType.QUIZ_POSTED,
+    enum: NotificationType,
+    description: 'Type of notification',
+  })
+  @IsOptional()
+  @IsEnum(NotificationType)
+  type?: string;
+
+  @ApiPropertyOptional({
+    example: RelatedResourceType.QUIZ,
+    enum: RelatedResourceType,
+    description: 'Type of the related resource',
+  })
+  @IsOptional()
+  @IsEnum(RelatedResourceType)
+  related_type?: string;
+
+  @ApiPropertyOptional({
+    example: 'quiz_12345',
+    description: 'ID of the related resource',
+  })
+  @IsOptional()
+  @IsString()
+  related_id?: string;
 }

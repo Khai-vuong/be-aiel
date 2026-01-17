@@ -252,6 +252,7 @@ model Notification {
   related_type String? // Quiz, Course, Attempt, Assignment, etc.
   related_id   String? // ID of the related resource
 
+  // Recipient
   user_id String
   user    User   @relation(fields: [user_id], references: [uid])
 

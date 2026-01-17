@@ -3,7 +3,117 @@ import { ApiOperation, ApiResponse, ApiParam, ApiQuery } from '@nestjs/swagger';
 
 export function SwaggerGetAllNotifications() {
   return applyDecorators(
-    ApiOperation({ summary: 'Get all notifications for current user' }),
+    ApiOperation({ summary: 'Get all notifications (Admin only)' }),
+    ApiQuery({
+      name: 'is_read',
+      required: false,
+      type: Boolean,
+      description: 'Filter by read status',
+    }),
+    ApiQuery({
+      name: 'type',
+      required: false,
+      type: String,
+      description: 'Filter by notification type',
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      type: Number,
+      description: 'Number of notifications to retrieve',
+    }),
+    ApiQuery({
+      name: 'skip',
+      required: false,
+      type: Number,
+      description: 'Number of notifications to skip',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'List of notifications retrieved successfully',
+      schema: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            nid: { type: 'string' },
+            title: { type: 'string' },
+            message: { type: 'string' },
+            type: { type: 'string' },
+            is_read: { type: 'boolean' },
+            details_json: { type: 'string', nullable: true },
+            related_type: { type: 'string', nullable: true },
+            related_id: { type: 'string', nullable: true },
+            user_id: { type: 'string' },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+  );
+}
+
+export function SwaggerGetAllNotificationsOfUser() {
+  return applyDecorators(
+    ApiOperation({ summary: 'Get all notifications for a specific user' }),
+    ApiParam({ name: 'userId', description: 'User ID' }),
+    ApiQuery({
+      name: 'is_read',
+      required: false,
+      type: Boolean,
+      description: 'Filter by read status',
+    }),
+    ApiQuery({
+      name: 'type',
+      required: false,
+      type: String,
+      description: 'Filter by notification type',
+    }),
+    ApiQuery({
+      name: 'limit',
+      required: false,
+      type: Number,
+      description: 'Number of notifications to retrieve',
+    }),
+    ApiQuery({
+      name: 'skip',
+      required: false,
+      type: Number,
+      description: 'Number of notifications to skip',
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'List of notifications retrieved successfully',
+      schema: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            nid: { type: 'string' },
+            title: { type: 'string' },
+            message: { type: 'string' },
+            type: { type: 'string' },
+            is_read: { type: 'boolean' },
+            details_json: { type: 'string', nullable: true },
+            related_type: { type: 'string', nullable: true },
+            related_id: { type: 'string', nullable: true },
+            user_id: { type: 'string' },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 404, description: 'User not found' }),
+  );
+}
+
+export function SwaggerGetMyNotifications() {
+  return applyDecorators(
+    ApiOperation({ summary: 'Get all notifications for the current authenticated user' }),
     ApiQuery({
       name: 'is_read',
       required: false,
@@ -58,7 +168,7 @@ export function SwaggerGetAllNotifications() {
 export function SwaggerGetNotification() {
   return applyDecorators(
     ApiOperation({ summary: 'Get a single notification by ID' }),
-    ApiParam({ name: 'id', description: 'Notification ID' }),
+    ApiParam({ name: 'nid', description: 'Notification ID' }),
     ApiResponse({
       status: 200,
       description: 'Notification retrieved successfully',
@@ -113,10 +223,42 @@ export function SwaggerCreateNotification() {
   );
 }
 
+export function SwaggerCreateBulkNotification() {
+  return applyDecorators(
+    ApiOperation({ summary: 'Create notifications for multiple users at once (Lecturer/Admin only)' }),
+    ApiResponse({
+      status: 201,
+      description: 'Notifications created successfully for all recipients',
+      schema: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            nid: { type: 'string' },
+            title: { type: 'string' },
+            message: { type: 'string' },
+            type: { type: 'string' },
+            is_read: { type: 'boolean' },
+            details_json: { type: 'string', nullable: true },
+            related_type: { type: 'string', nullable: true },
+            related_id: { type: 'string', nullable: true },
+            user_id: { type: 'string' },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 400, description: 'Bad request - one or more users do not exist' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 403, description: 'Forbidden - requires Lecturer or Admin role' }),
+  );
+}
+
 export function SwaggerUpdateNotification() {
   return applyDecorators(
-    ApiOperation({ summary: 'Update a notification' }),
-    ApiParam({ name: 'id', description: 'Notification ID' }),
+    ApiOperation({ summary: 'Update a notification (Lecturer/Admin only)' }),
+    ApiParam({ name: 'nid', description: 'Notification ID' }),
     ApiResponse({
       status: 200,
       description: 'Notification updated successfully',
@@ -146,7 +288,7 @@ export function SwaggerUpdateNotification() {
 export function SwaggerDeleteNotification() {
   return applyDecorators(
     ApiOperation({ summary: 'Delete a notification' }),
-    ApiParam({ name: 'id', description: 'Notification ID' }),
+    ApiParam({ name: 'nid', description: 'Notification ID' }),
     ApiResponse({
       status: 200,
       description: 'Notification deleted successfully',
@@ -159,7 +301,7 @@ export function SwaggerDeleteNotification() {
 export function SwaggerMarkAsRead() {
   return applyDecorators(
     ApiOperation({ summary: 'Mark a single notification as read' }),
-    ApiParam({ name: 'id', description: 'Notification ID' }),
+    ApiParam({ name: 'nid', description: 'Notification ID' }),
     ApiResponse({
       status: 200,
       description: 'Notification marked as read',

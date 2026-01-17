@@ -11,17 +11,21 @@ import {
   ValidationPipe,
   Query,
   BadRequestException,
+  Request,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { JwtGuard } from 'src/common/guards/jwt.guard';
 import { RolesGuard } from 'src/common/guards/roles.guard';
 import { Roles } from 'src/common/decorators/roles.decorator';
 import { NotificationsService } from './notifications.service';
-import { CreateNotificationDto, UpdateNotificationDto, GetNotificationsFilterDto } from './notifications.dto';
+import { CreateNotificationDto, UpdateNotificationDto, GetNotificationsFilterDto, CreateBulkNotificationDto } from './notifications.dto';
 import {
   SwaggerGetAllNotifications,
+  SwaggerGetAllNotificationsOfUser,
+  SwaggerGetMyNotifications,
   SwaggerGetNotification,
   SwaggerCreateNotification,
+  SwaggerCreateBulkNotification,
   SwaggerUpdateNotification,
   SwaggerDeleteNotification,
   SwaggerMarkAsRead,
@@ -42,49 +46,66 @@ import {
 export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
-  /**
-   * Get all notifications for the current user
-   */
   @Get()
   @SwaggerGetAllNotifications()
   async getAllNotifications(
     @Query() filter: GetNotificationsFilterDto,
   ) {
-    // Get user from JWT - this would typically come from @GetUser() decorator
-    // For now, we'll need to pass userId. In a real app, extract from JWT token
-    throw new BadRequestException('User ID is required');
+    return this.notificationsService.findAll(filter);
   }
 
-  /**
-   * Get unread notifications count for the current user
-   */
   @Get('unread/count')
   @SwaggerGetUnreadCount()
-  async getUnreadCount() {
-    throw new BadRequestException('User ID is required');
+  async getUnreadCount(@Request() req) {
+    return this.notificationsService.getUnreadCount(req.user.uid);
   }
 
-  /**
-   * Get all unread notifications for the current user
-   */
   @Get('unread')
   @SwaggerGetUnread()
-  async getUnreadNotifications() {
-    throw new BadRequestException('User ID is required');
+  async getUnreadNotifications(@Request() req) {
+    return this.notificationsService.getUnreadNotifications(req.user.uid);
   }
 
-  /**
-   * Get a single notification by ID
-   */
-  @Get(':id')
+  @Get('me')
+  @SwaggerGetMyNotifications()
+  async getMyNotifications(
+    @Request() req, 
+    @Query() filter: GetNotificationsFilterDto,
+  ) {
+    return this.notificationsService.findAllOfUser(req.user.uid, filter);
+  }
+
+  @Roles('Admin')
+  @Get('/user/:userId')
+  @SwaggerGetAllNotificationsOfUser()
+  async getAllNotificationsOfUser(
+    @Param('userId') userId: string,
+    @Query() filter: GetNotificationsFilterDto,
+  ) {
+    return this.notificationsService.findAllOfUser(userId, filter);
+  }
+
+  @Get(':nid')
   @SwaggerGetNotification()
-  async getNotification(@Param('id') id: string) {
-    throw new BadRequestException('User ID is required');
+  async getNotification(
+    @Param('nid') nid: string,
+  ) {
+    return this.notificationsService.findOne(nid);
   }
 
-  /**
-   * Create a new notification (Admin/Lecturer only)
-   */
+  @Put(':nid/mark-as-read')
+  @SwaggerMarkAsRead()
+  async markAsRead(@Param('nid') nid: string) {
+    return this.notificationsService.markAsRead(nid);
+  }
+
+  @Put('mark-as-read/all')
+  @SwaggerMarkAllAsRead()
+  async markAllAsRead(@Request() req) {
+    return this.notificationsService.markAllAsRead(req.user.uid);
+  }
+
+
   @Post()
   @Roles('Lecturer', 'Admin')
   @SwaggerCreateNotification()
@@ -92,42 +113,30 @@ export class NotificationsController {
     return this.notificationsService.create(createNotificationDto);
   }
 
-  /**
-   * Update a notification (mark as read, update message, etc.)
-   */
-  @Put(':id')
+  @Post('bulk')
+  @Roles('Lecturer', 'Admin')
+  @SwaggerCreateBulkNotification()
+  async createBulkNotification(@Body() createBulkNotificationDto: CreateBulkNotificationDto) {
+    const { recipients, ...notificationData } = createBulkNotificationDto;
+    return this.notificationsService.notifyUsers(recipients, notificationData);
+  }
+
+  @Put(':nid')
+  @Roles('Lecturer', 'Admin')
   @SwaggerUpdateNotification()
   async updateNotification(
-    @Param('id') id: string,
+    @Param('nid') nid: string,
+    @Request() req,
     @Body() updateNotificationDto: UpdateNotificationDto,
   ) {
-    throw new BadRequestException('User ID is required');
+    const updaterUid = req.user.uid;
+    return this.notificationsService.update(nid, updaterUid, updateNotificationDto);
   }
 
-  /**
-   * Mark a single notification as read
-   */
-  @Put(':id/mark-as-read')
-  @SwaggerMarkAsRead()
-  async markAsRead(@Param('id') id: string) {
-    throw new BadRequestException('User ID is required');
-  }
-
-  /**
-   * Mark all notifications as read for the current user
-   */
-  @Put('mark-all/as-read')
-  @SwaggerMarkAllAsRead()
-  async markAllAsRead() {
-    throw new BadRequestException('User ID is required');
-  }
-
-  /**
-   * Delete a notification
-   */
-  @Delete(':id')
+  @Delete(':nid')
   @SwaggerDeleteNotification()
-  async deleteNotification(@Param('id') id: string) {
-    throw new BadRequestException('User ID is required');
+  async deleteNotification(@Param('nid') nid: string, @Request() req) {
+    const requesterUid = req.user.uid;
+    return this.notificationsService.delete(nid, requesterUid);
   }
 }
