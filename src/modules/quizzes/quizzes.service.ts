@@ -4,6 +4,7 @@ import { Quiz } from '@prisma/client';
 import { CreateQuizDto, UpdateQuizDto, CreateQuestionDto } from './quizzes.dto';
 import { createClient } from '@supabase/supabase-js';
 import { AnswerScalarFieldEnum } from 'generated/prisma/internal/prismaNamespace';
+import { LogService } from '../logs';
 
 /**
  * QuizzesService
@@ -33,7 +34,10 @@ import { AnswerScalarFieldEnum } from 'generated/prisma/internal/prismaNamespace
 @Injectable()
 export class QuizzesService {
 
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly logService: LogService,
+    ) { }
 
     // Get all quizzes
     async findAll(): Promise<Quiz[]> {
@@ -189,7 +193,7 @@ export class QuizzesService {
         :   [];
 
         // Create the quiz with nested questions creation
-        return this.prisma.quiz.create({
+        const newQuiz = await this.prisma.quiz.create({
             data: {
                 name: createData.name,
                 description: createData.description,
@@ -230,6 +234,9 @@ export class QuizzesService {
                 }
             }
         });
+
+        await this.logService.createLog('create_quiz', 'Quiz', newQuiz.qid);
+        return newQuiz;
     }
 
     // Update a quiz
@@ -249,7 +256,7 @@ export class QuizzesService {
             }
         }
 
-        return this.prisma.quiz.update({
+        const updatedQuiz = await this.prisma.quiz.update({
             where: { qid: id },
             data: updateData,
             include: {
@@ -270,6 +277,9 @@ export class QuizzesService {
                 }
             }
         });
+
+        await this.logService.createLog('update_quiz', 'Quiz', id);
+        return updatedQuiz;
     }
 
     // Delete a quiz (soft delete by archiving)
@@ -290,11 +300,14 @@ export class QuizzesService {
             throw new NotFoundException(`Quiz with ID ${id} not found`);
         }
 
-        return this.prisma.quiz.update({
+        const deletedQuiz = await this.prisma.quiz.update({
             where: { qid: id },
             data: {
                 status: 'archived'
             }
         });
+
+        await this.logService.createLog('delete_quiz', 'Quiz', id);
+        return deletedQuiz;
     }
 }

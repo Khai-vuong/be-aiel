@@ -7,6 +7,7 @@ import { s3Client } from 'src/common/utils/s3.client';
 import { join } from 'path';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import * as fs from 'fs';
+import { LogService } from '../logs';
 
 /**
  * ClassesService
@@ -31,7 +32,10 @@ import * as fs from 'fs';
 @Injectable()
 export class ClassesService {
 
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly logService: LogService,
+    ) { }
 
     // Get all classes
     async findAll(): Promise<Class[]> {
@@ -216,7 +220,7 @@ export class ClassesService {
         // Also, prisma automatically disconnect the old lecturer when connecting a new one
         const { lecturer_id, ...classData } = updateData;
 
-        return this.prisma.class.update({
+        const updatedClass = await this.prisma.class.update({
             where: { clid: id },
             data: {
                 ...classData,
@@ -235,6 +239,9 @@ export class ClassesService {
                 },
             }
         });
+
+        await this.logService.createLog('update_class', 'Class', id);
+        return updatedClass;
     }
 
     // Delete a class
@@ -256,12 +263,15 @@ export class ClassesService {
             throw new NotFoundException(`Class with ID ${id} not found`);
         }
 
-        return this.prisma.class.update({
+        const deletedClass = await this.prisma.class.update({
             where: { clid: id },
             data: {
                 status: 'Canceled'
             },
-        })
+        });
+
+        await this.logService.createLog('delete_class', 'Class', id);
+        return deletedClass;
     }
 
     /**
@@ -312,6 +322,8 @@ export class ClassesService {
                 }
             }
         });
+
+        await this.logService.createLog('upload_file_local', 'File', createdFile.fid);
 
         // Return the updated class with the new file
         return this.prisma.class.findUnique({
@@ -401,7 +413,7 @@ export class ClassesService {
         }
 
         // Create file record in database
-        const newFile =  this.prisma.file.create({
+        const newFile = await this.prisma.file.create({
             data: {
                 filename: file.filename || file.originalname,
                 original_name: file.originalname,
@@ -417,7 +429,9 @@ export class ClassesService {
                     connect: { uid: userId }
                 }
             }
-        });
+        }); 
+
+        await this.logService.createLog('upload_file', 'File', newFile.fid);
 
         // Step 3: Delete the file from local storage if it was saved there
         if (file.path) {
@@ -625,7 +639,9 @@ export class ClassesService {
                     }
                 });
 
-                createdClasses.push(newClass);       
+                createdClasses.push(newClass);
+
+                await this.logService.createLog('create_class', 'Class', newClass.clid);
             }
         }
         

@@ -2,6 +2,7 @@ import { Injectable, BadRequestException, NotFoundException, ConsoleLogger } fro
 import { PrismaService } from 'src/prisma.service';
 import { CourseCreateDto, CourseUpdateDto } from './courses.dto';
 import { Course, CourseEnrollment } from '@prisma/client';
+import { LogService } from '../logs';
 
 /**
  * CoursesService
@@ -26,7 +27,10 @@ import { Course, CourseEnrollment } from '@prisma/client';
 @Injectable()
 export class CoursesService {
 
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly logService: LogService,
+    ) { }
 
     // Get all courses
     async findAll(): Promise<Course[]> {
@@ -92,7 +96,7 @@ export class CoursesService {
 
         const { lecturer_id, ...courseData } = createCourseDto;
 
-        return this.prisma.course.create({
+        const newCourse = await this.prisma.course.create({
             data: {
                 ...courseData,
                 lecturers: {
@@ -103,6 +107,9 @@ export class CoursesService {
                 lecturers: true,
             }
         });
+
+        await this.logService.createLog('create_course', 'Course', newCourse.cid);
+        return newCourse;
     }
 
     // Update a course
@@ -126,7 +133,7 @@ export class CoursesService {
             }
         }
 
-        return this.prisma.course.update({
+        const updatedCourse = await this.prisma.course.update({
             where: { cid: id },
             data: updateCourseDto,
             include: {
@@ -141,6 +148,9 @@ export class CoursesService {
                 }
             }
         });
+
+        await this.logService.createLog('update_course', 'Course', id);
+        return updatedCourse;
     }
 
     // Delete a course
@@ -171,6 +181,8 @@ export class CoursesService {
         await this.prisma.course.delete({
             where: { cid: id }
         });
+
+        await this.logService.createLog('delete_course', 'Course', id);
     }
 
     // Add a lecturer to a course
@@ -191,7 +203,7 @@ export class CoursesService {
             throw new NotFoundException(`Lecturer with ID ${lecturerId} not found`);
         }
 
-        return this.prisma.course.update({
+        const updatedCourse = await this.prisma.course.update({
             where: { cid: courseId },
             data: {
                 lecturers: {
@@ -208,6 +220,9 @@ export class CoursesService {
                 }
             }
         });
+
+        await this.logService.createLog('add_lecturer_to_course', 'Course', courseId);
+        return updatedCourse;
     }
 
     // Remove a lecturer from a course
@@ -228,7 +243,7 @@ export class CoursesService {
             throw new BadRequestException(`Lecturer with ID ${lecturerId} is not teaching course ${courseId}`);
         }
 
-        return this.prisma.course.update({
+        const updatedCourse = await this.prisma.course.update({
             where: { cid: courseId },
             data: {
                 lecturers: {
@@ -245,6 +260,9 @@ export class CoursesService {
                 }
             }
         });
+
+        await this.logService.createLog('remove_lecturer_from_course', 'Course', courseId);
+        return updatedCourse;
     }
 
     async registerStudentToCourse(studentUserId: string, courseId: string): Promise<any> {
@@ -289,6 +307,8 @@ export class CoursesService {
                     course: true
                 }
             });
+
+            await this.logService.createLog('re_course_enrollment', 'CourseEnrollment', enrollment.ceid, studentUserId);
              
             return {
                 "enrollment": enrollmentRegister,
@@ -307,6 +327,8 @@ export class CoursesService {
                 course: true
             }
         });
+
+        await this.logService.createLog('course_enrollment', 'CourseEnrollment', enrollmentRegister.ceid, studentUserId);
 
         return {
             "enrollment": enrollmentRegister,
@@ -362,6 +384,7 @@ export class CoursesService {
             }
         });
 
+        await this.logService.createLog('unregister_enrollment', 'CourseEnrollment', enrollment.ceid, studentUserId);
 
         return {
             "enrollment": unregisteredEnrollment,

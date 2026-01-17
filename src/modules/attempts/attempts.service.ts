@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, BadRequestException, ForbiddenException 
 import { PrismaService } from 'src/prisma.service';
 import { Attempt } from '@prisma/client';
 import { CreateAttemptDto, SubmitAttemptDto, UpdateAttemptDto, CreateAnswerDto } from './attempts.dto';
+import { LogService } from '../logs';
 
 /**
  * AttemptsService
@@ -32,7 +33,10 @@ import { CreateAttemptDto, SubmitAttemptDto, UpdateAttemptDto, CreateAnswerDto }
 @Injectable()
 export class AttemptsService {
 
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly logService: LogService,
+    ) { }
 
     // Create a new attempt
     async create(createData: CreateAttemptDto): Promise<Attempt> {
@@ -78,7 +82,7 @@ export class AttemptsService {
         const thisAttemptNumber = NumOfExistingAttempts + 1;
 
         // Create the attempt
-        return this.prisma.attempt.create({
+        const newAttempt = await this.prisma.attempt.create({
             data: {
                 quiz_id: createData.quiz_id,
                 student_id: createData.student_id,
@@ -101,6 +105,9 @@ export class AttemptsService {
                 }
             }
         });
+
+        await this.logService.createLog('create_attempt', 'Attempt', newAttempt.atid);
+        return newAttempt;
     }
 
     // Submit an attempt with answers
@@ -242,7 +249,7 @@ export class AttemptsService {
         const percentage = maxPoints > 0 ? (totalPoints / maxPoints) * 100 : 0;
 
         // Update attempt status to submitted and create answers
-        return this.prisma.attempt.update({
+        const submittedAttempt = await this.prisma.attempt.update({
             where: { atid: attemptId },
             data: {
                 status: 'submitted',
@@ -264,7 +271,8 @@ export class AttemptsService {
                 student: {
                     select: {
                         sid: true,
-                        name: true
+                        name: true,
+                        user_id: true
                     }
                 },
                 answers: {
@@ -286,6 +294,9 @@ export class AttemptsService {
                 }
             }
         });
+
+        await this.logService.createLog('submit_attempt', 'Attempt', attemptId);
+        return submittedAttempt;
     }
 
     // Get all attempts for a specific quiz
@@ -421,7 +432,7 @@ export class AttemptsService {
 
         const updatedData = { ...updateData, percentage };
 
-        return this.prisma.attempt.update({
+        const updatedAttempt = await this.prisma.attempt.update({
             where: { atid: attemptId },
             data: updatedData,
             include: {
@@ -434,10 +445,14 @@ export class AttemptsService {
                 student: {
                     select: {
                         sid: true,
-                        name: true
+                        name: true,
+                        user_id: true
                     }
                 },
             }
         });
+
+        await this.logService.createLog('update_attempt', 'Attempt', attemptId);
+        return updatedAttempt;
     }
 }
