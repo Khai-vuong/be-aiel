@@ -5,7 +5,7 @@ import { UsersService } from './users.service';
 import { Reflector } from '@nestjs/core';
 
 //Payload structure lấy từ userService.login(), coi nó sign cái gì. + iat và exp
-interface JwtPayload {
+export interface JwtPayload {
     uid: string;
     username: string;
     role: string

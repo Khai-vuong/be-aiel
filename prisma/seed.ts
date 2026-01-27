@@ -982,6 +982,158 @@ async function main() {
     },
   });
 
+  // Create Log records to simulate real flow
+  // Lecturer1 login
+  await prisma.log.create({
+    data: {
+      logid: 'log001',
+      action: 'login',
+      resource_type: 'User',
+      resource_id: lecturer1User.uid,
+      user_id: lecturer1User.uid,
+      created_at: new Date('2024-01-10T08:00:00Z'),
+    },
+  });
+
+  // Lecturer1 uploads file to class001
+  await prisma.log.create({
+    data: {
+      logid: 'log002',
+      action: 'upload_file',
+      resource_type: 'File',
+      resource_id: 'file001',
+      user_id: lecturer1User.uid,
+      created_at: new Date('2024-01-10T08:15:00Z'),
+    },
+  });
+
+  await prisma.log.create({
+    data: {
+      logid: 'log003',
+      action: 'upload_file',
+      resource_type: 'File',
+      resource_id: 'file002',
+      user_id: lecturer1User.uid,
+      created_at: new Date('2024-01-10T08:20:00Z'),
+    },
+  });
+
+  // Lecturer1 creates quizzes for class001
+  await prisma.log.create({
+    data: {
+      logid: 'log004',
+      action: 'create_quiz',
+      resource_type: 'Quiz',
+      resource_id: quiz1.qid,
+      user_id: lecturer1User.uid,
+      created_at: new Date('2024-01-12T14:30:00Z'),
+    },
+  });
+
+  await prisma.log.create({
+    data: {
+      logid: 'log005',
+      action: 'create_quiz',
+      resource_type: 'Quiz',
+      resource_id: quiz2.qid,
+      user_id: lecturer1User.uid,
+      created_at: new Date('2024-01-14T10:00:00Z'),
+    },
+  });
+
+  await prisma.log.create({
+    data: {
+      logid: 'log006',
+      action: 'create_quiz',
+      resource_type: 'Quiz',
+      resource_id: quiz3.qid,
+      user_id: lecturer1User.uid,
+      created_at: new Date('2024-01-18T09:30:00Z'),
+    },
+  });
+
+  await prisma.log.create({
+    data: {
+      logid: 'log007',
+      action: 'create_quiz',
+      resource_type: 'Quiz',
+      resource_id: quiz4.qid,
+      user_id: lecturer1User.uid,
+      created_at: new Date('2024-01-25T11:00:00Z'),
+    },
+  });
+
+  await prisma.log.create({
+    data: {
+      logid: 'log008',
+      action: 'create_quiz',
+      resource_type: 'Quiz',
+      resource_id: quiz5.qid,
+      user_id: lecturer1User.uid,
+      created_at: new Date('2024-02-01T13:45:00Z'),
+    },
+  });
+
+  // Student1 login
+  await prisma.log.create({
+    data: {
+      logid: 'log009',
+      action: 'login',
+      resource_type: 'User',
+      resource_id: student1User.uid,
+      user_id: student1User.uid,
+      created_at: new Date('2024-01-15T20:00:00Z'),
+    },
+  });
+
+  // Student1 creates attempt for quiz001
+  await prisma.log.create({
+    data: {
+      logid: 'log010',
+      action: 'create_attempt',
+      resource_type: 'Attempt',
+      resource_id: attempt1.atid,
+      user_id: student1User.uid,
+      created_at: new Date('2024-01-16T10:00:00Z'),
+    },
+  });
+
+  // Student1 submits attempt for quiz001
+  await prisma.log.create({
+    data: {
+      logid: 'log011',
+      action: 'submit_attempt',
+      resource_type: 'Attempt',
+      resource_id: attempt1.atid,
+      user_id: student1User.uid,
+      created_at: new Date('2024-01-16T10:30:00Z'),
+    },
+  });
+
+  // Lecturer1 updates/grades the attempt
+  await prisma.log.create({
+    data: {
+      logid: 'log012',
+      action: 'update_attempt',
+      resource_type: 'Attempt',
+      resource_id: attempt1.atid,
+      user_id: lecturer1User.uid,
+      created_at: new Date('2024-01-16T15:00:00Z'),
+    },
+  });
+
+  // Student1 logs in again to check results
+  await prisma.log.create({
+    data: {
+      logid: 'log013',
+      action: 'login',
+      resource_type: 'User',
+      resource_id: student1User.uid,
+      user_id: student1User.uid,
+      created_at: new Date('2024-01-17T09:00:00Z'),
+    },
+  });
+
   console.log('✅ Database seeded successfully!');
   console.log(`Created:`);
   console.log(`- 1 Admin user`);
@@ -997,6 +1149,7 @@ async function main() {
   console.log(`- 1 Quiz attempt by student001 with 3/5 correct answers (60%)`);
   console.log(`- 5 Answers with mixed correct/incorrect responses`);
   console.log(`- 3 Notifications for student001 (2 unread, 1 read)`);
+  console.log(`- 13 Log records simulating real user actions`);
 }
 
 main()
