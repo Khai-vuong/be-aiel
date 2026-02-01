@@ -26,6 +26,14 @@ export function SwaggerGetAllQuizzes() {
             qid: { type: 'string', example: 'quiz001' },
             name: { type: 'string', example: 'Midterm Quiz' },
             description: { type: 'string', example: 'Covers chapters 1-5' },
+            settings_json: {
+              type: 'object',
+              properties: {
+                timeLimit: { type: 'number', example: 45 },
+                maxAttempts: { type: 'number', example: 2 },
+                shuffleQuestions: { type: 'boolean', example: true }
+              }
+            },
             status: { type: 'string', example: 'draft', enum: ['draft', 'published', 'archived'] },
             available_from: { type: 'string', format: 'date-time' },
             available_until: { type: 'string', format: 'date-time' },
@@ -82,6 +90,14 @@ export function SwaggerGetQuiz() {
           qid: { type: 'string', example: 'quiz001' },
           name: { type: 'string', example: 'Midterm Quiz' },
           description: { type: 'string', example: 'Covers chapters 1-5' },
+          settings_json: {
+            type: 'object',
+            properties: {
+              timeLimit: { type: 'number', example: 45 },
+              maxAttempts: { type: 'number', example: 2 },
+              shuffleQuestions: { type: 'boolean', example: true }
+            }
+          },
           status: { type: 'string', example: 'draft' },
           available_from: { type: 'string', format: 'date-time' },
           available_until: { type: 'string', format: 'date-time' },
@@ -156,6 +172,14 @@ export function SwaggerGetQuizzesByClass() {
             qid: { type: 'string' },
             name: { type: 'string' },
             description: { type: 'string' },
+            settings_json: {
+              type: 'object',
+              properties: {
+                timeLimit: { type: 'number', example: 45 },
+                maxAttempts: { type: 'number', example: 2 },
+                shuffleQuestions: { type: 'boolean', example: true }
+              }
+            },
             status: { type: 'string' },
             available_from: { type: 'string', format: 'date-time' },
             available_until: { type: 'string', format: 'date-time' },

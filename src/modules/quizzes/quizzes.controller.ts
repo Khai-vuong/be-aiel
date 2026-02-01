@@ -53,6 +53,7 @@ export class QuizzesController {
     }
 
     @Get('class/:clid')
+    @UseInterceptors(JsonParseInterceptor)
     @SwaggerGetQuizzesByClass()
     async findQuizzesByClass(@Param('clid') clid: string) {
         return this.quizzesService.findQuizzesByClassId(clid);
