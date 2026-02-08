@@ -13,6 +13,7 @@ import { JwtGuard } from '../../common/guards/jwt.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { AiRequestDto } from './models/ai-request.dto';
+import { SwaggerAiChat } from './swagger/ai.swagger';
 
 @Controller('ai')
 @UseGuards(JwtGuard, RolesGuard)
@@ -20,6 +21,7 @@ export class AiController {
   constructor(private readonly orchestratorService: OrchestratorService) {}
 
   @Post('chat')
+  @SwaggerAiChat()
   async chat(@Request() req, @Body() aiRequest: AiRequestDto) {
     
     return this.orchestratorService.processRequest(aiRequest, req.user);
