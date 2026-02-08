@@ -90,7 +90,7 @@ export const fewShotExamples = {
   ]
 };
 
-export const fewShotTokenCache = {
+export const curatedFewShotTokenCache = {
   'system_configuration': [
     'server',
     'uptime',

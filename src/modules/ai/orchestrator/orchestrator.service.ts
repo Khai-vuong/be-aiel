@@ -19,11 +19,18 @@ export class OrchestratorService {
 
   async processRequest(request: AiRequestDto, user: JwtPayload) {
 
-    const userIntent = await this.intentClassifier.classify(request.message, user.role);
+    const userIntent = await this.intentClassifier.classify(request.text, user.role);
+    console.log('Classified intent:', userIntent);
+
+    return {
+      text: request.text,
+      decisions: userIntent,
+      role: user.role
+    }
 
 
-    this.logger.log('Processing AI request - to be implemented');
-    throw new Error('Not implemented');
+    // this.logger.log('Processing AI request - to be implemented');
+    // throw new Error('Not implemented');
   }
 
   async getUserConversations(userId: string, limit: number) {

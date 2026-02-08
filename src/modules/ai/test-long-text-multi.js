@@ -6,8 +6,7 @@ const longTextTests = [
     input: `First, I need you to analyze the performance data from last week's quiz to identify which topics students struggled with most. 
     Calculate the average score, median, and show me the distribution by question difficulty. 
     Once we have that analysis, I want to create a remedial quiz focusing specifically on those weak areas. 
-    Design about 15 practice questions targeting the concepts where students scored below 60%. 
-    Make sure the questions progressively increase in difficulty to help students build confidence.`,
+    Design about 15 practice questions targeting the concepts where students scored below 60%.Make sure the questions progressively increase in difficulty to help students build confidence.`,
     expected: {
       primary: "data_analysis",
       secondary: "quiz_creation"

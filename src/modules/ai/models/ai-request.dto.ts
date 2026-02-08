@@ -3,7 +3,7 @@ import type { AIServiceType } from './ai-context.interface';
 
 export class AiRequestDto {
   @IsString()
-  message: string;
+  text: string = '';
 
   @IsOptional()
   @IsEnum(['SYSTEM_CONTROL', 'STUDY_ANALYST', 'TUTOR', 'TEACHING_ASSISTANT'])

@@ -10,6 +10,7 @@ import { AttemptsModule } from './modules/attempts/attempts.module';
 import { RequestContextModule } from './common/context';
 import { LogsModule } from './modules/logs/logs.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { AiModule } from './modules/ai/ai.module';
 
 @Module({
   imports: [
@@ -21,7 +22,8 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     ClassesModule,
     QuizzesModule,
     AttemptsModule,
-    NotificationsModule
+    NotificationsModule,
+    AiModule
   ],
   controllers: [AppController],
   providers: [AppService],
