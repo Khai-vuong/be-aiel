@@ -1134,6 +1134,171 @@ async function main() {
     },
   });
 
+  await prisma.log.create({
+    data: {
+      logid: 'log014',
+      action: 'view_notification',
+      resource_type: 'Notification',
+      resource_id: 'notification001',
+      user_id: student1User.uid,
+      created_at: new Date('2024-01-17T09:05:00Z'),
+    },
+  });
+
+  await prisma.log.create({
+    data: {
+      logid: 'log015',
+      action: 'mark_notification_read',
+      resource_type: 'Notification',
+      resource_id: 'notification002',
+      user_id: student1User.uid,
+      created_at: new Date('2024-01-17T09:06:00Z'),
+    },
+  });
+
+  await prisma.log.create({
+    data: {
+      logid: 'log016',
+      action: 'download_file',
+      resource_type: 'File',
+      resource_id: 'file001',
+      user_id: student1User.uid,
+      created_at: new Date('2024-01-17T09:15:00Z'),
+    },
+  });
+
+  await prisma.log.create({
+    data: {
+      logid: 'log017',
+      action: 'download_file',
+      resource_type: 'File',
+      resource_id: 'file002',
+      user_id: student1User.uid,
+      created_at: new Date('2024-01-17T09:18:00Z'),
+    },
+  });
+
+  await prisma.log.create({
+    data: {
+      logid: 'log018',
+      action: 'update_class',
+      resource_type: 'Class',
+      resource_id: class1.clid,
+      user_id: lecturer1User.uid,
+      created_at: new Date('2024-01-18T07:45:00Z'),
+    },
+  });
+
+  await prisma.log.create({
+    data: {
+      logid: 'log019',
+      action: 'grade_attempt',
+      resource_type: 'Attempt',
+      resource_id: attempt1.atid,
+      user_id: lecturer1User.uid,
+      created_at: new Date('2024-01-18T08:15:00Z'),
+    },
+  });
+
+  await prisma.log.create({
+    data: {
+      logid: 'log020',
+      action: 'view_results',
+      resource_type: 'Attempt',
+      resource_id: attempt1.atid,
+      user_id: student1User.uid,
+      created_at: new Date('2024-01-18T09:00:00Z'),
+    },
+  });
+
+  await prisma.log.create({
+    data: {
+      logid: 'log021',
+      action: 'approve_enrollment',
+      resource_type: 'CourseEnrollment',
+      resource_id: 'enrollment001',
+      user_id: lecturer1User.uid,
+      created_at: new Date('2024-01-19T08:00:00Z'),
+    },
+  });
+
+  await prisma.log.create({
+    data: {
+      logid: 'log022',
+      action: 'approve_enrollment',
+      resource_type: 'CourseEnrollment',
+      resource_id: 'enrollment002',
+      user_id: lecturer1User.uid,
+      created_at: new Date('2024-01-19T08:10:00Z'),
+    },
+  });
+
+  await prisma.log.create({
+    data: {
+      logid: 'log023',
+      action: 'approve_enrollment',
+      resource_type: 'CourseEnrollment',
+      resource_id: 'enrollment003',
+      user_id: lecturer1User.uid,
+      created_at: new Date('2024-01-19T08:20:00Z'),
+    },
+  });
+
+  await prisma.log.create({
+    data: {
+      logid: 'log024',
+      action: 'join_class',
+      resource_type: 'Class',
+      resource_id: class2.clid,
+      user_id: student2User.uid,
+      created_at: new Date('2024-01-20T13:00:00Z'),
+    },
+  });
+
+  await prisma.log.create({
+    data: {
+      logid: 'log025',
+      action: 'join_class',
+      resource_type: 'Class',
+      resource_id: class3.clid,
+      user_id: student4User.uid,
+      created_at: new Date('2024-01-20T13:05:00Z'),
+    },
+  });
+
+  await prisma.log.create({
+    data: {
+      logid: 'log026',
+      action: 'join_class',
+      resource_type: 'Class',
+      resource_id: class5.clid,
+      user_id: student3User.uid,
+      created_at: new Date('2024-01-20T13:10:00Z'),
+    },
+  });
+
+  await prisma.log.create({
+    data: {
+      logid: 'log027',
+      action: 'post_quiz_results',
+      resource_type: 'Quiz',
+      resource_id: quiz1.qid,
+      user_id: lecturer1User.uid,
+      created_at: new Date('2024-01-21T10:00:00Z'),
+    },
+  });
+
+  await prisma.log.create({
+    data: {
+      logid: 'log028',
+      action: 'login',
+      resource_type: 'User',
+      resource_id: lecturer2User.uid,
+      user_id: lecturer2User.uid,
+      created_at: new Date('2024-01-22T07:45:00Z'),
+    },
+  });
+
   console.log('✅ Database seeded successfully!');
   console.log(`Created:`);
   console.log(`- 1 Admin user`);
