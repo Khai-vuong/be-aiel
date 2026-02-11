@@ -83,8 +83,8 @@ export class QuizzesController {
     }
 
     @Delete(':id')
-    @Roles('Admin', 'Lecturer')
-    @UseGuards(InChargeGuard)
+    @Roles('Admin')
+    // @UseGuards(InChargeGuard)
     @SwaggerDeleteQuiz()
     async delete(@Param('id') id: string) {
         await this.quizzesService.delete(id);

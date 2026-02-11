@@ -174,11 +174,11 @@ export class QuizzesService {
 
         // Check if class exists
         const classExists = await this.prisma.class.findUnique({
-            where: { clid: createData.class_id }
+            where: { clid: createData.clid }
         });
 
         if (!classExists) {
-            throw new BadRequestException(`Class with ID ${createData.class_id} not found`);
+            throw new BadRequestException(`Class with ID ${createData.clid} not found`);
         }
 
         // Validate date range if both dates are provided
@@ -211,7 +211,7 @@ export class QuizzesService {
                     connect: { lid: createData.creator_id }
                 },
                 class: {
-                    connect: { clid: createData.class_id }
+                    connect: { clid: createData.clid }
                 },
                 questions: questionsCreateData.length > 0 ? {
                     create: questionsCreateData

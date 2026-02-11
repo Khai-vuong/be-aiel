@@ -26,28 +26,29 @@ export class UsersLoginDto {
 // Response object returned after successful login
 // Example object:
 // {
-//   "userToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJ1c2VyMDAxIiwidXNlcm5hbWUiOiJzdHVkZW50MSIsInJvbGUiOiJTdHVkZW50In0...",
-//   "role": "Student"
+//   "userToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJ1c2VyMDAxIiwidXNlcm5hbWUiOiJzdHVkZW50MSIsInJvbGUiOiJTdHVkZW50Iiwicm9sZUlkIjoic3R1ZGVudDAwMSJ9...",
+//   "role": "Student",
+//   "roleId": "student001"
 // }
 export class UserLoginResponseDto {
     @ApiProperty({ 
-        description: 'JWT token for authentication. Include this token in the Authorization header as "Bearer <token>" for subsequent requests.', 
-        example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJ1c2VyMDAxIiwidXNlcm5hbWUiOiJzdHVkZW50MSIsInJvbGUiOiJTdHVkZW50In0...'
+        description: 'JWT token for authentication. Include this token in the Authorization header as "Bearer <token>" for subsequent requests. Token payload includes: uid, username, role, and roleId.', 
+        example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJ1c2VyMDAxIiwidXNlcm5hbWUiOiJzdHVkZW50MSIsInJvbGUiOiJTdHVkZW50Iiwicm9sZUlkIjoic3R1ZGVudDAwMSJ9...'
     })
-    userToken: string = "";
+    userToken: string;
 
     @ApiProperty({ 
         description: 'User role in the system', 
         enum: ['Student', 'Lecturer', 'Admin'], 
         example: 'Student' 
     })
-    role: string = "";
+    role: string;
 
     @ApiProperty({ 
-        description: 'roleID corresponding to the user role (e.g., studentId, lecturerId, adminId)', 
-        example: 'student123 or lecturer456 or admin789'
+        description: 'Role-specific ID corresponding to the user role (studentId for Student, lecturerId for Lecturer, adminId for Admin)', 
+        example: 'student001'
     })
-    roleId: string = "";    
+    roleId: string;    
 }
 
 // UsersRegisterDto

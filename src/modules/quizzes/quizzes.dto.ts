@@ -33,7 +33,7 @@ export class CreateQuizDto {
 
     @ApiProperty({ example: 'class001', description: 'Class ID' })
     @IsString()
-    class_id: string;
+    clid: string;
 
     @ApiProperty({ example: 'draft', enum: ['draft', 'published', 'archived'], description: 'Status of the quiz' })
     @IsEnum(['draft', 'published', 'archived'])
@@ -81,8 +81,7 @@ export class UpdateQuizDto {
 
     @ApiPropertyOptional({ example: 'class001', description: 'Class ID' })
     @IsString()
-    @IsOptional()
-    class_id?: string;
+    clid: string;
 
     @ApiPropertyOptional({ example: 'published', enum: ['draft', 'published', 'archived'], description: 'Status of the quiz' })
     @IsEnum(['draft', 'published', 'archived'])

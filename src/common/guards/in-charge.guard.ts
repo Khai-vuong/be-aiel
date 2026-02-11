@@ -27,10 +27,9 @@ export class InChargeGuard implements CanActivate {
             throw new ForbiddenException('User not authenticated');
         }
 
-        if (!classId) {
+        if (!classId && user.role === 'Lecturer') {
             throw new BadRequestException('Class ID not provided');
         }
-
 
         if (user.role === 'Admin') { return true; }
         else if (user.role === 'Student') {
