@@ -125,7 +125,8 @@ export class UsersService {
 
     async login(loginDto: UsersLoginDto): Promise<UserLoginResponseDto> {
         const user = await this.prisma.user.findUnique({
-            where: { username: loginDto.username }
+            where: { username: loginDto.username },
+            include: { student: true, lecturer: true, admin: true }
         });
 
         if (!user) { throw new BadRequestException("Invalid username"); }
@@ -143,16 +144,29 @@ export class UsersService {
             //     data: {status: "Active"}
             // })
 
+            let roleId = "";
+            if (user.role === "Student" && user.student) {
+                roleId = user.student.sid;
+            }
+            else if (user.role === "Lecturer" && user.lecturer) {
+                roleId = user.lecturer.lid;
+            }
+            else if (user.role === "Admin" && user.admin) {
+                roleId = user.admin.aid;
+            }
+
             const signPayload = {
                 uid: user.uid,
                 username: user.username,
                 role: user.role,
+                roleId: roleId
             }
             
             const userToken = await this.jwtService.signAsync(signPayload);
             return {
                 userToken: userToken,
-                role: user.role
+                role: user.role,
+                roleId: roleId
             };
         }
     }

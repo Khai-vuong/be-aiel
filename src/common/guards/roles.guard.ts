@@ -50,6 +50,7 @@ export class RolesGuard implements CanActivate {
       uid: user.uid,
       username: user.username,
       role: user.role,
+      roleId: user.roleId,
     });
 
     // Check if any of the required roles is a special keyword that allows all authenticated users

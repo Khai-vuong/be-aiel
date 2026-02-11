@@ -5,6 +5,7 @@ export interface RequestContext {
   uid: string;
   username: string;
   role: string;
+  roleId: string;
 }
 
 @Injectable()
@@ -16,7 +17,7 @@ export class RequestContextService {
     this.asyncLocalStorage.enterWith(context);
     // Immediately verify it was set
     const verification = this.asyncLocalStorage.getStore();
-    // console.log('[RequestContextService.setContext] Verification - context now is:', verification);
+    console.log('[RequestContextService.setContext] Verification - context now is:', verification);
   }
 
   getContext(): RequestContext | undefined {
@@ -27,7 +28,7 @@ export class RequestContextService {
 
   getUserId(): string | undefined {
     const context = this.getContext();
-    console.log('[RequestContextService.getUserId] Context:', context);
+    // console.log('[RequestContextService.getUserId] Context:', context);
     return context?.uid;
   }
 
@@ -37,6 +38,10 @@ export class RequestContextService {
 
   getUserRole(): string | undefined {
     return this.getContext()?.role;
+  }
+
+  getUserRoleId(): string | undefined {
+    return this.getContext()?.roleId;
   }
 }
 

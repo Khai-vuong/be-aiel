@@ -3,12 +3,14 @@ import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { UsersService } from './users.service';
 import { Reflector } from '@nestjs/core';
+import { Roles } from 'src/common/decorators/roles.decorator';
 
 //Payload structure lấy từ userService.login(), coi nó sign cái gì. + iat và exp
 export interface JwtPayload {
     uid: string;
     username: string;
-    role: string
+    role: string;
+    roleId: string;
     iat?: number;
     exp?: number;
 }
@@ -39,7 +41,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         return {
             uid: payload.uid,
             username: payload.username,
-            role: payload.role
+            role: payload.role,
+            roleId: payload.roleId,
         }
     }
 }

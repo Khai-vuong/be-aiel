@@ -34,14 +34,20 @@ export class UserLoginResponseDto {
         description: 'JWT token for authentication. Include this token in the Authorization header as "Bearer <token>" for subsequent requests.', 
         example: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1aWQiOiJ1c2VyMDAxIiwidXNlcm5hbWUiOiJzdHVkZW50MSIsInJvbGUiOiJTdHVkZW50In0...'
     })
-    userToken: string;
+    userToken: string = "";
 
     @ApiProperty({ 
         description: 'User role in the system', 
         enum: ['Student', 'Lecturer', 'Admin'], 
         example: 'Student' 
     })
-    role: string;
+    role: string = "";
+
+    @ApiProperty({ 
+        description: 'roleID corresponding to the user role (e.g., studentId, lecturerId, adminId)', 
+        example: 'student123 or lecturer456 or admin789'
+    })
+    roleId: string = "";    
 }
 
 // UsersRegisterDto
