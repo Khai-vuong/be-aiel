@@ -2,6 +2,8 @@ import { Injectable, NotFoundException, BadRequestException, UnauthorizedExcepti
 import { PrismaService } from 'src/prisma.service';
 import { Notification } from '@prisma/client';
 import { CreateNotificationDto, UpdateNotificationDto, GetNotificationsFilterDto } from './notifications.dto';
+import { RequestContextService } from 'src/common/context';
+import { LogService } from '../logs';
 
 /**
  * NotificationsService
@@ -47,7 +49,12 @@ import { CreateNotificationDto, UpdateNotificationDto, GetNotificationsFilterDto
  */
 @Injectable()
 export class NotificationsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly requestContextService: RequestContextService,
+    private readonly logService: LogService,
+    
+  ) {}
 
   async findAll(filter?: GetNotificationsFilterDto): Promise<Notification[]> {
     return this.prisma.notification.findMany({
@@ -119,15 +126,22 @@ export class NotificationsService {
   }
 
   async markAsRead(nid: string): Promise<Notification> {
+    const userId = this.requestContextService.getUserId();
+    
     await this.findOne(nid);
 
-    return this.prisma.notification.update({
+    const updatedNotification = await this.prisma.notification.update({
       where: { nid: nid },
       data: { is_read: true },
     });
+
+    await this.logService.createLog('mark_notification_as_read', 'Notification', nid, userId);
+    return updatedNotification;
   }
 
   async markAllAsRead(userId: string): Promise<{ count: number }> {
+    const currentUserId = this.requestContextService.getUserId();
+    
     await this.verifyUserExists(userId);
 
     const result = await this.prisma.notification.updateMany({
@@ -140,14 +154,19 @@ export class NotificationsService {
       },
     });
 
+    await this.logService.createLog('mark_all_notifications_as_read', 'Notification', userId, currentUserId);
     return { count: result.count };
   }
 
 
   async create(createData: CreateNotificationDto): Promise<Notification> {
+    const userId = this.requestContextService.getUserId();
+
     await this.verifyUserExists(createData.recipient_uid);
 
-    return this.prisma.notification.create({
+
+
+    const newNotification = await this.prisma.notification.create({
       data: {
         title: createData.title,
         message: createData.message,
@@ -158,12 +177,18 @@ export class NotificationsService {
         user_id: createData.recipient_uid,
       },
     });
+    await this.logService.createLog('create_notification', 'Notification', newNotification.nid, userId);
+
+    return newNotification;
+
   }
 
   async update(nid: string, updaterUid: string, updateData: UpdateNotificationDto): Promise<Notification> {
+    const userId = this.requestContextService.getUserId();
+
     await this.verifyUserPermission(updaterUid, nid);
 
-    return this.prisma.notification.update({
+    const updatedNotification = await this.prisma.notification.update({
       where: { nid: nid },
       data: {
         title: updateData.title,
@@ -171,14 +196,22 @@ export class NotificationsService {
         type: updateData.type,
       },
     });
+
+    await this.logService.createLog('update_notification', 'Notification', nid, userId);
+    return updatedNotification;
   }
 
   async delete(nid: string, requesterUid: string): Promise<Notification> {
+    const userId = this.requestContextService.getUserId();
+
     await this.verifyUserPermission(requesterUid, nid);
 
-    return this.prisma.notification.delete({
+    const deletedNotification = await this.prisma.notification.delete({
       where: { nid: nid },
     });
+
+    await this.logService.createLog('delete_notification', 'Notification', nid, userId);
+    return deletedNotification;
   }
 
   /**
@@ -187,18 +220,25 @@ export class NotificationsService {
 
   async notifyOneUser(createData: CreateNotificationDto): Promise<Notification> 
   {
+    const userId = this.requestContextService.getUserId();
+
     await this.verifyUserExists(createData.recipient_uid);
 
-    return this.create({
+    const notification = await this.create({
       ...createData,
     });
+
+    await this.logService.createLog('notify_one_user', 'Notification', notification.nid, userId);
+    return notification;
   }
 
   async notifyUsers(
     userIds: string[],
     createData: Omit<CreateNotificationDto, 'recipient_uid'>
   ): Promise<Notification[]>
-    {
+    {      
+      const userId = this.requestContextService.getUserId();
+
       await Promise.all(userIds.map(uid => this.verifyUserExists(uid)));
 
       const notifications = await Promise.all(
@@ -209,6 +249,7 @@ export class NotificationsService {
           }),
         ),
       );
+      await this.logService.createLog('notify_multiple_users', 'Notification', undefined, userId);
       return notifications;
     }
 

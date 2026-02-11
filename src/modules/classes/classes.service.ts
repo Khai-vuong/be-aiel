@@ -8,6 +8,7 @@ import { join } from 'path';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import * as fs from 'fs';
 import { LogService } from '../logs';
+import { RequestContextService } from 'src/common/context';
 
 /**
  * ClassesService
@@ -35,6 +36,7 @@ export class ClassesService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly logService: LogService,
+        private readonly requestContextService: RequestContextService,
     ) { }
 
     // Get all classes
@@ -196,6 +198,9 @@ export class ClassesService {
 
     // Update a class
     async update(id: string, updateData: ClassesUpdateDto): Promise<Class> {
+        // Capture userId from context BEFORE any async operations
+        const userId = this.requestContextService.getUserId();
+        
         const existingClass = await this.prisma.class.findUnique({
             where: { clid: id }
         });
@@ -240,12 +245,16 @@ export class ClassesService {
             }
         });
 
-        await this.logService.createLog('update_class', 'Class', id);
+        await this.logService.createLog('update_class', 'Class', id, userId);
+        console.log("Updated class:", updatedClass);
         return updatedClass;
     }
 
     // Delete a class
     async delete(id: string): Promise<Class> {
+        // Capture userId from context BEFORE any async operations
+        const userId = this.requestContextService.getUserId();
+        
         const existingClass = await this.prisma.class.findUnique({
             where: { clid: id },
             include: {
@@ -270,7 +279,7 @@ export class ClassesService {
             },
         });
 
-        await this.logService.createLog('delete_class', 'Class', id);
+        await this.logService.createLog('delete_class', 'Class', id, userId);
         return deletedClass;
     }
 
@@ -394,7 +403,7 @@ export class ClassesService {
 
         try {
             await s3Client.send(uploadCommand);
-        } catch (error) {
+        } catch (error: any) {
             throw new BadRequestException(`Failed to upload file to S3: ${error.message}`);
         }
 
@@ -509,7 +518,7 @@ export class ClassesService {
                 file,
                 downloadUrl: signedUrl,
             };
-        } catch (error) {
+        } catch (error : any) {
             throw new BadRequestException(`Failed to generate download URL: ${error.message}`);
         }
     }
@@ -521,6 +530,9 @@ export class ClassesService {
      * @returns Summary of created classes and updated enrollments
      */
     async createClassesFromEnrollments(maxStudentsPerClass: number = 5): Promise<ResponseCreateClassDto> {
+        // Capture userId from context BEFORE any async operations
+        const userId = this.requestContextService.getUserId();
+        
         //1. Fetch all the enrollnents with 'Pending' status
 
         const enrollments = await this.prisma.courseEnrollment.findMany({
@@ -641,7 +653,7 @@ export class ClassesService {
 
                 createdClasses.push(newClass);
 
-                await this.logService.createLog('create_class', 'Class', newClass.clid);
+                await this.logService.createLog('create_class', 'Class', newClass.clid, userId);
             }
         }
         

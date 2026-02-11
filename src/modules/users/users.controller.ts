@@ -57,6 +57,7 @@ export class UsersController {
     }
 
     @Get("profile")
+    @Roles('any')
     @UseInterceptors(JsonParseInterceptor)
     @SwaggerGetProfile()
     async getProfile(@Request() req) {
@@ -64,7 +65,7 @@ export class UsersController {
     }
 
     @Get(":id")
-    @UseInterceptors(JsonParseInterceptor)
+    @Roles('any')
     @SwaggerGetUserById()
     async findOne(@Param("id") id: string) {
         return this.usersService.findUserById(id);
@@ -79,7 +80,7 @@ export class UsersController {
     }
 
     @Put("update/:id")
-    @UseInterceptors(JsonParseInterceptor)
+    @Roles('any')
     @SwaggerUpdateUser()
     async update(@Param("id") id: string, @Body() updateDto: UsersUpdateDto, @Request() req) {
         return (id) 

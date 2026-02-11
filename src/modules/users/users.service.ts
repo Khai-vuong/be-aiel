@@ -5,6 +5,8 @@ import { UsersRegisterDto, UsersLoginDto, UsersUpdateDto, UserLoginResponseDto }
 import { JwtService } from '@nestjs/jwt';
 import { LogService } from '../logs';
 
+import { RequestContextService } from 'src/common/context';
+
 @Injectable()
 export class UsersService {
 
@@ -12,6 +14,7 @@ export class UsersService {
         private readonly prisma: PrismaService,
         private readonly jwtService: JwtService,
         private readonly logService: LogService,
+        private readonly requestContextService: RequestContextService,
     ) { }
 
     async findAll(): Promise<User[]> {
@@ -155,6 +158,9 @@ export class UsersService {
     }
 
     async update(id: string, updateDto: UsersUpdateDto): Promise<any> {
+        // Capture userId from context BEFORE any async operations
+        const userId = this.requestContextService.getUserId();
+        
         const user = await this.prisma.user.findUnique({
             where: { uid: id }
         });
@@ -181,7 +187,7 @@ export class UsersService {
             }
         });
 
-        await this.logService.createLog('update_user', 'User', id);
+        await this.logService.createLog('update_user', 'User', id, userId);
         return result;
     }
     
@@ -225,6 +231,9 @@ export class UsersService {
     }
 
     async delete(id: string): Promise<any> {
+        // Capture userId from context BEFORE any async operations
+        const userId = this.requestContextService.getUserId();
+        
         const user = await this.prisma.user.findUnique({
             where: { uid: id }
         });
@@ -254,7 +263,7 @@ export class UsersService {
             data: {status: "Deleted"},
         });
 
-        await this.logService.createLog('delete_user', 'User', id);
+        await this.logService.createLog('delete_user', 'User', id, userId);
         return result;
     }
 }

@@ -12,15 +12,23 @@ export class RequestContextService {
   private readonly asyncLocalStorage = new AsyncLocalStorage<RequestContext>();
 
   setContext(context: RequestContext): void {
+    // console.log('[RequestContextService.setContext] Setting context:', context);
     this.asyncLocalStorage.enterWith(context);
+    // Immediately verify it was set
+    const verification = this.asyncLocalStorage.getStore();
+    // console.log('[RequestContextService.setContext] Verification - context now is:', verification);
   }
 
   getContext(): RequestContext | undefined {
-    return this.asyncLocalStorage.getStore();
+    const context = this.asyncLocalStorage.getStore();
+    // console.log('[RequestContextService.getContext] Retrieved context:', context);
+    return context;
   }
 
   getUserId(): string | undefined {
-    return this.getContext()?.uid;
+    const context = this.getContext();
+    console.log('[RequestContextService.getUserId] Context:', context);
+    return context?.uid;
   }
 
   getUsername(): string | undefined {

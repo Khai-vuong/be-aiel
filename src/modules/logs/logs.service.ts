@@ -11,7 +11,9 @@ export class LogService {
   ) {}
 
   private getUserId(): string | undefined {
-    return this.requestContextService.getUserId();
+    const userId = this.requestContextService.getUserId();
+    // console.log('[LogService.getUserId] Retrieved userId from context:', userId);
+    return userId;
   }
 
   async createLog(
@@ -28,6 +30,7 @@ export class LogService {
     if (!userId) {
         throw new BadRequestException('User ID is required to create a log');
     }
+    // console.log(`Creating log: action=${action}, resourceType=${resourceType}, resourceId=${resourceId}, userId=${userId}`);
 
     return this.prisma.log.create({
       data: {

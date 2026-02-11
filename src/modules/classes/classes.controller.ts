@@ -52,7 +52,7 @@ export class ClassesController {
     constructor(private readonly classesService: ClassesService) { }
 
     @Get()
-    @UseInterceptors(JsonParseInterceptor)
+    @Roles('any')
     @SwaggerGetAllClasses()
     async findAll() {
         return this.classesService.findAll();
@@ -68,7 +68,7 @@ export class ClassesController {
 
 
     @Get(':id')
-    @UseInterceptors(JsonParseInterceptor)
+    @Roles('any')
     @SwaggerGetClass()
     async findOne(@Param('id') id: string) {
         return this.classesService.findOne(id);

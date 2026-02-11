@@ -69,7 +69,7 @@ export class AttemptsController {
     }
 
     @Get(':attemptId')
-    @SwaggerGetAttempt()
+    @Roles('any')
     async findOne(@Param('attemptId') attemptId: string) {
         return this.attemptsService.findOne(attemptId);
     }

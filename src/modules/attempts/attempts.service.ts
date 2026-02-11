@@ -30,16 +30,22 @@ import { LogService } from '../logs';
  * - update(attemptId: string, updateData: UpdateAttemptDto): Promise<Attempt>
  *     Updates attempt information (typically used for grading)
  */
+import { RequestContextService } from 'src/common/context';
+
 @Injectable()
 export class AttemptsService {
 
     constructor(
         private readonly prisma: PrismaService,
         private readonly logService: LogService,
+        private readonly requestContextService: RequestContextService,
     ) { }
 
     // Create a new attempt
     async create(createData: CreateAttemptDto): Promise<Attempt> {
+        // Capture userId from context BEFORE any async operations
+        const userId = this.requestContextService.getUserId();
+        
         // Check if quiz and student exists
         const quizExists = this.prisma.quiz.findUnique({
             where: { qid: createData.quiz_id }
@@ -106,7 +112,7 @@ export class AttemptsService {
             }
         });
 
-        await this.logService.createLog('create_attempt', 'Attempt', newAttempt.atid);
+        await this.logService.createLog('create_attempt', 'Attempt', newAttempt.atid, userId);
         return newAttempt;
     }
 
@@ -144,6 +150,9 @@ export class AttemptsService {
      * @throws BadRequestException - If attempt not in_progress or contains invalid question IDs
      */
     async submit(attemptId: string, submitData: SubmitAttemptDto): Promise<Attempt> {
+        // Capture userId from context BEFORE any async operations
+        const userId = this.requestContextService.getUserId();
+        
         // Check if attempt exists
         const attempt = await this.prisma.attempt.findUnique({
             where: { atid: attemptId }
@@ -295,7 +304,7 @@ export class AttemptsService {
             }
         });
 
-        await this.logService.createLog('submit_attempt', 'Attempt', attemptId);
+        await this.logService.createLog('submit_attempt', 'Attempt', attemptId, userId);
         return submittedAttempt;
     }
 
@@ -418,6 +427,9 @@ export class AttemptsService {
 
     // Update an attempt (typically for grading)
     async update(attemptId: string, updateData: UpdateAttemptDto): Promise<Attempt> {
+        // Capture userId from context BEFORE any async operations
+        const userId = this.requestContextService.getUserId();
+        
         const attempt = await this.prisma.attempt.findUnique({
             where: { atid: attemptId }
         });
@@ -452,7 +464,7 @@ export class AttemptsService {
             }
         });
 
-        await this.logService.createLog('update_attempt', 'Attempt', attemptId);
+        await this.logService.createLog('update_attempt', 'Attempt', attemptId, userId);
         return updatedAttempt;
     }
 }

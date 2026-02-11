@@ -21,6 +21,7 @@ export class AiController {
   constructor(private readonly orchestratorService: OrchestratorService) {}
 
   @Post('chat')
+  @Roles('any')
   @SwaggerAiChat()
   async chat(@Request() req, @Body() aiRequest: AiRequestDto) {
     
@@ -29,12 +30,14 @@ export class AiController {
   }
 
   @Get('conversations')
+  @Roles('any')
   async getConversations(@Request() req, @Query('limit') limit?: number) {
     // TODO: Implement get conversations
     return { message: 'Get conversations - to be implemented' };
   }
 
   @Get('conversations/:id')
+  @Roles('any')
   async getConversation(@Request() req, @Param('id') conversationId: string) {
     // TODO: Implement get conversation by ID
     return { message: 'Get conversation - to be implemented' };

@@ -39,6 +39,7 @@ export class QuizzesController {
     constructor(private readonly quizzesService: QuizzesService) { }
 
     @Get()
+    @Roles('any')
     @UseInterceptors(JsonParseInterceptor)
     @SwaggerGetAllQuizzes()
     async findAll() {
@@ -46,6 +47,7 @@ export class QuizzesController {
     }
 
     @Get(':id')
+    @Roles('any')
     @UseInterceptors(JsonParseInterceptor)
     @SwaggerGetQuiz()
     async findOne(@Param('id') id: string) {
@@ -53,7 +55,7 @@ export class QuizzesController {
     }
 
     @Get('class/:clid')
-    @UseInterceptors(JsonParseInterceptor)
+    @Roles('any')
     @SwaggerGetQuizzesByClass()
     async findQuizzesByClass(@Param('clid') clid: string) {
         return this.quizzesService.findQuizzesByClassId(clid);
