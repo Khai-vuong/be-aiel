@@ -27,12 +27,14 @@ model User {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  student       Student?
-  lecturer      Lecturer?
-  admin         Admin?
-  File          File[]
-  notifications Notification[]
-  logs          Log[]
+  student         Student?
+  lecturer        Lecturer?
+  admin           Admin?
+  File            File[]
+  notifications   Notification[]
+  logs            Log[]
+  aiConversations AiConversation[]
+  aiMemories      AiMemory[]
 
   @@index([status])
   @@index([created_at])
@@ -280,4 +282,166 @@ model Log {
   @@index([user_id])
   @@index([action])
   @@index([created_at])
+}
+
+enum AiConversationStatus {
+  active
+  archived
+}
+
+enum AiMessageRole {
+  system
+  user
+  assistant
+  tool
+}
+
+enum AiRunStatus {
+  queued
+  running
+  succeeded
+  failed
+  cancelled
+}
+
+enum AiMemoryScope {
+  user
+  conversation
+}
+
+model AiConversation {
+  acid String @id @default(cuid())
+
+  title  String?
+  status AiConversationStatus @default(active)
+
+  user_id String
+  user    User   @relation(fields: [user_id], references: [uid], onDelete: Cascade)
+
+  last_message_at DateTime?
+  metadata_json   Json?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  messages  AiMessage[]
+  runs      AiRun[]
+  memories  AiMemory[]
+  summaries AiConversationSummary[]
+
+  @@index([user_id, updated_at])
+  @@index([status, last_message_at])
+}
+
+model AiMessage {
+  amid String @id @default(cuid())
+
+  conversation_id String
+  conversation    AiConversation @relation(fields: [conversation_id], references: [acid], onDelete: Cascade)
+
+  role         AiMessageRole
+  content      String
+  content_json Json? // structured output/tool payload
+
+  parent_message_id String?
+  parent_message    AiMessage?  @relation("MessageThread", fields: [parent_message_id], references: [amid])
+  child_messages    AiMessage[] @relation("MessageThread")
+
+  prompt_tokens     Int?
+  completion_tokens Int?
+  total_tokens      Int?
+
+  model_name    String?
+  metadata_json Json?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Optional: link run used to generate this message
+  run_id                  String?
+  run                     AiRun?                  @relation(fields: [run_id], references: [arid], onDelete: SetNull)
+  aiRuns                  AiRun[]
+  aiRuns                  AiRun[]
+  aiConversationSummaries AiConversationSummary[]
+
+  @@index([conversation_id, created_at])
+  @@index([role, created_at])
+  @@index([parent_message_id])
+}
+
+model AiRun {
+  arid String @id @default(cuid())
+
+  conversation_id String
+  conversation    AiConversation @relation(fields: [conversation_id], references: [acid], onDelete: Cascade)
+
+  user_message_id String?
+  user_message    AiMessage? @relation("UserMessageRun", fields: [user_message_id], references: [amid], onDelete: SetNull)
+
+  assistant_message_id String?
+  assistant_message    AiMessage? @relation("AssistantMessageRun", fields: [assistant_message_id], references: [amid], onDelete: SetNull)
+
+  intent            String?
+  route_service     String? // system_configuration, data_analysis, quiz_creation
+  intent_confidence Float?
+
+  context_snapshot_json Json? // context assembled at runtime
+  prompt_json           Json?
+  result_json           Json?
+  error_json            Json?
+
+  latency_ms Int?
+  status     AiRunStatus @default(queued)
+
+  created_at DateTime    @default(now())
+  updated_at DateTime    @updatedAt
+  aiMessages AiMessage[]
+
+  @@index([conversation_id, created_at])
+  @@index([status, created_at])
+  @@index([route_service, created_at])
+}
+
+model AiMemory {
+  amemid String @id @default(cuid())
+
+  scope AiMemoryScope
+
+  user_id String?
+  user    User?   @relation(fields: [user_id], references: [uid], onDelete: Cascade)
+
+  conversation_id String?
+  conversation    AiConversation? @relation(fields: [conversation_id], references: [acid], onDelete: Cascade)
+
+  key        String // e.g. "preferred_language", "course_focus"
+  value_json Json
+
+  confidence Float?  @default(1.0)
+  source     String? // "inferred_from_chat", "user_explicit"
+
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  expires_at DateTime?
+
+  @@index([scope, key])
+  @@index([user_id, key])
+  @@index([conversation_id, key])
+}
+
+model AiConversationSummary {
+  asid String @id @default(cuid())
+
+  conversation_id String
+  conversation    AiConversation @relation(fields: [conversation_id], references: [acid], onDelete: Cascade)
+
+  upto_message_id String
+  upto_message    AiMessage @relation(fields: [upto_message_id], references: [amid], onDelete: Cascade)
+
+  summary_text String
+  summary_json Json?
+
+  created_at DateTime @default(now())
+
+  @@unique([conversation_id, upto_message_id])
+  @@index([conversation_id, created_at])
 }

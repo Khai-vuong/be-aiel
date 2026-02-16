@@ -5,6 +5,7 @@ import { ResponseAggregatorService } from './response-aggregator.service';
 import { PrismaService } from '../../../prisma.service';
 import { AiRequestDto } from '../models/ai-request.dto';
 import { JwtPayload } from 'src/modules/users/jwt.strategy';
+import { OpenAIService } from '../providers/openai.provider';
 
 @Injectable()
 export class OrchestratorService {
@@ -15,6 +16,7 @@ export class OrchestratorService {
     private readonly contextBuilder: ContextBuilderService,
     private readonly responseAggregator: ResponseAggregatorService,
     private readonly prisma: PrismaService,
+    private readonly openaiService: OpenAIService
   ) {}
 
   async processRequest(request: AiRequestDto, user: JwtPayload) {
@@ -27,10 +29,13 @@ export class OrchestratorService {
       decisions: userIntent,
       role: user.role
     }
-
-
     // this.logger.log('Processing AI request - to be implemented');
     // throw new Error('Not implemented');
+  }
+
+
+  async directChat(text: string, user: JwtPayload) {
+    return this.openaiService.chat(text);
   }
 
   async getUserConversations(userId: string, limit: number) {

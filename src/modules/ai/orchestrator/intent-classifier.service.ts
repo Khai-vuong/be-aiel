@@ -185,7 +185,7 @@ export class IntentClassifierService {
     return hits;
   }
 
-  public applyRoleHeuristic(categoryScores, role?: string, text?: string ) {
+  public applyRoleHeuristic(categoryScores, role?: string, text?: string ) : Record<string, number> {
     if (!role) return categoryScores;
     
     const normalizedRole = role.toLowerCase();
@@ -303,10 +303,18 @@ export class IntentClassifierService {
     if (sentences.length <= 1) {
       const result =  await this.classifySingleText(text);
       const boostedResult = this.applyRoleHeuristic(result, role, text);
-      return [{
-        category: Object.keys(boostedResult)[0],
-        score: Object.values(boostedResult)[0]
-      }] as Decision[];
+      if (Object.values(boostedResult)[0]  >= this.decisionThreshold) {
+        return [{
+          category: Object.keys(boostedResult)[0],
+          score: Object.values(boostedResult)[0]
+        }] as Decision[];
+      }
+      else {
+        return [{
+            category: 'outer_api',
+            score: 1- Object.values(boostedResult)[0]
+        }] as Decision[];  
+      }
     }
 
     // Step 2: Compute embeddings for each sentence

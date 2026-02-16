@@ -20,7 +20,7 @@ import { TeachingAssistantAiService } from './services/teaching-assistant/teachi
 import { QuizGeneratorService } from './services/teaching-assistant/quiz-generator.service';
 import { ContentGeneratorService } from './services/teaching-assistant/content-generator.service';
 import { ContentSummarizerService } from './services/teaching-assistant/content-summarizer.service';
-import { OpenAiProvider } from './providers/openai.provider';
+import { OpenAIService } from './providers/openai.provider';
 import { AnthropicProvider } from './providers/anthropic.provider';
 import { LocalLlmProvider } from './providers/local-llm.provider';
 import { EmbeddingProvider } from './providers/embedding.provider';
@@ -58,7 +58,7 @@ import { PrismaService } from '../../prisma.service';
     ContentGeneratorService,
     ContentSummarizerService,
     // Providers
-    OpenAiProvider,
+    OpenAIService,
     AnthropicProvider,
     LocalLlmProvider,
     EmbeddingProvider,

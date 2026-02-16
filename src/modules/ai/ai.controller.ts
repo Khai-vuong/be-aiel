@@ -29,6 +29,15 @@ export class AiController {
 
   }
 
+
+  @Post('chat/direct')
+  @Roles('any')
+  @SwaggerAiChat()
+  async chatDirect(@Request() req, @Body() aiRequest: AiRequestDto) {
+    
+    return this.orchestratorService.directChat(aiRequest.text, req.user);
+
+  }
   @Get('conversations')
   @Roles('any')
   async getConversations(@Request() req, @Query('limit') limit?: number) {
