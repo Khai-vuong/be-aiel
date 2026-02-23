@@ -5,7 +5,7 @@ import { ResponseAggregatorService } from './response-aggregator.service';
 import { PrismaService } from '../../../prisma.service';
 import { AiRequestDto } from '../models/ai-request.dto';
 import { JwtPayload } from 'src/modules/users/jwt.strategy';
-import { OpenAIService } from '../providers/openai.provider';
+import { OuterApiService } from '../services/outer-api/outer-api.service';
 
 @Injectable()
 export class OrchestratorService {
@@ -16,7 +16,7 @@ export class OrchestratorService {
     private readonly contextBuilder: ContextBuilderService,
     private readonly responseAggregator: ResponseAggregatorService,
     private readonly prisma: PrismaService,
-    private readonly openaiService: OpenAIService
+    private readonly outerApiService: OuterApiService,
   ) {}
 
   async processRequest(request: AiRequestDto, user: JwtPayload) {
@@ -35,7 +35,15 @@ export class OrchestratorService {
 
 
   async directChat(text: string, user: JwtPayload) {
-    return this.openaiService.chat(text);
+    const result = await this.outerApiService.chat({
+      prompt: text,
+      role: user.role,
+      caller: 'general',
+      provider: 'groq', // or 'openai' - could be made dynamic based on user preference or system settingssd
+    });
+
+    console.log('Direct chat result:', result);
+    return result.text;
   }
 
   async getUserConversations(userId: string, limit: number) {

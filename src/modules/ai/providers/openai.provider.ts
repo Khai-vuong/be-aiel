@@ -1,33 +1,50 @@
-// src/openai/openai.service.ts
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import OpenAI from 'openai';
+import { AiChatSetting, iProvider } from './iProvider.interface';
 
 @Injectable()
-export class OpenAIService implements OnModuleInit {
+export class OpenAIService implements OnModuleInit, iProvider {
   private openai: OpenAI;
 
+  private model = process.env.OPENAI_CHAT_MODEL ?? 'gpt-4o-mini';
+  private maxCompletionTokens = Number(
+    process.env.OPENAI_MAX_COMPLETION_TOKENS ?? 1024,
+  );
+
   onModuleInit() {
-    // Khởi tạo instance OpenAI khi module được load
     this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY, // Đảm bảo bạn đã có biến này trong file .env
+      apiKey: process.env.OPENAI_API_KEY,
     });
   }
 
-  async chat(prompt: string) {
+  async chat(
+    prompt: string,
+    setting?: AiChatSetting,
+  ): Promise<string> {
     try {
+      const temperature = setting?.temperature ?? 0.7;
+      const systemPrompt =
+        setting?.systemPrompt ??
+        'You are a helpful assistant for an e-learning platform.';
+
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini', // Hoặc 'gpt-3.5-turbo'
+        model: this.model,
         messages: [
+          { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt },
-          { role: 'system', content: 'You are a helpful assistant for an e-learning platform.' }
         ],
-        temperature: 0.7,
+        temperature,
+        max_completion_tokens: this.maxCompletionTokens,
       });
 
-      return response.choices[0].message.content;
-    } catch (error : any) {
-      // Xử lý lỗi (hết hạn quota, sai key, v.v.)
-      throw new Error(`OpenAI Error: ${error}`);
+      const content = response.choices[0].message.content;
+      if (!content) {
+        throw new Error('OpenAI returned empty content');
+      }
+      return content;
+    } catch (error: any) {
+      const message = error?.message ?? String(error);
+      throw new Error(`OpenAI Error: ${message}`);
     }
   }
 }

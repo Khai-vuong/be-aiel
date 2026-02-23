@@ -20,10 +20,10 @@ import { TeachingAssistantAiService } from './services/teaching-assistant/teachi
 import { QuizGeneratorService } from './services/teaching-assistant/quiz-generator.service';
 import { ContentGeneratorService } from './services/teaching-assistant/content-generator.service';
 import { ContentSummarizerService } from './services/teaching-assistant/content-summarizer.service';
+import { OuterApiService } from './services/outer-api/outer-api.service';
 import { OpenAIService } from './providers/openai.provider';
-import { AnthropicProvider } from './providers/anthropic.provider';
+import { GroqService } from './providers/groq.provider';
 import { LocalLlmProvider } from './providers/local-llm.provider';
-import { EmbeddingProvider } from './providers/embedding.provider';
 import { VectorStoreService } from './utils/vector-store.service';
 import { CacheService } from './utils/cache.service';
 import { PrismaService } from '../../prisma.service';
@@ -57,11 +57,11 @@ import { PrismaService } from '../../prisma.service';
     QuizGeneratorService,
     ContentGeneratorService,
     ContentSummarizerService,
+    OuterApiService,
     // Providers
     OpenAIService,
-    AnthropicProvider,
+    GroqService,
     LocalLlmProvider,
-    EmbeddingProvider,
     // Utils
     VectorStoreService,
     CacheService,
@@ -72,6 +72,7 @@ import { PrismaService } from '../../prisma.service';
     TeachingAssistantAiService,
     StudyAnalystAiService,
     SystemControlAiService,
+    OuterApiService,
   ],
 })
 export class AiModule {}
