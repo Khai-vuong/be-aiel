@@ -5,6 +5,7 @@ import { CreateQuizDto, UpdateQuizDto, CreateQuestionDto } from './quizzes.dto';
 import { createClient } from '@supabase/supabase-js';
 import { AnswerScalarFieldEnum } from 'generated/prisma/internal/prismaNamespace';
 import { LogService } from '../logs';
+import { JwtPayload } from '../users/jwt.strategy';
 
 /**
  * QuizzesService
@@ -31,7 +32,6 @@ import { LogService } from '../logs';
  * - delete(id: string): Promise<Quiz>
  *     Soft deletes a quiz by setting its status to 'archived'
  */
-import { RequestContextService } from 'src/common/context';
 
 @Injectable()
 export class QuizzesService {
@@ -39,7 +39,6 @@ export class QuizzesService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly logService: LogService,
-        private readonly requestContextService: RequestContextService,
     ) { }
 
     // Get all quizzes
@@ -159,10 +158,7 @@ export class QuizzesService {
     }
 
     // Create a new quiz with questions
-    async create(createData: CreateQuizDto): Promise<Quiz> {
-        // Capture userId from context BEFORE any async operations
-        const userId = this.requestContextService.getUserId();
-        
+    async create(user: JwtPayload, createData: CreateQuizDto): Promise<Quiz> {
         // Check if creator (lecturer) exists
         const lecturerExists = await this.prisma.lecturer.findUnique({
             where: { lid: createData.creator_id }
@@ -241,15 +237,12 @@ export class QuizzesService {
             }
         });
 
-        await this.logService.createLog('create_quiz', 'Quiz', newQuiz.qid, userId);
+        await this.logService.createLog('create_quiz', user.uid, 'Quiz', newQuiz.qid);
         return newQuiz;
     }
 
     // Update a quiz
-    async update(id: string, updateData: UpdateQuizDto): Promise<Quiz> {
-        // Capture userId from context BEFORE any async operations
-        const userId = this.requestContextService.getUserId();
-        
+    async update(user: JwtPayload, id: string, updateData: UpdateQuizDto): Promise<Quiz> {
         const existingQuiz = await this.prisma.quiz.findUnique({
             where: { qid: id }
         });
@@ -287,15 +280,12 @@ export class QuizzesService {
             }
         });
 
-        await this.logService.createLog('update_quiz', 'Quiz', id, userId);
+        await this.logService.createLog('update_quiz', user.uid, 'Quiz', id);
         return updatedQuiz;
     }
 
     // Delete a quiz (soft delete by archiving)
-    async delete(id: string): Promise<Quiz> {
-        // Capture userId from context BEFORE any async operations
-        const userId = this.requestContextService.getUserId();
-        
+    async delete(user: JwtPayload, id: string): Promise<Quiz> {
         const existingQuiz = await this.prisma.quiz.findUnique({
             where: { qid: id },
             include: {
@@ -319,7 +309,7 @@ export class QuizzesService {
             }
         });
 
-        await this.logService.createLog('delete_quiz', 'Quiz', id, userId);
+        await this.logService.createLog('delete_quiz', user.uid, 'Quiz', id);
         return deletedQuiz;
     }
 }

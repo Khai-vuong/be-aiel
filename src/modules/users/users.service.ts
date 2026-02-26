@@ -4,8 +4,7 @@ import { PrismaService } from 'src/prisma.service';
 import { UsersRegisterDto, UsersLoginDto, UsersUpdateDto, UserLoginResponseDto } from './users.dto';
 import { JwtService } from '@nestjs/jwt';
 import { LogService } from '../logs';
-
-import { RequestContextService } from 'src/common/context';
+import { JwtPayload } from './jwt.strategy';
 
 @Injectable()
 export class UsersService {
@@ -14,7 +13,6 @@ export class UsersService {
         private readonly prisma: PrismaService,
         private readonly jwtService: JwtService,
         private readonly logService: LogService,
-        private readonly requestContextService: RequestContextService,
     ) { }
 
     async findAll(): Promise<User[]> {
@@ -72,8 +70,8 @@ export class UsersService {
                     student: true,
                 }
             });
-            // createLog('action', 'resourceType', 'resourceId', 'uid')
-            await this.logService.createLog('create_user', 'User', newUser.uid, newUser.uid);
+            // createLog('action', 'uid', 'resourceType', 'resourceId')
+            await this.logService.createLog('create_user', newUser.uid, 'User', newUser.uid);
             return newUser;
         }
         else if (registerDto.role === "Lecturer") {
@@ -94,7 +92,7 @@ export class UsersService {
                     lecturer: true,
                 }
             });
-            await this.logService.createLog('create_user', 'User', newUser.uid, newUser.uid);
+            await this.logService.createLog('create_user', newUser.uid, 'User', newUser.uid);
             return newUser;
         }
         else if (registerDto.role === "Admin") {
@@ -115,7 +113,7 @@ export class UsersService {
                     admin: true,
                 }
             });
-            await this.logService.createLog('create_user', 'User', newUser.uid, newUser.uid);
+            await this.logService.createLog('create_user', newUser.uid, 'User', newUser.uid);
             return newUser;
         }
         else {
@@ -171,15 +169,12 @@ export class UsersService {
         }
     }
 
-    async update(id: string, updateDto: UsersUpdateDto): Promise<any> {
-        // Capture userId from context BEFORE any async operations
-        const userId = this.requestContextService.getUserId();
-        
-        const user = await this.prisma.user.findUnique({
+    async update(user: JwtPayload, id: string, updateDto: UsersUpdateDto): Promise<any> {
+        const existingUser = await this.prisma.user.findUnique({
             where: { uid: id }
         });
 
-        if (!user) {
+        if (!existingUser) {
             throw new BadRequestException("User not found");
         }
 
@@ -187,7 +182,7 @@ export class UsersService {
             const updatedBaseUser = await this.updateBaseUser(tx, id, updateDto);
             let roleSpecificData = null;
             
-            switch (user.role) {
+            switch (existingUser.role) {
                 case "Student":
                     roleSpecificData = await this.updateStudent(tx, id, updateDto);
                     return { ...updatedBaseUser, Student: roleSpecificData };
@@ -201,7 +196,7 @@ export class UsersService {
             }
         });
 
-        await this.logService.createLog('update_user', 'User', id, userId);
+        await this.logService.createLog('update_user', user.uid, 'User', id);
         return result;
     }
     
@@ -244,15 +239,12 @@ export class UsersService {
     });
     }
 
-    async delete(id: string): Promise<any> {
-        // Capture userId from context BEFORE any async operations
-        const userId = this.requestContextService.getUserId();
-        
-        const user = await this.prisma.user.findUnique({
+    async delete(user: JwtPayload, id: string): Promise<any> {
+        const existingUser = await this.prisma.user.findUnique({
             where: { uid: id }
         });
 
-        if (!user) {
+        if (!existingUser) {
             throw new BadRequestException("User not found");
         }
 
@@ -277,7 +269,7 @@ export class UsersService {
             data: {status: "Deleted"},
         });
 
-        await this.logService.createLog('delete_user', 'User', id, userId);
+        await this.logService.createLog('delete_user', user.uid, 'User', id);
         return result;
     }
 }

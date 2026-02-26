@@ -2,61 +2,63 @@ import { Injectable, NotFoundException, BadRequestException, UnauthorizedExcepti
 import { PrismaService } from 'src/prisma.service';
 import { Notification } from '@prisma/client';
 import { CreateNotificationDto, UpdateNotificationDto, GetNotificationsFilterDto } from './notifications.dto';
-import { RequestContextService } from 'src/common/context';
 import { LogService } from '../logs';
+import { JwtPayload } from '../users/jwt.strategy';
 
 /**
  * NotificationsService
  *
  * Manages notification operations for users.
+ * All methods accept user: JwtPayload as the first parameter for authentication context.
  *
  * Public Methods:
- * - findAll(filter?: GetNotificationsFilterDto): Promise<Notification[]>
+ * - findAll(user: JwtPayload, filter?: GetNotificationsFilterDto): Promise<Notification[]>
  *     Retrieves all notifications with optional filtering (no user filtering)
  *
- * - findAllOfUser(userId: string, filter?: GetNotificationsFilterDto): Promise<Notification[]>
+ * - findAllOfUser(user: JwtPayload, userId: string, filter?: GetNotificationsFilterDto): Promise<Notification[]>
  *     Retrieves all notifications for a user with optional filtering
  *
- * - findOne(nid: string): Promise<Notification>
+ * - findOne(user: JwtPayload, nid: string): Promise<Notification>
  *     Retrieves a single notification by ID
  *
- * - getUnreadCount(userId: string): Promise<number>
+ * - getUnreadCount(user: JwtPayload, userId: string): Promise<number>
  *     Gets the count of unread notifications for a user
  *
- * - getUnreadNotifications(userId: string): Promise<Notification[]>
+ * - getUnreadNotifications(user: JwtPayload, userId: string): Promise<Notification[]>
  *     Retrieves all unread notifications for a user
  *
- * - markAsRead(nid: string): Promise<Notification>
+ * - markAsRead(user: JwtPayload, nid: string): Promise<Notification>
  *     Marks a single notification as read
  *
- * - markAllAsRead(userId: string): Promise<{ count: number }>
+ * - markAllAsRead(user: JwtPayload, userId: string): Promise<{ count: number }>
  *     Marks all notifications for a user as read
  *
- * - create(createData: CreateNotificationDto): Promise<Notification>
+ * - create(user: JwtPayload, createData: CreateNotificationDto): Promise<Notification>
  *     Creates a new notification for a user
  *
- * - update(nid: string, updaterUid: string, updateData: UpdateNotificationDto): Promise<Notification>
+ * - update(user: JwtPayload, nid: string, updaterUid: string, updateData: UpdateNotificationDto): Promise<Notification>
  *     Updates a notification with permission verification
  *
- * - delete(nid: string, requesterUid: string): Promise<Notification>
+ * - delete(user: JwtPayload, nid: string, requesterUid: string): Promise<Notification>
  *     Deletes a notification with permission verification
  *
- * - notifyOneUser(createData: CreateNotificationDto): Promise<Notification>
+ * - notifyOneUser(user: JwtPayload, createData: CreateNotificationDto): Promise<Notification>
  *     Creates a notification for a single user (used by other services)
  *
- * - notifyUsers(userIds: string[], createData: Omit<CreateNotificationDto, 'recipient_uid'>): Promise<Notification[]>
- *     Creates notifications for multiple users at once (used by other services)
+ * - notifyUsers(user: JwtPayload, userIds: string[], createData: Omit<CreateNotificationDto, 'recipient_uid'>): Promise<Notification[]>
+ *     Creates notifications for multiple users at once
+ *
+ * - notifyClass(user: JwtPayload, classId: string, createData: Omit<CreateNotificationDto, 'recipient_uid'>): Promise<Notification[]>
+ *     Creates notifications for all students in a class (used by other services and routes)
  */
 @Injectable()
 export class NotificationsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly requestContextService: RequestContextService,
     private readonly logService: LogService,
-    
   ) {}
 
-  async findAll(filter?: GetNotificationsFilterDto): Promise<Notification[]> {
+  async findAll(user: JwtPayload, filter?: GetNotificationsFilterDto): Promise<Notification[]> {
     return this.prisma.notification.findMany({
       where: {
         ...(filter?.is_read !== undefined && { is_read: filter.is_read }), //spread the filter property if exists
@@ -70,7 +72,7 @@ export class NotificationsService {
     });
   }
 
-  async findAllOfUser(userId: string, filter?: GetNotificationsFilterDto): Promise<Notification[]> {
+  async findAllOfUser(user: JwtPayload, userId: string, filter?: GetNotificationsFilterDto): Promise<Notification[]> {
     await this.verifyUserExists(userId);
 
     return this.prisma.notification.findMany({
@@ -87,7 +89,7 @@ export class NotificationsService {
     });
   }
 
-  async findOne(nid: string): Promise<Notification> {
+  async findOne(user: JwtPayload, nid: string): Promise<Notification> {
     const notification = await this.prisma.notification.findUnique({
       where: { nid: nid },
     });
@@ -99,7 +101,7 @@ export class NotificationsService {
     return notification;
   }
 
-  async getUnreadCount(userId: string): Promise<number> 
+  async getUnreadCount(user: JwtPayload, userId: string): Promise<number> 
   {
     await this.verifyUserExists(userId);
 
@@ -111,7 +113,7 @@ export class NotificationsService {
     });
   }
 
-  async getUnreadNotifications(userId: string): Promise<Notification[]> {
+  async getUnreadNotifications(user: JwtPayload, userId: string): Promise<Notification[]> {
     await this.verifyUserExists(userId);
 
     return this.prisma.notification.findMany({
@@ -125,23 +127,20 @@ export class NotificationsService {
     });
   }
 
-  async markAsRead(nid: string): Promise<Notification> {
-    const userId = this.requestContextService.getUserId();
-    
-    await this.findOne(nid);
+  async markAsRead(user: JwtPayload, nid: string): Promise<Notification> {
+    const notification = await this.findOne(user, nid);
 
     const updatedNotification = await this.prisma.notification.update({
       where: { nid: nid },
       data: { is_read: true },
     });
 
-    await this.logService.createLog('mark_notification_as_read', 'Notification', nid, userId);
+    await this.logService.createLog('mark_notification_as_read', user.uid, 'Notification', nid);
+    
     return updatedNotification;
   }
 
-  async markAllAsRead(userId: string): Promise<{ count: number }> {
-    const currentUserId = this.requestContextService.getUserId();
-    
+  async markAllAsRead(user: JwtPayload, userId: string): Promise<{ count: number }> {
     await this.verifyUserExists(userId);
 
     const result = await this.prisma.notification.updateMany({
@@ -154,17 +153,13 @@ export class NotificationsService {
       },
     });
 
-    await this.logService.createLog('mark_all_notifications_as_read', 'Notification', userId, currentUserId);
+    await this.logService.createLog('mark_all_notifications_as_read', user.uid, 'Notification', userId);
     return { count: result.count };
   }
 
 
-  async create(createData: CreateNotificationDto): Promise<Notification> {
-    const userId = this.requestContextService.getUserId();
-
+  async create(user: JwtPayload, createData: CreateNotificationDto): Promise<Notification> {
     await this.verifyUserExists(createData.recipient_uid);
-
-
 
     const newNotification = await this.prisma.notification.create({
       data: {
@@ -177,15 +172,14 @@ export class NotificationsService {
         user_id: createData.recipient_uid,
       },
     });
-    await this.logService.createLog('create_notification', 'Notification', newNotification.nid, userId);
+
+    console.log(`Notification created ${newNotification}`);
+    await this.logService.createLog('create_notification', user.uid, 'Notification', newNotification.nid);
 
     return newNotification;
-
   }
 
-  async update(nid: string, updaterUid: string, updateData: UpdateNotificationDto): Promise<Notification> {
-    const userId = this.requestContextService.getUserId();
-
+  async update(user: JwtPayload, nid: string, updaterUid: string, updateData: UpdateNotificationDto): Promise<Notification> {
     await this.verifyUserPermission(updaterUid, nid);
 
     const updatedNotification = await this.prisma.notification.update({
@@ -197,20 +191,18 @@ export class NotificationsService {
       },
     });
 
-    await this.logService.createLog('update_notification', 'Notification', nid, userId);
+    await this.logService.createLog('update_notification', user.uid, 'Notification', nid);
     return updatedNotification;
   }
 
-  async delete(nid: string, requesterUid: string): Promise<Notification> {
-    const userId = this.requestContextService.getUserId();
-
+  async delete(user: JwtPayload, nid: string, requesterUid: string): Promise<Notification> {
     await this.verifyUserPermission(requesterUid, nid);
 
     const deletedNotification = await this.prisma.notification.delete({
       where: { nid: nid },
     });
 
-    await this.logService.createLog('delete_notification', 'Notification', nid, userId);
+    await this.logService.createLog('delete_notification', user.uid, 'Notification', nid);
     return deletedNotification;
   }
 
@@ -218,40 +210,74 @@ export class NotificationsService {
    * region: For Other Services
    */
 
-  async notifyOneUser(createData: CreateNotificationDto): Promise<Notification> 
+  async notifyOneUser(user: JwtPayload, createData: CreateNotificationDto): Promise<Notification> 
   {
-    const userId = this.requestContextService.getUserId();
-
     await this.verifyUserExists(createData.recipient_uid);
 
-    const notification = await this.create({
+    const notification = await this.create(user, {
       ...createData,
     });
 
-    await this.logService.createLog('notify_one_user', 'Notification', notification.nid, userId);
+    await this.logService.createLog('notify_one_user', user.uid, 'Notification', notification.nid);
     return notification;
   }
 
   async notifyUsers(
+    user: JwtPayload,
     userIds: string[],
     createData: Omit<CreateNotificationDto, 'recipient_uid'>
   ): Promise<Notification[]>
-    {      
-      const userId = this.requestContextService.getUserId();
-
+    {
       await Promise.all(userIds.map(uid => this.verifyUserExists(uid)));
 
       const notifications = await Promise.all(
-        userIds.map((userId) =>
-          this.create({
+        userIds.map((recipientId) =>
+          this.create(user, {
             ...createData,
-            recipient_uid: userId,
+            recipient_uid: recipientId,
           }),
         ),
       );
-      await this.logService.createLog('notify_multiple_users', 'Notification', undefined, userId);
+      console.log(`notifyUsers on call \n`);
+      await this.logService.createLog('notify_multiple_users', user.uid, 'Notification', undefined);
       return notifications;
     }
+
+  async notifyClass(
+    user: JwtPayload,
+    classId: string,
+    createData: Omit<CreateNotificationDto, 'recipient_uid'>
+  ): Promise<Notification[]> {
+    // Get class with students (excluding lecturers)
+    const classInfo = await this.prisma.class.findUnique({
+      where: { clid: classId },
+      include: {
+        students: {
+          select: {
+            user_id: true,
+          },
+        },
+      },
+    });
+
+    if (!classInfo) {
+      throw new NotFoundException(`Class with ID ${classId} not found`);
+    }
+
+    // Extract student user IDs
+    const studentUserIds = classInfo.students.map(student => student.user_id);
+
+    if (studentUserIds.length === 0) {
+      throw new BadRequestException(`No students found in class ${classId}`);
+    }
+
+    const notifications = await this.notifyUsers(user, studentUserIds, createData);
+
+    console.log(`notifyClass on call \n`);
+
+    await this.logService.createLog('notify_class', user.uid, 'Class', classId);
+    return notifications;
+  }
 
   /**region: Helpers */
   private async verifyUserExists(userId: string): Promise<boolean> {

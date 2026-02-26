@@ -6,6 +6,7 @@ import {
     Delete,
     Param, 
     Body, 
+    Request,
     UseGuards, 
     UsePipes, 
     ValidationPipe,
@@ -66,9 +67,10 @@ export class QuizzesController {
     @UseGuards(InChargeGuard)
     @SwaggerCreateQuiz()
     async create(
+        @Request() req,
         @Body() createQuizDto: CreateQuizDto
     ) {
-        return this.quizzesService.create(createQuizDto);
+        return this.quizzesService.create(req.user, createQuizDto);
     }
 
     @Put(':qid')
@@ -76,18 +78,19 @@ export class QuizzesController {
     @UseGuards(InChargeGuard)
     @SwaggerUpdateQuiz()
     async update(
+        @Request() req,
         @Param('qid') qid: string,
         @Body() updateQuizDto: UpdateQuizDto
     ) {
-        return this.quizzesService.update(qid, updateQuizDto);
+        return this.quizzesService.update(req.user, qid, updateQuizDto);
     }
 
     @Delete(':id')
     @Roles('Admin')
     // @UseGuards(InChargeGuard)
     @SwaggerDeleteQuiz()
-    async delete(@Param('id') id: string) {
-        await this.quizzesService.delete(id);
+    async delete(@Request() req, @Param('id') id: string) {
+        await this.quizzesService.delete(req.user, id);
         return { message: `Quiz with ID ${id} deleted successfully` };
     }
 }

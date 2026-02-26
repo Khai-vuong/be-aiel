@@ -255,6 +255,40 @@ export function SwaggerCreateBulkNotification() {
   );
 }
 
+export function SwaggerCreateClassNotification() {
+  return applyDecorators(
+    ApiOperation({ summary: 'Create notifications for all students in a class (Lecturer/Admin only)' }),
+    ApiParam({ name: 'clid', description: 'Class ID' }),
+    ApiResponse({
+      status: 201,
+      description: 'Notifications created successfully for all students in the class',
+      schema: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            nid: { type: 'string' },
+            title: { type: 'string' },
+            message: { type: 'string' },
+            type: { type: 'string' },
+            is_read: { type: 'boolean' },
+            details_json: { type: 'string', nullable: true },
+            related_type: { type: 'string', nullable: true },
+            related_id: { type: 'string', nullable: true },
+            user_id: { type: 'string' },
+            created_at: { type: 'string', format: 'date-time' },
+            updated_at: { type: 'string', format: 'date-time' },
+          },
+        },
+      },
+    }),
+    ApiResponse({ status: 400, description: 'Bad request - class not found or no students in class' }),
+    ApiResponse({ status: 401, description: 'Unauthorized' }),
+    ApiResponse({ status: 403, description: 'Forbidden - requires Lecturer or Admin role' }),
+    ApiResponse({ status: 404, description: 'Class not found' }),
+  );
+}
+
 export function SwaggerUpdateNotification() {
   return applyDecorators(
     ApiOperation({ summary: 'Update a notification (Lecturer/Admin only)' }),

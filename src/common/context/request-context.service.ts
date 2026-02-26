@@ -22,7 +22,7 @@ export class RequestContextService {
 
   getContext(): RequestContext | undefined {
     const context = this.asyncLocalStorage.getStore();
-    // console.log('[RequestContextService.getContext] Retrieved context:', context);
+    console.log('[RequestContextService.getContext] Retrieved context:', context);
     return context;
   }
 

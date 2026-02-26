@@ -18,26 +18,17 @@ export class LogService {
 
   async createLog(
     action: string,
+    uid: string,
     resourceType?: string,
     resourceId?: string,
-    uid?: string,
   ): Promise<any> {
-    const requestID = this.getUserId();
-    const userId = requestID
-        ? requestID
-        : uid!;
-
-    if (!userId) {
-        throw new BadRequestException('User ID is required to create a log');
-    }
     // console.log(`Creating log: action=${action}, resourceType=${resourceType}, resourceId=${resourceId}, userId=${userId}`);
-
     return this.prisma.log.create({
       data: {
         action,
         resource_type: resourceType,
         resource_id: resourceId,
-        user_id: userId,
+        user_id: uid,
       },
     });
   }

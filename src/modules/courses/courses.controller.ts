@@ -63,22 +63,22 @@ export class CoursesController {
     @Post()
     @Roles('Admin', 'Lecturer')
     @SwaggerCreateCourse()
-    async create(@Body() createCourseDto: CourseCreateDto) {
-        return this.coursesService.create(createCourseDto);
+    async create(@Request() req, @Body() createCourseDto: CourseCreateDto) {
+        return this.coursesService.create(req.user, createCourseDto);
     }
 
     @Put(':id')
     @Roles('Admin', 'Lecturer')
     @SwaggerUpdateCourse()
-    async update(@Param('id') id: string, @Body() updateCourseDto: CourseUpdateDto) {
-        return this.coursesService.update(id, updateCourseDto);
+    async update(@Request() req, @Param('id') id: string, @Body() updateCourseDto: CourseUpdateDto) {
+        return this.coursesService.update(req.user, id, updateCourseDto);
     }
 
     @Delete(':id')
     @Roles('Admin')
     @SwaggerDeleteCourse()
-    async delete(@Param('id') id: string) {
-        await this.coursesService.delete(id);
+    async delete(@Request() req, @Param('id') id: string) {
+        await this.coursesService.delete(req.user, id);
         return { message: 'Course deleted successfully' };
     }
 
@@ -86,20 +86,22 @@ export class CoursesController {
     @Roles('Admin')
     @SwaggerAddLecturer()
     async addLecturer(
+        @Request() req,
         @Param('courseId') courseId: string,
         @Param('lecturerId') lecturerId: string
     ) {
-        return this.coursesService.addLecturer(courseId, lecturerId);
+        return this.coursesService.addLecturer(req.user, courseId, lecturerId);
     }
 
     @Delete(':courseId/lecturers/:lecturerId')
     @Roles('Admin')
     @SwaggerRemoveLecturer()
     async removeLecturer(
+        @Request() req,
         @Param('courseId') courseId: string,
         @Param('lecturerId') lecturerId: string
     ) {
-        return this.coursesService.removeLecturer(courseId, lecturerId);
+        return this.coursesService.removeLecturer(req.user, courseId, lecturerId);
     }
 
     @Roles('Student')
@@ -108,7 +110,7 @@ export class CoursesController {
     async registerToCourse(@Request() req, @Param('id') id: string) {
         const userId = req.user.uid;
         const courseId = id;
-        return this.coursesService.registerStudentToCourse(userId, courseId);
+        return this.coursesService.registerStudentToCourse(req.user, userId, courseId);
     }
 
     @Roles('Student')
@@ -117,7 +119,7 @@ export class CoursesController {
     async unregisterFromCourse(@Request() req, @Param('id') id: string) {
         const userId = req.user.uid;
         const courseId = id;
-        return this.coursesService.unregisterStudentFromCourse(userId, courseId);
+        return this.coursesService.unregisterStudentFromCourse(req.user, userId, courseId);
     }
 
     @Roles('Student')

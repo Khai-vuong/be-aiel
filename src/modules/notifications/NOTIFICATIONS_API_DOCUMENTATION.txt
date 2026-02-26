@@ -1,0 +1,441 @@
+====NOTIFICATIONS API DOCUMENTATION
+
+Base URL: /notifications
+Authentication: Required (JWT Token in Authorization header)
+
+====1. GET /notifications
+====Description: Lay tat ca thong bao (Admin only)
+Method: GET
+Role: any (authenticated users)
+Query Parameters:
+  - is_read (optional): boolean - Loc theo trang thai da doc
+  - type (optional): string - Loc theo loai thong bao
+  - limit (optional): number - So luong thong bao tra ve (default: 50, max: 100)
+  - skip (optional): number - So luong thong bao bo qua cho phan trang
+
+Example Output:
+[
+  {
+    "nid": "notif_123",
+    "title": "New Quiz Available",
+    "message": "A new quiz has been posted for your class",
+    "type": "quiz_posted",
+    "is_read": false,
+    "details_json": null,
+    "related_type": "Quiz",
+    "related_id": "quiz_123",
+    "user_id": "user_123",
+    "created_at": "2026-02-26T10:30:00Z",
+    "updated_at": "2026-02-26T10:30:00Z"
+  }
+]
+
+
+====2. GET /notifications/unread/count
+====Description: Lay so luong thong bao chua doc cua user hien tai
+Method: GET
+Role: any (authenticated users)
+Input: None (lay tu token)
+
+Example Output:
+{
+  "count": 5
+}
+
+
+====3. GET /notifications/unread
+====Description: Lay tat ca thong bao chua doc cua user hien tai
+Method: GET
+Role: any (authenticated users)
+Input: None (lay tu token)
+
+Example Output:
+[
+  {
+    "nid": "notif_123",
+    "title": "New Quiz Available",
+    "message": "A new quiz has been posted for your class",
+    "type": "quiz_posted",
+    "is_read": false,
+    "details_json": null,
+    "related_type": "Quiz",
+    "related_id": "quiz_123",
+    "user_id": "user_123",
+    "created_at": "2026-02-26T10:30:00Z",
+    "updated_at": "2026-02-26T10:30:00Z"
+  }
+]
+
+
+====4. GET /notifications/me
+====Description: Lay tat ca thong bao cua user hien tai
+Method: GET
+Role: any (authenticated users)
+Query Parameters:
+  - is_read (optional): boolean - Loc theo trang thai da doc
+  - type (optional): string - Loc theo loai thong bao
+  - limit (optional): number - So luong thong bao tra ve
+  - skip (optional): number - So luong thong bao bo qua
+
+Example Output:
+[
+  {
+    "nid": "notif_123",
+    "title": "New Quiz Available",
+    "message": "A new quiz has been posted for your class",
+    "type": "quiz_posted",
+    "is_read": false,
+    "details_json": null,
+    "related_type": "Quiz",
+    "related_id": "quiz_123",
+    "user_id": "user_123",
+    "created_at": "2026-02-26T10:30:00Z",
+    "updated_at": "2026-02-26T10:30:00Z"
+  }
+]
+
+
+====5. GET /notifications/user/:userId
+====Description: Lay tat ca thong bao cua mot user cu the
+Method: GET
+Role: Admin only
+URL Parameters:
+  - userId (required): string - ID cua user can lay thong bao
+Query Parameters:
+  - is_read (optional): boolean - Loc theo trang thai da doc
+  - type (optional): string - Loc theo loai thong bao
+  - limit (optional): number - So luong thong bao tra ve
+  - skip (optional): number - So luong thong bao bo qua
+
+Example Output:
+[
+  {
+    "nid": "notif_123",
+    "title": "New Quiz Available",
+    "message": "A new quiz has been posted for your class",
+    "type": "quiz_posted",
+    "is_read": false,
+    "details_json": null,
+    "related_type": "Quiz",
+    "related_id": "quiz_123",
+    "user_id": "student_001",
+    "created_at": "2026-02-26T10:30:00Z",
+    "updated_at": "2026-02-26T10:30:00Z"
+  }
+]
+
+
+====6. GET /notifications/:nid
+====Description: Lay chi tiet mot thong bao theo ID
+Method: GET
+Role: any (authenticated users)
+URL Parameters:
+  - nid (required): string - ID cua thong bao
+
+Example Output:
+{
+  "nid": "notif_123",
+  "title": "New Quiz Available",
+  "message": "A new quiz has been posted for your class",
+  "type": "quiz_posted",
+  "is_read": false,
+  "details_json": null,
+  "related_type": "Quiz",
+  "related_id": "quiz_123",
+  "user_id": "user_123",
+  "created_at": "2026-02-26T10:30:00Z",
+  "updated_at": "2026-02-26T10:30:00Z"
+}
+
+
+====7. PUT /notifications/:nid/mark-as-read
+====Description: Danh dau mot thong bao la da doc
+Method: PUT
+Role: any (authenticated users)
+URL Parameters:
+  - nid (required): string - ID cua thong bao
+
+Example Output:
+{
+  "nid": "notif_123",
+  "title": "New Quiz Available",
+  "message": "A new quiz has been posted for your class",
+  "type": "quiz_posted",
+  "is_read": true,
+  "details_json": null,
+  "related_type": "Quiz",
+  "related_id": "quiz_123",
+  "user_id": "user_123",
+  "created_at": "2026-02-26T10:30:00Z",
+  "updated_at": "2026-02-26T10:30:00Z"
+}
+
+
+====8. PUT /notifications/mark-as-read/all
+====Description: Danh dau tat ca thong bao cua user hien tai la da doc
+Method: PUT
+Role: any (authenticated users)
+Input: None (lay tu token)
+
+Example Output:
+{
+  "count": 5
+}
+
+
+====9. POST /notifications
+====Description: Tao mot thong bao moi
+Method: POST
+Role: Lecturer, Admin
+Content-Type: application/json
+
+Request Body:
+{
+  "title": "New Quiz Available",
+  "message": "A new quiz has been posted for your class",
+  "type": "quiz_posted",
+  "recipient_uid": "user_123",
+  "related_type": "Quiz",
+  "related_id": "quiz_123"
+}
+
+Required Fields:
+  - title: string - Tieu de thong bao
+  - message: string - Noi dung thong bao
+  - recipient_uid: string - ID cua user nhan thong bao
+
+Optional Fields:
+  - type: string - Loai thong bao (general, quiz_posted, grade_released, 
+                   enrollment_status, deadline_reminder, assignment_submitted)
+  - related_type: string - Loai tai nguyen lien quan (Quiz, Course, Attempt, 
+                          Assignment, Class)
+  - related_id: string - ID cua tai nguyen lien quan
+
+Example Output:
+{
+  "nid": "notif_123",
+  "title": "New Quiz Available",
+  "message": "A new quiz has been posted for your class",
+  "type": "quiz_posted",
+  "is_read": false,
+  "details_json": null,
+  "related_type": "Quiz",
+  "related_id": "quiz_123",
+  "user_id": "user_123",
+  "created_at": "2026-02-26T10:30:00Z",
+  "updated_at": "2026-02-26T10:30:00Z"
+}
+
+
+====10. POST /notifications/bulk
+====Description: Tao thong bao cho nhieu user cung mot luc
+Method: POST
+Role: Lecturer, Admin
+Content-Type: application/json
+
+Request Body:
+{
+  "recipients": ["user_123", "user_456", "user_789"],
+  "title": "New Quiz Available",
+  "message": "A new quiz has been posted for your class",
+  "type": "quiz_posted",
+  "related_type": "Quiz",
+  "related_id": "quiz_123"
+}
+
+Required Fields:
+  - recipients: array of strings - Danh sach ID cua cac user nhan thong bao
+  - title: string - Tieu de thong bao
+  - message: string - Noi dung thong bao
+
+Optional Fields:
+  - type: string - Loai thong bao
+  - related_type: string - Loai tai nguyen lien quan
+  - related_id: string - ID cua tai nguyen lien quan
+
+Example Output:
+[
+  {
+    "nid": "notif_123",
+    "title": "New Quiz Available",
+    "message": "A new quiz has been posted for your class",
+    "type": "quiz_posted",
+    "is_read": false,
+    "details_json": null,
+    "related_type": "Quiz",
+    "related_id": "quiz_123",
+    "user_id": "user_123",
+    "created_at": "2026-02-26T10:30:00Z",
+    "updated_at": "2026-02-26T10:30:00Z"
+  },
+  {
+    "nid": "notif_124",
+    "title": "New Quiz Available",
+    "message": "A new quiz has been posted for your class",
+    "type": "quiz_posted",
+    "is_read": false,
+    "details_json": null,
+    "related_type": "Quiz",
+    "related_id": "quiz_123",
+    "user_id": "user_456",
+    "created_at": "2026-02-26T10:30:00Z",
+    "updated_at": "2026-02-26T10:30:00Z"
+  }
+]
+
+
+====
+11. POST /notifications/bulk/class/:clid
+====
+Description: Tao thong bao cho tat ca hoc sinh trong mot lop hoc
+Method: POST
+Role: Lecturer, Admin
+URL Parameters:
+  - clid (required): string - ID cua lop hoc
+Content-Type: application/json
+
+Request Body:
+{
+  "title": "Class Announcement",
+  "message": "Important announcement for all students in this class",
+  "type": "general",
+  "related_type": "Class",
+  "related_id": "class_123"
+}
+
+Required Fields:
+  - title: string - Tieu de thong bao
+  - message: string - Noi dung thong bao
+
+Optional Fields:
+  - type: string - Loai thong bao
+  - related_type: string - Loai tai nguyen lien quan
+  - related_id: string - ID cua tai nguyen lien quan
+
+Example Output:
+[
+  {
+    "nid": "notif_125",
+    "title": "Class Announcement",
+    "message": "Important announcement for all students in this class",
+    "type": "general",
+    "is_read": false,
+    "details_json": null,
+    "related_type": "Class",
+    "related_id": "class_123",
+    "user_id": "student_001",
+    "created_at": "2026-02-26T10:30:00Z",
+    "updated_at": "2026-02-26T10:30:00Z"
+  },
+  {
+    "nid": "notif_126",
+    "title": "Class Announcement",
+    "message": "Important announcement for all students in this class",
+    "type": "general",
+    "is_read": false,
+    "details_json": null,
+    "related_type": "Class",
+    "related_id": "class_123",
+    "user_id": "student_002",
+    "created_at": "2026-02-26T10:30:00Z",
+    "updated_at": "2026-02-26T10:30:00Z"
+  }
+]
+
+Note: Chi gui thong bao cho cac hoc sinh trong lop, khong gui cho giang vien
+
+
+====
+12. PUT /notifications/:nid
+====
+Description: Cap nhat mot thong bao
+Method: PUT
+Role: Lecturer, Admin
+URL Parameters:
+  - nid (required): string - ID cua thong bao can cap nhat
+Content-Type: application/json
+
+Request Body:
+{
+  "title": "Updated Title",
+  "message": "Updated message",
+  "type": "general"
+}
+
+Optional Fields (at least one required):
+  - title: string - Tieu de moi
+  - message: string - Noi dung moi
+  - type: string - Loai thong bao moi
+
+Example Output:
+{
+  "nid": "notif_123",
+  "title": "Updated Title",
+  "message": "Updated message",
+  "type": "general",
+  "is_read": false,
+  "details_json": null,
+  "related_type": "Quiz",
+  "related_id": "quiz_123",
+  "user_id": "user_123",
+  "created_at": "2026-02-26T10:30:00Z",
+  "updated_at": "2026-02-26T11:00:00Z"
+}
+
+
+====
+13. DELETE /notifications/:nid
+====
+Description: Xoa mot thong bao
+Method: DELETE
+Role: any (authenticated users)
+URL Parameters:
+  - nid (required): string - ID cua thong bao can xoa
+
+Example Output:
+{
+  "message": "Notification deleted successfully"
+}
+
+
+====                            NOTIFICATION TYPES
+====- general: Thong bao chung
+- quiz_posted: Thong bao bai kiem tra moi
+- grade_released: Thong bao diem so duoc cong bo
+- enrollment_status: Thong bao trang thai ghi danh
+- deadline_reminder: Thong bao nhac nho deadline
+- assignment_submitted: Thong bao bai tap da nop
+
+
+====                          RELATED RESOURCE TYPES
+====- Quiz: Bai kiem tra
+- Course: Khoa hoc
+- Attempt: Lan lam bai
+- Assignment: Bai tap
+- Class: Lop hoc
+
+
+====                            ERROR RESPONSES
+====400 Bad Request: Du lieu khong hop le
+401 Unauthorized: Chua dang nhap hoac token khong hop le
+403 Forbidden: Khong co quyen truy cap
+404 Not Found: Khong tim thay thong bao
+
+
+====                              NOTES
+====1. Tat ca cac endpoint deu can JWT token trong Authorization header
+   Format: Authorization: Bearer <token>
+
+2. Role "any" nghia la bat ky user nao da dang nhap deu co the truy cap
+
+3. Admin co the xem thong bao cua bat ky user nao
+
+4. Lecturer va Admin co the tao va cap nhat thong bao
+
+5. User chi co the xoa thong bao cua chinh minh
+
+6. Khi su dung optional fields, co the bo qua hoac de empty string
+
+7. Cac query parameters cho pagination (limit, skip) giup phan trang du lieu
+
+====

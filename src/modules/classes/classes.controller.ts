@@ -77,9 +77,9 @@ export class ClassesController {
     @Roles('Admin')
     @Post('createFromEnrollments')
     @SwaggerProcessEnrollments()
-    async processPendingEnrollments(@Body() dto: ClassCreateDto) {
+    async processPendingEnrollments(@Request() req, @Body() dto: ClassCreateDto) {
         const maxStudentsPerClass = dto.maxStudentsPerClass || 5;
-        return this.classesService.createClassesFromEnrollments(maxStudentsPerClass);
+        return this.classesService.createClassesFromEnrollments(req.user, maxStudentsPerClass);
     }
 
 
@@ -87,6 +87,7 @@ export class ClassesController {
     @Roles('Admin', 'Lecturer')
     @SwaggerUpdateClass()
     async update(
+        @Request() req,
         @Param('id') id: string,
         @Body() updateData: {
             name?: string;
@@ -96,14 +97,14 @@ export class ClassesController {
             lecturer_id?: string;
         }
     ) {
-        return this.classesService.update(id, updateData);
+        return this.classesService.update(req.user, id, updateData);
     }
 
     @Delete(':id')
     @Roles('Admin')
     @SwaggerDeleteClass()
-    async delete(@Param('id') id: string) {
-        await this.classesService.delete(id);
+    async delete(@Request() req, @Param('id') id: string) {
+        await this.classesService.delete(req.user, id);
         return { message: `Class with ID ${id} deleted successfully` };
     }
 
@@ -122,8 +123,8 @@ export class ClassesController {
         const isProduction = process.env.NODE_ENV?.toLowerCase() === 'production';
 
         return isProduction
-        ? this.classesService.uploadToS3(req.user.uid, clid, file)
-        : this.classesService.uploadToLocal(req.user.uid, clid, file);
+        ? this.classesService.uploadToS3(req.user, clid, file)
+        : this.classesService.uploadToLocal(req.user, clid, file);
 
     }
 

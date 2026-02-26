@@ -3,6 +3,7 @@ import { PrismaService } from 'src/prisma.service';
 import { CourseCreateDto, CourseUpdateDto } from './courses.dto';
 import { Course, CourseEnrollment } from '@prisma/client';
 import { LogService } from '../logs';
+import { JwtPayload } from '../users/jwt.strategy';
 
 /**
  * CoursesService
@@ -24,7 +25,6 @@ import { LogService } from '../logs';
  * 
  * }
  */
-import { RequestContextService } from 'src/common/context';
 
 @Injectable()
 export class CoursesService {
@@ -32,7 +32,6 @@ export class CoursesService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly logService: LogService,
-        private readonly requestContextService: RequestContextService,
     ) { }
 
     // Get all courses
@@ -76,10 +75,7 @@ export class CoursesService {
     }
 
     // Create a new course
-    async create(createCourseDto: CourseCreateDto): Promise<Course> {
-        // Capture userId from context BEFORE any async operations
-        const userId = this.requestContextService.getUserId();
-        
+    async create(user: JwtPayload, createCourseDto: CourseCreateDto): Promise<Course> {
         // Check if lecturer exists
         const lecturer = this.prisma.lecturer.findUnique({
             where: { lid: createCourseDto.lecturer_id }
@@ -114,15 +110,12 @@ export class CoursesService {
             }
         });
 
-        await this.logService.createLog('create_course', 'Course', newCourse.cid, userId);
+        await this.logService.createLog('create_course', user.uid, 'Course', newCourse.cid);
         return newCourse;
     }
 
     // Update a course
-    async update(id: string, updateCourseDto: CourseUpdateDto): Promise<Course> {
-        // Capture userId from context BEFORE any async operations
-        const userId = this.requestContextService.getUserId();
-        
+    async update(user: JwtPayload, id: string, updateCourseDto: CourseUpdateDto): Promise<Course> {
         const course = await this.prisma.course.findUnique({
             where: { cid: id }
         });
@@ -158,15 +151,12 @@ export class CoursesService {
             }
         });
 
-        await this.logService.createLog('update_course', 'Course', id, userId);
+        await this.logService.createLog('update_course', user.uid, 'Course', id);
         return updatedCourse;
     }
 
     // Delete a course
-    async delete(id: string): Promise<void> {
-        // Capture userId from context BEFORE any async operations
-        const userId = this.requestContextService.getUserId();
-        
+    async delete(user: JwtPayload, id: string): Promise<void> {
         const course = await this.prisma.course.findUnique({
             where: { cid: id },
             include: {
@@ -194,14 +184,11 @@ export class CoursesService {
             where: { cid: id }
         });
 
-        await this.logService.createLog('delete_course', 'Course', id, userId);
+        await this.logService.createLog('delete_course', user.uid, 'Course', id);
     }
 
     // Add a lecturer to a course
-    async addLecturer(courseId: string, lecturerId: string): Promise<Course> {
-        // Capture userId from context BEFORE any async operations
-        const userId = this.requestContextService.getUserId();
-        
+    async addLecturer(user: JwtPayload, courseId: string, lecturerId: string): Promise<Course> {
         const course = await this.prisma.course.findUnique({
             where: { cid: courseId }
         });
@@ -236,15 +223,12 @@ export class CoursesService {
             }
         });
 
-        await this.logService.createLog('add_lecturer_to_course', 'Course', courseId, userId);
+        await this.logService.createLog('add_lecturer_to_course', user.uid, 'Course', courseId);
         return updatedCourse;
     }
 
     // Remove a lecturer from a course
-    async removeLecturer(courseId: string, lecturerId: string): Promise<Course> {
-        // Capture userId from context BEFORE any async operations
-        const userId = this.requestContextService.getUserId();
-        
+    async removeLecturer(user: JwtPayload, courseId: string, lecturerId: string): Promise<Course> {
         const course = await this.prisma.course.findUnique({
             where: { cid: courseId },
             include: {
@@ -279,14 +263,11 @@ export class CoursesService {
             }
         });
 
-        await this.logService.createLog('remove_lecturer_from_course', 'Course', courseId, userId);
+        await this.logService.createLog('remove_lecturer_from_course', user.uid, 'Course', courseId);
         return updatedCourse;
     }
 
-    async registerStudentToCourse(studentUserId: string, courseId: string): Promise<any> {
-        // Capture userId from context BEFORE any async operations
-        const userId = this.requestContextService.getUserId();
-
+    async registerStudentToCourse(user: JwtPayload, studentUserId: string, courseId: string): Promise<any> {
         const studentIdQuery = this.prisma.student.findFirst({
             where: { user_id: studentUserId }
         }).then(student => student?.sid);
@@ -328,7 +309,7 @@ export class CoursesService {
                 }
             });
 
-            await this.logService.createLog('re_course_enrollment', 'CourseEnrollment', enrollment.ceid, userId);
+            await this.logService.createLog('re_course_enrollment', user.uid, 'CourseEnrollment', enrollment.ceid);
              
             return {
                 "enrollment": enrollmentRegister,
@@ -348,7 +329,7 @@ export class CoursesService {
             }
         });
 
-        await this.logService.createLog('course_enrollment', 'CourseEnrollment', enrollmentRegister.ceid, userId);
+        await this.logService.createLog('course_enrollment', user.uid, 'CourseEnrollment', enrollmentRegister.ceid);
 
         return {
             "enrollment": enrollmentRegister,
@@ -356,11 +337,7 @@ export class CoursesService {
         };
     }
 
-    async unregisterStudentFromCourse(studentUserId: string, courseId: string): Promise<any> {
-        // Capture userId from context BEFORE any async operations
-        const userId = this.requestContextService.getUserId();
-
-
+    async unregisterStudentFromCourse(user: JwtPayload, studentUserId: string, courseId: string): Promise<any> {
         const studentIdQuery = this.prisma.student.findFirst({
             where: { user_id: studentUserId }
         }).then(student => student?.sid);
@@ -406,7 +383,7 @@ export class CoursesService {
             }
         });
 
-        await this.logService.createLog('unregister_enrollment', 'CourseEnrollment', enrollment.ceid, userId);
+        await this.logService.createLog('unregister_enrollment', user.uid, 'CourseEnrollment', enrollment.ceid);
 
         return {
             "enrollment": unregisteredEnrollment,

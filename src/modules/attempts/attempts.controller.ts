@@ -38,18 +38,19 @@ export class AttemptsController {
     @Post()
     @Roles('Student')
     @SwaggerCreateAttempt()
-    async create(@Body() createAttemptDto: CreateAttemptDto) {
-        return this.attemptsService.create(createAttemptDto);
+    async create(@Request() req, @Body() createAttemptDto: CreateAttemptDto) {
+        return this.attemptsService.create(req.user, createAttemptDto);
     }
 
     @Put(':attemptId/submit')
     @Roles('Student')
     @SwaggerSubmitAttempt()
     async submit(
+        @Request() req,
         @Param('attemptId') attemptId: string,
         @Body() submitAttemptDto: SubmitAttemptDto
     ) {
-        return this.attemptsService.submit(attemptId, submitAttemptDto);
+        return this.attemptsService.submit(req.user, attemptId, submitAttemptDto);
     }
 
     @Get('quiz/:qid')
@@ -78,9 +79,10 @@ export class AttemptsController {
     @Roles('Admin', 'Lecturer')
     @SwaggerUpdateAttempt()
     async update(
+        @Request() req,
         @Param('attemptId') attemptId: string,
         @Body() updateAttemptDto: UpdateAttemptDto
     ) {
-        return this.attemptsService.update(attemptId, updateAttemptDto);
+        return this.attemptsService.update(req.user, attemptId, updateAttemptDto);
     }
 }

@@ -53,18 +53,17 @@ export class RolesGuard implements CanActivate {
       roleId: user.roleId,
     });
 
+    // If no roles required, allow access after setting context
+    if (!requiredRoles) {
+      return true;
+    }
+
     // Check if any of the required roles is a special keyword that allows all authenticated users
     const hasAllowAllKeyword = requiredRoles.some((role) => 
       this.ALLOW_ALL_KEYWORDS.includes(role.toLowerCase())
     );
 
     if (hasAllowAllKeyword) {
-      return true;
-    }
-
-
-    // If no roles required, allow access after setting context
-    if (!requiredRoles) {
       return true;
     }
 

@@ -195,3 +195,45 @@ export class CreateBulkNotificationDto {
   @IsString()
   related_id?: string;
 }
+
+export class CreateClassNotificationDto {
+  @ApiProperty({
+    example: 'New Quiz Available',
+    description: 'Title of the notification',
+  })
+  @IsString()
+  title: string;
+
+  @ApiProperty({
+    example: 'A new quiz has been posted for your class',
+    description: 'Message content of the notification',
+  })
+  @IsString()
+  message: string;
+
+  @ApiPropertyOptional({
+    example: NotificationType.QUIZ_POSTED,
+    enum: NotificationType,
+    description: 'Type of notification',
+  })
+  @IsOptional()
+  @IsEnum(NotificationType)
+  type?: string;
+
+  @ApiPropertyOptional({
+    example: RelatedResourceType.QUIZ,
+    enum: RelatedResourceType,
+    description: 'Type of the related resource',
+  })
+  @IsOptional()
+  @IsEnum(RelatedResourceType)
+  related_type?: string;
+
+  @ApiPropertyOptional({
+    example: 'quiz_12345',
+    description: 'ID of the related resource',
+  })
+  @IsOptional()
+  @IsString()
+  related_id?: string;
+}

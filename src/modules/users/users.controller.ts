@@ -84,15 +84,15 @@ export class UsersController {
     @SwaggerUpdateUser()
     async update(@Param("id") id: string, @Body() updateDto: UsersUpdateDto, @Request() req) {
         return (id) 
-            ? this.usersService.update(id, updateDto) 
-            : this.usersService.update(req.user.uid, updateDto);
+            ? this.usersService.update(req.user, id, updateDto) 
+            : this.usersService.update(req.user, req.user.uid, updateDto);
     }
 
     @Delete("delete/:id")
     @Roles('Admin')
     @SwaggerDeleteUser()
-    async delete(@Param("id") id: string) {
-        return this.usersService.delete(id);
+    async delete(@Param("id") id: string, @Request() req) {
+        return this.usersService.delete(req.user, id);
     }
 
 }

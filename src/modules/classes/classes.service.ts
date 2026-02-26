@@ -8,7 +8,7 @@ import { join } from 'path';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import * as fs from 'fs';
 import { LogService } from '../logs';
-import { RequestContextService } from 'src/common/context';
+import { JwtPayload } from '../users/jwt.strategy';
 
 /**
  * ClassesService
@@ -36,7 +36,6 @@ export class ClassesService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly logService: LogService,
-        private readonly requestContextService: RequestContextService,
     ) { }
 
     // Get all classes
@@ -197,10 +196,7 @@ export class ClassesService {
     }
 
     // Update a class
-    async update(id: string, updateData: ClassesUpdateDto): Promise<Class> {
-        // Capture userId from context BEFORE any async operations
-        const userId = this.requestContextService.getUserId();
-        
+    async update(user: JwtPayload, id: string, updateData: ClassesUpdateDto): Promise<Class> {
         const existingClass = await this.prisma.class.findUnique({
             where: { clid: id }
         });
@@ -245,16 +241,13 @@ export class ClassesService {
             }
         });
 
-        await this.logService.createLog('update_class', 'Class', id, userId);
+        await this.logService.createLog('update_class', user.uid, 'Class', id);
         console.log("Updated class:", updatedClass);
         return updatedClass;
     }
 
     // Delete a class
-    async delete(id: string): Promise<Class> {
-        // Capture userId from context BEFORE any async operations
-        const userId = this.requestContextService.getUserId();
-        
+    async delete(user: JwtPayload, id: string): Promise<Class> {
         const existingClass = await this.prisma.class.findUnique({
             where: { clid: id },
             include: {
@@ -279,7 +272,7 @@ export class ClassesService {
             },
         });
 
-        await this.logService.createLog('delete_class', 'Class', id, userId);
+        await this.logService.createLog('delete_class', user.uid, 'Class', id);
         return deletedClass;
     }
 
@@ -300,8 +293,8 @@ export class ClassesService {
      * }
      */
     //#endregion
-    async uploadToLocal(userId: string, classId: string, file: Express.Multer.File) {
-        // UserId, clid and file have been verified by the guards
+    async uploadToLocal(user: JwtPayload, classId: string, file: Express.Multer.File) {
+        // classId and file have been verified by the guards
         // File is already saved to disk by Multer
 
         // Determine file type based on mime type
@@ -327,12 +320,12 @@ export class ClassesService {
                     connect: { clid: classId }
                 },
                 uploader: {
-                    connect: { uid: userId }
+                    connect: { uid: user.uid }
                 }
             }
         });
 
-        await this.logService.createLog('upload_file_local', 'File', createdFile.fid);
+        await this.logService.createLog('upload_file_local', user.uid, 'File', createdFile.fid);
 
         // Return the updated class with the new file
         return this.prisma.class.findUnique({
@@ -376,7 +369,7 @@ export class ClassesService {
      * }
      */
     //#endregion
-    async uploadToS3(userId: string, classId: string, file: Express.Multer.File) {
+    async uploadToS3(user: JwtPayload, classId: string, file: Express.Multer.File) {
         // Step 1: Upload the actual file to S3
         // Generate unique filename with timestamp
         const timestamp = Date.now();
@@ -435,12 +428,12 @@ export class ClassesService {
                     connect: { clid: classId }
                 },
                 uploader: {
-                    connect: { uid: userId }
+                    connect: { uid: user.uid }
                 }
             }
         }); 
 
-        await this.logService.createLog('upload_file', 'File', newFile.fid);
+        await this.logService.createLog('upload_file', user.uid, 'File', newFile.fid);
 
         // Step 3: Delete the file from local storage if it was saved there
         if (file.path) {
@@ -529,10 +522,7 @@ export class ClassesService {
      * @param maxStudentsPerClass - Maximum number of students per class (default: 5)
      * @returns Summary of created classes and updated enrollments
      */
-    async createClassesFromEnrollments(maxStudentsPerClass: number = 5): Promise<ResponseCreateClassDto> {
-        // Capture userId from context BEFORE any async operations
-        const userId = this.requestContextService.getUserId();
-        
+    async createClassesFromEnrollments(user: JwtPayload, maxStudentsPerClass: number = 5): Promise<ResponseCreateClassDto> {
         //1. Fetch all the enrollnents with 'Pending' status
 
         const enrollments = await this.prisma.courseEnrollment.findMany({
@@ -653,7 +643,7 @@ export class ClassesService {
 
                 createdClasses.push(newClass);
 
-                await this.logService.createLog('create_class', 'Class', newClass.clid, userId);
+                await this.logService.createLog('create_class', user.uid, 'Class', newClass.clid);
             }
         }
         
