@@ -1,0 +1,370 @@
+====COURSES API DOCUMENTATION
+
+Base URL: /courses
+Authentication: Required (JWT Token in Authorization header)
+
+====1. GET /courses
+====Description: Lay danh sach tat ca khoa hoc
+Method: GET
+Role: any (authenticated users)
+
+Example Output:
+[
+  {
+    "cid": "course001",
+    "code": "CS101",
+    "name": "Introduction to Programming",
+    "description": "Basic programming concepts",
+    "credits": 3,
+    "created_at": "2026-01-10T09:00:00Z",
+    "updated_at": "2026-01-10T09:00:00Z",
+    "lecturers": [
+      {
+        "lid": "lecturer001",
+        "name": "Dr. John Smith"
+      }
+    ],
+    "_count": {
+      "enrollments": 25,
+      "classes": 3
+    }
+  }
+]
+
+
+====2. GET /courses/:id
+====Description: Lay thong tin chi tiet khoa hoc theo ID
+Method: GET
+Role: any (authenticated users)
+URL Parameters:
+  - id (required): string - Course ID
+
+Example Output:
+{
+  "cid": "course001",
+  "code": "CS101",
+  "name": "Introduction to Programming",
+  "description": "Basic programming concepts",
+  "credits": 3,
+  "lecturers": [
+    {
+      "lid": "lecturer001",
+      "name": "Dr. John Smith"
+    }
+  ],
+  "enrollments": [
+    {
+      "ceid": "enrollment001",
+      "student_id": "student001",
+      "status": "Pending",
+      "enrolled_at": "2026-01-15T10:00:00Z"
+    }
+  ],
+  "classes": [
+    {
+      "clid": "class001",
+      "name": "CS101 - L1",
+      "location": "Computer Science Building - Room 101"
+    }
+  ]
+}
+
+
+====3. POST /courses
+====Description: Tao khoa hoc moi
+Method: POST
+Role: Admin, Lecturer
+Content-Type: application/json
+
+Request Body:
+{
+  "code": "CS201",
+  "name": "Data Structures",
+  "description": "Advanced data structures and algorithms",
+  "credits": 4,
+  "lecturer_id": "lecturer001"
+}
+
+Required Fields:
+  - code: string (unique)
+  - name: string
+  - lecturer_id: string
+
+Optional Fields:
+  - description: string
+  - credits: number (default: 3)
+
+Example Output:
+{
+  "cid": "course_new_001",
+  "code": "CS201",
+  "name": "Data Structures",
+  "description": "Advanced data structures and algorithms",
+  "credits": 4,
+  "created_at": "2026-02-26T10:30:00Z",
+  "updated_at": "2026-02-26T10:30:00Z"
+}
+
+
+====4. PUT /courses/:id
+====Description: Cap nhat thong tin khoa hoc
+Method: PUT
+Role: Admin, Lecturer (in-charge)
+URL Parameters:
+  - id (required): string - Course ID
+Content-Type: application/json
+
+Request Body:
+{
+  "name": "Updated Course Name",
+  "description": "Updated description",
+  "credits": 4
+}
+
+Optional Fields:
+  - code: string
+  - name: string
+  - description: string
+  - credits: number
+
+Example Output:
+{
+  "cid": "course001",
+  "code": "CS101",
+  "name": "Updated Course Name",
+  "description": "Updated description",
+  "credits": 4,
+  "updated_at": "2026-02-26T11:00:00Z"
+}
+
+
+====5. DELETE /courses/:id
+====Description: Xoa khoa hoc (khong the xoa neu co enrollment)
+Method: DELETE
+Role: Admin
+URL Parameters:
+  - id (required): string - Course ID
+
+Example Output:
+{
+  "message": "Course deleted successfully"
+}
+
+
+====6. GET /courses/lecturer/:lecturerId
+====Description: Lay danh sach khoa hoc cua giang vien
+Method: GET
+Role: any (authenticated users)
+URL Parameters:
+  - lecturerId (required): string - Lecturer ID
+
+Example Output:
+[
+  {
+    "cid": "course001",
+    "code": "CS101",
+    "name": "Introduction to Programming",
+    "_count": {
+      "enrollments": 25,
+      "classes": 3
+    }
+  }
+]
+
+
+====7. GET /courses/:courseId/students
+====Description: Lay danh sach sinh vien da dang ky khoa hoc
+Method: GET
+Role: any (authenticated users)
+URL Parameters:
+  - courseId (required): string - Course ID
+
+Example Output:
+[
+  {
+    "ceid": "enrollment001",
+    "enrolled_at": "2026-01-15T10:00:00Z",
+    "status": "Pending",
+    "student": {
+      "sid": "student001",
+      "name": "Alice Johnson",
+      "major": "Computer Science"
+    }
+  }
+]
+
+
+====8. POST /courses/:id/register
+====Description: Dang ky khoa hoc (Student only, tao hoac kich hoat enrollment)
+Method: POST
+Role: Student
+URL Parameters:
+  - id (required): string - Course ID
+
+Example Output:
+{
+  "enrollment": {
+    "ceid": "enrollment001",
+    "student_id": "student001",
+    "course_id": "course001",
+    "enrolled_at": "2026-02-26T10:00:00Z",
+    "status": "Pending",
+    "student": {
+      "sid": "student001",
+      "name": "Alice Johnson",
+      "major": "Computer Science"
+    },
+    "course": {
+      "cid": "course001",
+      "code": "CS101",
+      "name": "Introduction to Programming"
+    }
+  },
+  "message": "Enrolled student with ID student001 to course with ID course001"
+}
+
+
+====9. DELETE /courses/:id/unregister
+====Description: Huy dang ky khoa hoc (Student only, soft delete)
+Method: DELETE
+Role: Student
+URL Parameters:
+  - id (required): string - Course ID
+
+Example Output:
+{
+  "enrollment": {
+    "ceid": "enrollment001",
+    "student_id": "student001",
+    "course_id": "course001",
+    "status": "Unregistered",
+    "student": {
+      "sid": "student001",
+      "name": "Alice Johnson",
+      "major": "Computer Science"
+    },
+    "course": {
+      "cid": "course001",
+      "code": "CS101",
+      "name": "Introduction to Programming"
+    }
+  },
+  "message": "Unregistered student with ID student001 from course with ID course001"
+}
+
+
+====10. POST /courses/:courseId/lecturers/:lecturerId
+====Description: Them giang vien vao khoa hoc
+Method: POST
+Role: Admin
+URL Parameters:
+  - courseId (required): string - Course ID
+  - lecturerId (required): string - Lecturer ID
+
+Example Output:
+{
+  "cid": "course001",
+  "code": "CS101",
+  "name": "Introduction to Programming",
+  "lecturers": [
+    {
+      "lid": "lecturer001",
+      "name": "Dr. John Smith"
+    },
+    {
+      "lid": "lecturer002",
+      "name": "Dr. Jane Doe"
+    }
+  ]
+}
+
+
+====11. DELETE /courses/:courseId/lecturers/:lecturerId
+====Description: Xoa giang vien khoi khoa hoc
+Method: DELETE
+Role: Admin
+URL Parameters:
+  - courseId (required): string - Course ID
+  - lecturerId (required): string - Lecturer ID
+
+Example Output:
+{
+  "cid": "course001",
+  "code": "CS101",
+  "name": "Introduction to Programming",
+  "lecturers": [
+    {
+      "lid": "lecturer001",
+      "name": "Dr. John Smith"
+    }
+  ]
+}
+
+
+====12. GET /courses/my/enrollments
+====Description: Lay danh sach enrollment cua sinh vien hien tai
+Method: GET
+Role: Student
+
+Example Output:
+[
+  {
+    "ceid": "enrollment001",
+    "course_id": "course001",
+    "enrolled_at": "2026-01-15T10:00:00Z",
+    "status": "Pending",
+    "course": {
+      "cid": "course001",
+      "code": "CS101",
+      "name": "Introduction to Programming",
+      "credits": 3
+    }
+  }
+]
+
+
+====13. GET /courses/my/courses
+====Description: Lay danh sach khoa hoc cua giang vien hoac sinh vien hien tai
+Method: GET
+Role: Lecturer, Student
+
+Example Output:
+[
+  {
+    "cid": "course001",
+    "code": "CS101",
+    "name": "Introduction to Programming",
+    "description": "Basic programming concepts",
+    "credits": 3
+  }
+]
+
+
+====ERROR RESPONSES
+====400 Bad Request: Du lieu khong hop le, course code da ton tai, hoac khong the xoa
+401 Unauthorized: Chua dang nhap hoac token khong hop le
+403 Forbidden: Khong co quyen truy cap
+404 Not Found: Khong tim thay course, lecturer hoac student
+
+
+====NOTES
+0. JWT token phai duoc gui trong Authorization header
+   Format: Authorization: Bearer <token>
+
+1. Enrollment status co 3 loai: Pending, Unregistered, Completed
+
+2. Course code phai la duy nhat trong he thong
+
+3. Khong the xoa course neu con active enrollments
+
+4. Register course tao enrollment voi status "Pending"
+
+5. Unregister course thay doi status thanh "Unregistered" (soft delete)
+
+6. Neu student da unregister truoc do, register lai se kich hoat enrollment
+
+7. Admin va Lecturer in-charge co the cap nhat course
+
+8. Lecturer co the xem students enrolled trong course cua minh
+
+====

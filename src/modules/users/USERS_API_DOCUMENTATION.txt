@@ -1,0 +1,233 @@
+====USERS API DOCUMENTATION
+
+Base URL: /users
+Authentication: Required (JWT Token in Authorization header for protected routes)
+
+====1. POST /users/login
+====Description: Xac thuc nguoi dung va nhan JWT token
+Method: POST
+Role: Public (no authentication required)
+Content-Type: application/json
+
+Request Body:
+{
+  "username": "student1",
+  "hashed_password": "password123"
+}
+
+Required Fields:
+  - username: string
+  - hashed_password: string
+
+Example Output:
+{
+  "userToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "role": "Student",
+  "roleId": "student001"
+}
+
+
+====2. POST /users/register
+====Description: Dang ky tai khoan moi
+Method: POST
+Role: Public (no authentication required)
+Content-Type: application/json
+
+Request Body:
+{
+  "username": "newstudent",
+  "hashed_password": "password123",
+  "email": "student@university.edu",
+  "role": "Student",
+  "name": "John Doe",
+  "major": "Computer Science",
+  "personal_info_json": "{\"phone\":\"+1234567890\",\"address\":\"123 Main St\"}"
+}
+
+Required Fields:
+  - username: string (min 3 characters)
+  - hashed_password: string (min 6 characters)
+  - email: string (valid email format)
+  - role: string (Student, Lecturer, Admin)
+  - name: string
+  - personal_info_json: string (JSON format)
+  
+Optional Fields (role-specific):
+  - major: string (for Student)
+
+Example Output:
+{
+  "uid": "user006",
+  "username": "newstudent",
+  "status": "Active",
+  "role": "Student",
+  "Student": {
+    "sid": "student_new_001",
+    "name": "John Doe",
+    "major": "Computer Science",
+    "personal_info_json": "{\"phone\":\"+1234567890\",\"address\":\"123 Main St\"}"
+  }
+}
+
+
+====3. GET /users
+====Description: Lay danh sach tat ca nguoi dung
+Method: GET
+Role: Admin
+
+Example Output:
+[
+  {
+    "uid": "user001",
+    "username": "admin",
+    "status": "Active",
+    "role": "Admin",
+    "created_at": "2026-01-15T10:30:00Z",
+    "updated_at": "2026-01-15T10:30:00Z"
+  },
+  {
+    "uid": "user004",
+    "username": "student1",
+    "status": "Active",
+    "role": "Student",
+    "created_at": "2026-01-20T08:00:00Z",
+    "updated_at": "2026-01-20T08:00:00Z"
+  }
+]
+
+
+====4. GET /users/profile
+====Description: Lay thong tin ca nhan cua nguoi dung hien tai
+Method: GET
+Role: any (authenticated users)
+
+Example Output:
+{
+  "uid": "user004",
+  "username": "student1",
+  "status": "Active",
+  "role": "Student",
+  "Student": {
+    "sid": "student001",
+    "name": "Alice Johnson",
+    "major": "Computer Science",
+    "personal_info_json": "{\"phone\":\"+1234567890\",\"address\":\"789 Student St\"}"
+  }
+}
+
+
+====5. GET /users/:id
+====Description: Lay thong tin nguoi dung theo ID
+Method: GET
+Role: any (authenticated users)
+URL Parameters:
+  - id (required): string - User ID
+
+Example Output:
+{
+  "uid": "user004",
+  "username": "student1",
+  "status": "Active",
+  "role": "Student",
+  "created_at": "2026-01-20T08:00:00Z",
+  "updated_at": "2026-01-20T08:00:00Z",
+  "Student": {
+    "sid": "student001",
+    "name": "Alice Johnson",
+    "major": "Computer Science",
+    "personal_info_json": "{\"phone\":\"+1234567890\",\"address\":\"789 Student St\"}"
+  }
+}
+
+
+====6. PUT /users/:id
+====Description: Cap nhat thong tin nguoi dung
+Method: PUT
+Role: Admin, or own account
+URL Parameters:
+  - id (required): string - User ID
+Content-Type: application/json
+
+Request Body:
+{
+  "hashed_password": "newpassword123",
+  "status": "Active",
+  "major": "Mathematics",
+  "personal_info_json": "{\"phone\":\"+0987654321\",\"address\":\"456 Updated St\"}"
+}
+
+Optional Fields:
+  - hashed_password: string (min 6 characters)
+  - status: string (Active, Logged_out, Expelled, Graduated)
+  - major: string (for Student)
+  - personal_info_json: string (JSON format)
+
+Example Output:
+{
+  "uid": "user004",
+  "username": "student1",
+  "status": "Active",
+  "role": "Student",
+  "updated_at": "2026-02-26T14:00:00Z",
+  "Student": {
+    "major": "Mathematics",
+    "personal_info_json": "{\"phone\":\"+0987654321\",\"address\":\"456 Updated St\"}"
+  }
+}
+
+
+====7. DELETE /users/:id
+====Description: Xoa nguoi dung (soft delete - chuyen status thanh Deleted)
+Method: DELETE
+Role: Admin
+URL Parameters:
+  - id (required): string - User ID
+
+Example Output:
+{
+  "uid": "user005",
+  "username": "deleteduser",
+  "status": "Deleted",
+  "role": "Student",
+  "updated_at": "2026-02-26T15:00:00Z"
+}
+
+
+====ERROR RESPONSES
+====400 Bad Request: Du lieu khong hop le hoac username da ton tai
+401 Unauthorized: Chua dang nhap hoac token khong hop le
+403 Forbidden: Khong co quyen truy cap
+404 Not Found: Khong tim thay nguoi dung
+
+
+====NOTES
+====1. JWT token phai duoc gui trong Authorization header
+   Format: Authorization: Bearer <token>
+
+2. JWT payload chua: uid, username, role, roleId, iat, exp
+
+3. Token duoc tra ve sau khi login thanh cong, bao gom:
+   - userToken: JWT token string
+   - role: User role (Student/Lecturer/Admin)
+   - roleId: Role-specific ID (sid/lid/aid)
+
+4. Role co 3 loai: Student, Lecturer, Admin
+
+5. Status co 4 loai: Active, Logged_out, Expelled, Graduated, Deleted
+
+6. Admin co quyen truy cap tat ca endpoints
+
+7. User chi co the cap nhat thong tin cua chinh minh (tru Admin)
+
+8. Delete la soft delete (chuyen status thanh Deleted), khong xoa du lieu
+
+9. personal_info_json phai la string o dinh dang JSON, khong phai object
+
+10. Khi dang ky, role-specific fields se duoc tu dong tao:
+    - Student: sid, name, major, personal_info_json
+    - Lecturer: lid, name, personal_info_json
+    - Admin: aid, name, personal_info
+
+11. User voi status "Deleted" khong the login
+
+====

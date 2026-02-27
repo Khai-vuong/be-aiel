@@ -1,0 +1,306 @@
+====ATTEMPTS API DOCUMENTATION
+
+Base URL: /attempts
+Authentication: Required (JWT Token in Authorization header)
+
+====1. POST /attempts
+====Description: Tao lan lam bai moi cho mot quiz (Student bat dau lam quiz)
+Method: POST
+Role: Student
+Content-Type: application/json
+
+Request Body:
+{
+  "quiz_id": "quiz001",
+  "student_id": "student001"
+}
+
+Required Fields:
+  - quiz_id: string
+  - student_id: string
+
+Example Output:
+{
+  "atid": "attempt001",
+  "quiz_id": "quiz001",
+  "student_id": "student001",
+  "status": "in_progress",
+  "attempt_number": 1,
+  "started_at": "2026-02-26T10:00:00Z",
+  "submitted_at": null,
+  "score": null,
+  "percentage": null
+}
+
+
+====2. POST /attempts/:attemptId/submit
+====Description: Nop bai lam va tu dong cham diem
+Method: POST
+Role: Student
+URL Parameters:
+  - attemptId (required): string - Attempt ID
+Content-Type: application/json
+
+Request Body:
+{
+  "answers": [
+    {
+      "question_id": "ques001",
+      "answer_json": "{\"selected\":\"A\"}"
+    },
+    {
+      "question_id": "ques002",
+      "answer_json": "{\"selected\":\"B\"}"
+    }
+  ]
+}
+
+Required Fields:
+  - answers: array of objects
+    - question_id: string
+    - answer_json: string (JSON format)
+
+Example Output:
+{
+  "atid": "attempt001",
+  "quiz_id": "quiz001",
+  "student_id": "student001",
+  "quiz": {
+    "qid": "quiz001",
+    "name": "Midterm Quiz"
+  },
+  "student": {
+    "sid": "student001",
+    "name": "Alice Johnson"
+  },
+  "status": "submitted",
+  "attempt_number": 1,
+  "score": 80,
+  "max_score": 100,
+  "percentage": 80,
+  "started_at": "2026-02-26T10:00:00Z",
+  "submitted_at": "2026-02-26T10:45:00Z",
+  "answers": [
+    {
+      "answer_json": "{\"selected\":\"A\"}",
+      "is_correct": true,
+      "points_awarded": 10,
+      "question": {
+        "ques_id": "ques001",
+        "content": "What is a variable?",
+        "answer_key_json": "{\"correct\":\"A\"}",
+        "points": 10
+      }
+    }
+  ]
+}
+
+
+====3. GET /attempts/quiz/:qid
+====Description: Lay tat ca cac lan lam bai cua mot quiz
+Method: GET
+Role: Admin, Lecturer
+URL Parameters:
+  - qid (required): string - Quiz ID
+
+Example Output:
+[
+  {
+    "atid": "attempt001",
+    "quiz_id": "quiz001",
+    "student_id": "student001",
+    "student": {
+      "sid": "student001",
+      "name": "Alice Johnson"
+    },
+    "status": "submitted",
+    "attempt_number": 1,
+    "score": 80,
+    "percentage": 80,
+    "started_at": "2026-02-26T10:00:00Z",
+    "submitted_at": "2026-02-26T10:45:00Z"
+  },
+  {
+    "atid": "attempt002",
+    "quiz_id": "quiz001",
+    "student_id": "student002",
+    "student": {
+      "sid": "student002",
+      "name": "Bob Smith"
+    },
+    "status": "in_progress",
+    "attempt_number": 1,
+    "score": null,
+    "percentage": null,
+    "started_at": "2026-02-26T11:00:00Z",
+    "submitted_at": null
+  }
+]
+
+
+====4. GET /attempts/quiz/:qid/student/:sid
+====Description: Lay cac lan lam bai cua mot student trong mot quiz cu the
+Method: GET
+Role: any (authenticated users)
+URL Parameters:
+  - qid (required): string - Quiz ID
+  - sid (required): string - Student ID
+
+Example Output:
+[
+  {
+    "atid": "attempt001",
+    "quiz_id": "quiz001",
+    "student_id": "student001",
+    "status": "submitted",
+    "attempt_number": 1,
+    "score": 80,
+    "percentage": 80,
+    "started_at": "2026-02-26T10:00:00Z",
+    "submitted_at": "2026-02-26T10:45:00Z",
+    "answers": [
+      {
+        "answer_json": "{\"selected\":\"A\"}",
+        "is_correct": true,
+        "points_awarded": 10
+      }
+    ]
+  },
+  {
+    "atid": "attempt003",
+    "quiz_id": "quiz001",
+    "student_id": "student001",
+    "status": "submitted",
+    "attempt_number": 2,
+    "score": 90,
+    "percentage": 90,
+    "started_at": "2026-02-26T14:00:00Z",
+    "submitted_at": "2026-02-26T14:45:00Z",
+    "quiz": {
+      "qid": "quiz001",
+      "name": "Midterm Quiz"
+    }
+  }
+]
+
+
+====5. GET /attempts/:attemptId
+====Description: Lay thong tin chi tiet mot lan lam bai
+Method: GET
+Role: any (authenticated users)
+URL Parameters:
+  - attemptId (required): string - Attempt ID
+
+Example Output:
+{
+  "atid": "attempt001",
+  "quiz_id": "quiz001",
+  "student_id": "student001",
+  "quiz": {
+    "qid": "quiz001",
+    "name": "Midterm Quiz"
+  },
+  "student": {
+    "sid": "student001",
+    "name": "Alice Johnson"
+  },
+  "status": "submitted",
+  "attempt_number": 1,
+  "score": 80,
+  "percentage": 80,
+  "started_at": "2026-02-26T10:00:00Z",
+  "submitted_at": "2026-02-26T10:45:00Z",
+  "answers": [
+    {
+      "answer_json": "{\"selected\":\"A\"}",
+      "is_correct": true,
+      "points_awarded": 10,
+      "question": {
+        "content": "What is a variable?",
+        "options_json": "{\"A\":\"A container\",\"B\":\"A function\"}",
+        "answer_key_json": "{\"correct\":\"A\"}",
+        "points": 10
+      }
+    }
+  ]
+}
+
+
+====6. PUT /attempts/:attemptId
+====Description: Cap nhat thong tin lan lam bai (thong thuong dung de cham diem thu cong)
+Method: PUT
+Role: Admin, Lecturer
+URL Parameters:
+  - attemptId (required): string - Attempt ID
+Content-Type: application/json
+
+Request Body:
+{
+  "score": 85,
+  "status": "graded"
+}
+
+Optional Fields:
+  - score: number
+  - status: string (in_progress, submitted, graded)
+  - percentage: number
+
+Example Output:
+{
+  "atid": "attempt001",
+  "quiz_id": "quiz001",
+  "student_id": "student001",
+  "status": "graded",
+  "score": 85,
+  "percentage": 85,
+  "updated_at": "2026-02-26T15:00:00Z"
+}
+
+
+====ERROR RESPONSES
+====400 Bad Request: Du lieu khong hop le, quiz khong ton tai, vuot qua so lan lam toi da, hoac attempt khong o trang thai in_progress
+401 Unauthorized: Chua dang nhap hoac token khong hop le
+403 Forbidden: Khong co quyen truy cap
+404 Not Found: Khong tim thay attempt hoac quiz
+
+
+====NOTES
+====1. Attempt status co 3 loai:
+   - in_progress: Dang lam bai
+   - submitted: Da nop bai (tu dong cham diem)
+   - graded: Da cham diem (thu cong hoac review lai)
+
+2. Quy trinh lam quiz:
+   - Student POST /attempts de bat dau (tao attempt voi status "in_progress")
+   - Student lam bai trong khoang thoi gian cho phep
+   - Student POST /attempts/:id/submit de nop bai va tu dong cham diem
+
+3. attempt_number tu dong tang khi student tao attempt moi cho cung quiz
+
+4. maxAttempts trong quiz settings xac dinh gioi han so lan lam
+
+5. score va percentage tu dong tinh khi submit
+
+6. Students chi xem duoc attempts cua chinh minh
+
+7. Lecturer va Admin co the xem tat ca attempts cua quiz
+
+8. Update attempt (PUT) thuong dung de cham diem thu cong cho cau hoi tu luan
+
+9. answer_json format chuan:
+   - Single choice: {"selected": "A"}
+   - Multiple choices: {"selected": ["A", "C"]}
+   - Text answer: {"text": "answer text"}
+
+10. answer_key_json format:
+   - Single correct: {"correct": "A"}
+   - Multiple correct: {"correct": ["A", "C"]}
+
+11. Auto grading logic:
+   - So sanh answer_json voi answer_key_json
+   - Dung het: points_awarded = full points
+   - Sai: points_awarded = 0
+
+12. GET /attempts/quiz/:qid/student/:sid bao gom quiz object (qid, name)
+
+====

@@ -14,7 +14,6 @@ import { AiModule } from './modules/ai/ai.module';
 
 @Module({
   imports: [
-    RequestContextModule,
     LogsModule,
     UsersModule,
     CoursesModule,

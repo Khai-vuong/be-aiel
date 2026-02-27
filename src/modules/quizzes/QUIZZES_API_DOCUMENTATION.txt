@@ -1,0 +1,285 @@
+====QUIZZES API DOCUMENTATION
+
+Base URL: /quizzes
+Authentication: Required (JWT Token in Authorization header)
+
+====1. GET /quizzes
+====Description: Lay danh sach tat ca bai kiem tra
+Method: GET
+Role: any (authenticated users)
+
+Example Output:
+[
+  {
+    "qid": "quiz001",
+    "name": "Midterm Quiz",
+    "description": "Covers chapters 1-5",
+    "settings_json": {
+      "timeLimit": 45,
+      "maxAttempts": 2,
+      "shuffleQuestions": true
+    },
+    "status": "published",
+    "available_from": "2026-02-20T08:00:00Z",
+    "available_until": "2026-02-27T23:59:00Z",
+    "class_id": "class001",
+    "created_at": "2026-02-15T10:00:00Z",
+    "updated_at": "2026-02-15T10:00:00Z",
+    "class": {
+      "clid": "class001",
+      "name": "CS101 - L1",
+      "course": {
+        "code": "CS101",
+        "name": "Introduction to Programming"
+      }
+    },
+    "_count": {
+      "questions": 10,
+      "attempts": 25
+    }
+  }
+]
+
+
+====2. GET /quizzes/:id
+====Description: Lay thong tin chi tiet bai kiem tra theo ID
+Method: GET
+Role: any (authenticated users)
+URL Parameters:
+  - id (required): string - Quiz ID
+
+Example Output:
+{
+  "qid": "quiz001",
+  "name": "Midterm Quiz",
+  "description": "Covers chapters 1-5",
+  "settings_json": {
+    "timeLimit": 45,
+    "maxAttempts": 2,
+    "shuffleQuestions": true
+  },
+  "status": "published",
+  "available_from": "2026-02-20T08:00:00Z",
+  "available_until": "2026-02-27T23:59:00Z",
+  "class": {
+    "clid": "class001",
+    "name": "CS101 - L1",
+    "course": {
+      "code": "CS101",
+      "name": "Introduction to Programming"
+    },
+    "lecturer": {
+      "name": "Dr. John Smith"
+    }
+  },
+  "questions": [
+    {
+      "ques_id": "ques001",
+      "content": "What is a variable?",
+      "options_json": "{\"A\":\"A container\",\"B\":\"A function\",\"C\":\"A loop\"}",
+      "answer_key_json": "{\"correct\":\"A\"}",
+      "points": 10
+    }
+  ],
+  "_count": {
+    "questions": 10,
+    "attempts": 25
+  }
+}
+
+
+====3. GET /quizzes/class/:clid
+====Description: Lay danh sach bai kiem tra cua mot lop hoc
+Method: GET
+Role: any (authenticated users)
+URL Parameters:
+  - clid (required): string - Class ID
+
+Example Output:
+[
+  {
+    "qid": "quiz001",
+    "name": "Midterm Quiz",
+    "description": "Covers chapters 1-5",
+    "settings_json": {
+      "timeLimit": 45,
+      "maxAttempts": 2,
+      "shuffleQuestions": true
+    },
+    "status": "published",
+    "available_from": "2026-02-20T08:00:00Z",
+    "available_until": "2026-02-27T23:59:00Z",
+    "_count": {
+      "questions": 10,
+      "attempts": 25
+    }
+  }
+]
+
+
+====4. POST /quizzes
+====Description: Tao bai kiem tra moi
+Method: POST
+Role: Admin, Lecturer
+Content-Type: application/json
+
+Request Body:
+{
+  "name": "Midterm Quiz",
+  "description": "Covers chapters 1-5",
+  "clid": "class001",
+  "creator_id": "lecturer001",
+  "settings_json": "{\"timeLimit\":45,\"maxAttempts\":2,\"shuffleQuestions\":true}",
+  "status": "draft",
+  "available_from": "2026-02-20T08:00:00Z",
+  "available_until": "2026-02-27T23:59:00Z",
+  "questions": [
+    {
+      "content": "What is a variable?",
+      "options_json": "{\"A\":\"A container\",\"B\":\"A function\",\"C\":\"A loop\"}",
+      "answer_key_json": "{\"correct\":\"A\"}",
+      "points": 10
+    }
+  ]
+}
+
+Required Fields:
+  - name: string
+  - clid: string (Class ID)
+  - creator_id: string (Lecturer ID)
+  - status: string (draft, published, archived)
+
+Optional Fields:
+  - description: string
+  - settings_json: string (JSON format)
+  - available_from: datetime
+  - available_until: datetime
+  - questions: array of question objects
+    - content: string (required)
+    - answer_key_json: string (required, JSON format)
+    - options_json: string (optional, JSON format)
+    - points: number (optional, default: 1.0)
+
+Example Output:
+{
+  "qid": "quiz001",
+  "name": "Midterm Quiz",
+  "description": "Covers chapters 1-5",
+  "status": "draft",
+  "available_from": "2026-02-20T08:00:00Z",
+  "available_until": "2026-02-27T23:59:00Z",
+  "class_id": "class001",
+  "creator": {
+    "lid": "lecturer001",
+    "name": "Dr. John Smith"
+  },
+  "questions": [
+    {
+      "ques_id": "ques001",
+      "content": "What is a variable?",
+      "options_json": "{\"A\":\"A container\",\"B\":\"A function\",\"C\":\"A loop\"}",
+      "points": 10
+    }
+  ]
+}
+
+
+====5. PUT /quizzes/:qid
+====Description: Cap nhat thong tin bai kiem tra
+Method: PUT
+Role: Admin, Lecturer
+URL Parameters:
+  - qid (required): string - Quiz ID
+Content-Type: application/json
+
+Request Body:
+{
+  "name": "Updated Midterm Quiz",
+  "description": "Updated description",
+  "status": "published",
+  "clid": "class001",
+  "settings_json": "{\"timeLimit\":60,\"maxAttempts\":3}"
+}
+
+Optional Fields:
+  - name: string
+  - description: string
+  - clid: string (Class ID)
+  - settings_json: string (JSON format)
+  - status: string (draft, published, archived)
+  - available_from: datetime
+  - available_until: datetime
+
+Example Output:
+{
+  "qid": "quiz001",
+  "name": "Updated Midterm Quiz",
+  "description": "Updated description",
+  "status": "published",
+  "available_from": "2026-02-20T08:00:00Z",
+  "available_until": "2026-02-27T23:59:00Z",
+  "class_id": "class001"
+}
+
+
+====6. DELETE /quizzes/:id
+====Description: Xoa bai kiem tra (soft delete - chuyen sang archived)
+Method: DELETE
+Role: Admin
+URL Parameters:
+  - id (required): string - Quiz ID
+
+Example Output:
+{
+  "qid": "quiz001",
+  "name": "Midterm Quiz",
+  "description": "Covers chapters 1-5",
+  "status": "archived",
+  "available_from": "2026-02-20T08:00:00Z",
+  "available_until": "2026-02-27T23:59:00Z",
+  "class_id": "class001",
+  "updated_at": "2026-02-27T10:00:00Z"
+}
+
+
+====ERROR RESPONSES
+====400 Bad Request: Du lieu khong hop le, class khong ton tai, hoac khoang thoi gian khong hop le
+401 Unauthorized: Chua dang nhap hoac token khong hop le
+403 Forbidden: Khong co quyen truy cap
+404 Not Found: Khong tim thay quiz
+
+
+====NOTES
+====1. Quiz status co 3 loai:
+   - draft: Nhap (chua cong bo)
+   - published: Da cong bo (students co the lam)
+   - archived: Da xoa (soft delete)
+
+2. settings_json co the chua:
+   - timeLimit: Thoi gian lam bai (phut)
+   - maxAttempts: So lan lam toi da
+   - shuffleQuestions: Tron cau hoi
+   - passingScore: Diem pass (%)
+   - showCorrectAnswers: Hien dap an dung sau khi nop
+
+3. available_from va available_until xac dinh khoang thoi gian mo quiz
+
+4. settings_json va answer_key_json, options_json phai la string o dinh dang JSON
+
+5. Question data:
+   - content: Noi dung cau hoi (required)
+   - answer_key_json: Dap an dung (required, JSON string)
+   - options_json: Cac lua chon (optional, JSON string)
+   - points: Diem cho cau hoi (optional, default: 1.0)
+
+6. creator_id (Lecturer ID) bat buoc khi tao quiz
+
+7. Chi Admin va Lecturer in-charge moi co the tao/cap nhat quiz
+
+8. Delete quiz la soft delete (chuyen status sang archived), tra ve quiz object
+
+9. Students chi xem duoc quiz voi status "published"
+
+10. available_from phai nho hon available_until
+
+====

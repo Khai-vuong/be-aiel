@@ -2,7 +2,7 @@ import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
-import { RequestContextService } from '../context';
+// import { RequestContextService } from '../context';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -17,7 +17,7 @@ export class RolesGuard implements CanActivate {
 
   constructor(
     private reflector: Reflector,
-    private requestContextService: RequestContextService,
+    // private requestContextService: RequestContextService,
   ) {}
 
   canActivate(context: ExecutionContext): boolean {
@@ -46,12 +46,12 @@ export class RolesGuard implements CanActivate {
     }
 
     // Always set user context for authenticated requests
-    this.requestContextService.setContext({
-      uid: user.uid,
-      username: user.username,
-      role: user.role,
-      roleId: user.roleId,
-    });
+    // this.requestContextService.setContext({
+    //   uid: user.uid,
+    //   username: user.username,
+    //   role: user.role,
+    //   roleId: user.roleId,
+    // });
 
     // If no roles required, allow access after setting context
     if (!requiredRoles) {

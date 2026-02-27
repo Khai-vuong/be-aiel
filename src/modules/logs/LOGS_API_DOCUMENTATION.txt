@@ -1,0 +1,159 @@
+====LOGS API DOCUMENTATION
+
+Base URL: /logs
+Authentication: Required (JWT Token in Authorization header)
+
+====1. GET /logs/class/:clid
+====Description: Lay nhat ky hoat dong cua mot lop hoc (Chi Lecturer in-charge)
+Method: GET
+Role: Lecturer (in-charge), Admin
+URL Parameters:
+  - clid (required): string - Class ID
+Query Parameters:
+  - page (optional): number - So trang (default: 1)
+  - limit (optional): number - So muc moi trang (default: 20, max: 100)
+  - action (optional): string - Loc theo loai hanh dong
+
+Example Output:
+{
+  "data": [
+    {
+      "logid": "log001",
+      "action": "submit_attempt",
+      "resource_type": "Attempt",
+      "resource_id": "attempt001",
+      "user_id": "user001",
+      "created_at": "2026-02-26T10:45:00Z",
+      "user": {
+        "uid": "user001",
+        "username": "alice_student",
+        "role": "Student"
+      }
+    },
+    {
+      "logid": "log002",
+      "action": "create_quiz",
+      "resource_type": "Quiz",
+      "resource_id": "quiz001",
+      "user_id": "user002",
+      "created_at": "2026-02-26T09:00:00Z",
+      "user": {
+        "uid": "user002",
+        "username": "lecturer1",
+        "role": "Lecturer"
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 156,
+    "totalPages": 8
+  }
+}
+
+
+====2. GET /logs
+====Description: Lay tat ca nhat ky he thong (Admin only)
+Method: GET
+Role: Admin
+Query Parameters:
+  - page (optional): number - So trang (default: 1)
+  - limit (optional): number - So muc moi trang (default: 20, max: 100)
+  - action (optional): string - Loc theo loai hanh dong
+  - resourceType (optional): string - Loc theo loai tai nguyen
+  - userId (optional): string - Loc theo user ID
+
+Example Output:
+{
+  "data": [
+    {
+      "logid": "log001",
+      "action": "create_quiz",
+      "resource_type": "Quiz",
+      "resource_id": "quiz001",
+      "user_id": "user002",
+      "created_at": "2026-02-26T10:00:00Z",
+      "user": {
+        "uid": "user002",
+        "username": "lecturer_smith",
+        "role": "Lecturer"
+      }
+    },
+    {
+      "logid": "log002",
+      "action": "login",
+      "resource_type": "User",
+      "resource_id": "user001",
+      "user_id": "user001",
+      "created_at": "2026-02-26T09:30:00Z",
+      "user": {
+        "uid": "user001",
+        "username": "alice_student",
+        "role": "Student"
+      }
+    }
+  ],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 2543,
+    "totalPages": 128
+  }
+}
+
+
+====ERROR RESPONSES
+====400 Bad Request: Class khong ton tai hoac class ID khong hop le
+401 Unauthorized: Chua dang nhap hoac token khong hop le
+403 Forbidden: Khong co quyen truy cap (khong phai lecturer in-charge hoac Admin)
+
+
+====NOTES
+====1. Logs duoc tu dong tao khi co cac hanh dong trong he thong
+
+2. Common action types:
+   - login: Dang nhap
+   - logout: Dang xuat
+   - create_quiz: Tao quiz
+   - update_quiz: Cap nhat quiz
+   - delete_quiz: Xoa quiz
+   - create_attempt: Bat dau lam quiz
+   - submit_attempt: Nop bai
+   - update_attempt: Cap nhat ket qua (cham diem)
+   - create_notification: Tao thong bao
+   - upload_file: Upload file
+   - create_class: Tao lop hoc
+   - enroll_student: Ghi danh sinh vien
+
+3. Resource types:
+   - User: Nguoi dung
+   - Quiz: Bai kiem tra
+   - Attempt: Lan lam bai
+   - Class: Lop hoc
+   - Course: Khoa hoc
+   - Notification: Thong bao
+   - File: File tai lieu
+
+4. GET /logs/class/:clid chi hien thi logs cua:
+   - Cac students trong lop
+   - Lecturer cua lop
+   - Cac hoat dong lien quan den class, quiz, attempt trong lop do
+
+5. GET /logs hien thi tat ca logs trong he thong (Admin only)
+
+6. Logs duoc sap xep theo thoi gian moi nhat dau (created_at desc)
+
+7. Phan trang giup xu ly so luong logs lon
+
+8. Filter theo action giup tim cac loai hoat dong cu the
+
+9. Logs khong the sua hoac xoa (immutable audit trail)
+
+10. Use cases:
+    - Lecturer xem hoat dong cua students trong lop
+    - Admin giam sat toan bo he thong
+    - Audit trail cho bao mat va truy vet
+    - Phan tich hanh vi nguoi dung
+
+====

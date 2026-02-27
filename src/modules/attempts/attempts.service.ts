@@ -281,9 +281,7 @@ export class AttemptsService {
                     select: {
                         answer_json: true,
                         is_correct: true,
-                        points_awarded: true
-                    },
-                    include: {
+                        points_awarded: true,
                         question: {
                             select: {
                                 ques_id: true,
