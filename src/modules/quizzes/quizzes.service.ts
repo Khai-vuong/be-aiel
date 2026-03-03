@@ -223,7 +223,7 @@ export class QuizzesService {
       },
     });
 
-    await this.logService.createLog('create_quiz', 'Quiz', newQuiz.qid);
+    await this.logService.createLog('create_quiz', lecturerExists.user_id, 'Quiz', newQuiz.qid);
     return newQuiz;
   }
 
@@ -231,6 +231,13 @@ export class QuizzesService {
   async update(id: string, updateData: UpdateQuizDto): Promise<Quiz> {
     const existingQuiz = await this.prisma.quiz.findUnique({
       where: { qid: id },
+      include: {
+        creator: {
+          select: {
+            user_id: true,
+          },
+        },
+      },
     });
 
     if (!existingQuiz) {
@@ -255,7 +262,7 @@ export class QuizzesService {
       },
     });
 
-    await this.logService.createLog('update_quiz', 'Quiz', id);
+    await this.logService.createLog('update_quiz', existingQuiz.creator.user_id, 'Quiz', id);
     return updatedQuiz;
   }
 
@@ -263,6 +270,13 @@ export class QuizzesService {
   async delete(id: string): Promise<Quiz> {
     const existingQuiz = await this.prisma.quiz.findUnique({
       where: { qid: id },
+      include: {
+        creator: {
+          select: {
+            user_id: true,
+          },
+        },
+      },
     });
 
     if (!existingQuiz) {
@@ -274,7 +288,7 @@ export class QuizzesService {
       data: { status: 'archived' },
     });
 
-    await this.logService.createLog('delete_quiz', 'Quiz', id);
+    await this.logService.createLog('delete_quiz', existingQuiz.creator.user_id, 'Quiz', id);
     return deletedQuiz;
   }
 }
