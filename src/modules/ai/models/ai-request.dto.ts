@@ -5,6 +5,11 @@ export class AiRequestDto {
   @IsString()
   text: string = '';
 
+  metadata?: {
+    classId?: string;
+    courseId?: string;
+  };
+
   @IsOptional()
   @IsEnum(['SYSTEM_CONTROL', 'STUDY_ANALYST', 'TUTOR', 'TEACHING_ASSISTANT'])
   serviceType?: AIServiceType;

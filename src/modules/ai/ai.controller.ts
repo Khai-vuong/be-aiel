@@ -24,19 +24,14 @@ export class AiController {
   @Roles('any')
   @SwaggerAiChat()
   async chat(@Request() req, @Body() aiRequest: AiRequestDto) {
-    
     return this.orchestratorService.processRequest(aiRequest, req.user);
-
   }
-
 
   @Post('chat/direct')
   @Roles('any')
   @SwaggerAiChat()
   async chatDirect(@Request() req, @Body() aiRequest: AiRequestDto) {
-    
     return this.orchestratorService.directChat(aiRequest.text, req.user);
-
   }
   @Get('conversations')
   @Roles('any')
@@ -59,16 +54,56 @@ export class AiController {
     return { message: 'System analysis - to be implemented' };
   }
 
+  // @Post('study-analyst/report')
+  // @Roles('ADMIN', 'LECTURER')
+  // async generateReport(
+  //   @Request() req,
+  //   @Body()
+  //   body: {
+  //     prompt: string;
+  //     classId?: string;
+  //     courseId?: string;
+  //   },
+  // ) {
+  //   const aiRequest: AiRequestDto = {
+  //     text: body.prompt,
+  //     serviceType: 'STUDY_ANALYST',
+  //     metadata: {
+  //       classId: body.classId,
+  //       courseId: body.courseId,
+  //     },
+  //   };
+
+  //   return this.orchestratorService.processRequest(aiRequest, req.user);
+  // }
+
+//   @Post('study-analyst/report')
+//   @Roles('ADMIN', 'LECTURER')
+//   async generateReport(@Request() req, @Body() body: any) {
+//     const { prompt, classId } = body;
+
+//     return {
+//       role: req.user.role,
+//       prompt,
+//       classId,
+//       insight: `Class ${classId} has an average quiz score of 72%.
+// 2 students are at risk (score < 50%).
+// Completion rate is decreasing over the last 2 weeks.`,
+//     };
+//   }
+
   @Post('study-analyst/report')
   @Roles('ADMIN', 'LECTURER')
-  async generateReport(@Request() req, @Body() params: any) {
-    // TODO: Implement report generation
-    return { message: 'Report generation - to be implemented' };
+  async generateReport(@Request() req, @Body() body: any) {
+    return this.orchestratorService.studyAnalystReport(req.user, body);
   }
 
   @Post('tutor/ask')
   @Roles('STUDENT')
-  async askTutor(@Request() req, @Body() body: { message: string; courseId?: string }) {
+  async askTutor(
+    @Request() req,
+    @Body() body: { message: string; courseId?: string },
+  ) {
     // TODO: Implement tutor chat
     return { message: 'Tutor chat - to be implemented' };
   }

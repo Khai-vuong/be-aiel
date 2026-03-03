@@ -1,5 +1,3 @@
-import { pipeline } from '@xenova/transformers';
-
 /**
  * Singleton class to manage the embedding model pipeline instance
  * Keeps a single shared instance across the application
@@ -11,10 +9,14 @@ export class EmbeddingPipeline {
   /**
    * Initialize the embedding model pipeline instance.
    * @param progress_callback Optional callback to track model loading progress.
-   * Use this when you want visibility into the download/load process.
    */
   public static async init(progress_callback?: (progress: any) => void) {
     if (this.embeddingInstance === null) {
+      // ==========================================
+      // ✅ FIX: dynamic import for ESM-only package
+      // ==========================================
+      const { pipeline } = await import('@xenova/transformers');
+
       this.embeddingInstance = await pipeline(
         'feature-extraction',
         this.embeddingModel,
@@ -26,11 +28,9 @@ export class EmbeddingPipeline {
   }
 
   /**
-   * Get or initialize the embedding model instance without a progress callback.
-   * This is the external-facing API that will silently initialize the model
-   * if it hasn't been loaded yet.
+   * Get or initialize the embedding model instance.
    */
-  public static async getInstance() : Promise<any> {
+  public static async getInstance(): Promise<any> {
     if (this.embeddingInstance === null) {
       await this.init();
     }
