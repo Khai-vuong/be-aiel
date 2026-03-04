@@ -1,5 +1,5 @@
 import { IsString, IsOptional, IsEnum, IsDate, IsArray, IsObject, ValidateNested } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateQuestionDto {
@@ -15,6 +15,32 @@ export class CreateQuestionDto {
     @ApiProperty({ example: '{"correct": "A"}', description: 'Answer key as JSON string' })
     @IsString()
     answer_key_json: string;
+
+    @ApiPropertyOptional({ example: 1, description: 'Points for this question' })
+    @IsOptional()
+    points?: number;
+}
+
+export class UpdateQuestionDto {
+    @ApiPropertyOptional({ example: 'ques_001', description: 'Question ID (if updating existing question)' })
+    @IsString()
+    @IsOptional()
+    ques_id?: string;
+
+    @ApiPropertyOptional({ example: 'What is the capital of France?', description: 'Question content' })
+    @IsString()
+    @IsOptional()
+    content?: string;
+
+    @ApiPropertyOptional({ example: '{"A": "Paris", "B": "London", "C": "Berlin"}', description: 'Question options as JSON string' })
+    @IsString()
+    @IsOptional()
+    options_json?: string;
+
+    @ApiPropertyOptional({ example: '{"correct": "A"}', description: 'Answer key as JSON string' })
+    @IsString()
+    @IsOptional()
+    answer_key_json?: string;
 
     @ApiPropertyOptional({ example: 1, description: 'Points for this question' })
     @IsOptional()
@@ -40,12 +66,26 @@ export class CreateQuizDto {
     status: string;
 
     @ApiPropertyOptional({ example: '2026-01-15T00:00:00Z', description: 'Date and time when quiz becomes available' })
+    @Transform(({ value }) => {
+        if (!value || value === '' || value === null) return undefined;
+        if (value instanceof Date) return value;
+        // Parse string to Date
+        const date = new Date(value);
+        return isNaN(date.getTime()) ? undefined : date;
+    })
     @Type(() => Date)
     @IsDate()
     @IsOptional()
     available_from?: Date;
 
     @ApiPropertyOptional({ example: '2026-01-20T23:59:59Z', description: 'Datse and time when quiz expires' })
+    @Transform(({ value }) => {
+        if (!value || value === '' || value === null) return undefined;
+        if (value instanceof Date) return value;
+        // Parse string to Date
+        const date = new Date(value);
+        return isNaN(date.getTime()) ? undefined : date;
+    })
     @Type(() => Date)
     @IsDate()
     @IsOptional()
@@ -81,7 +121,8 @@ export class UpdateQuizDto {
 
     @ApiPropertyOptional({ example: 'class001', description: 'Class ID' })
     @IsString()
-    clid: string;
+    @IsOptional()
+    clid?: string;
 
     @ApiPropertyOptional({ example: 'published', enum: ['draft', 'published', 'archived'], description: 'Status of the quiz' })
     @IsEnum(['draft', 'published', 'archived'])
@@ -89,12 +130,26 @@ export class UpdateQuizDto {
     status?: string;
 
     @ApiPropertyOptional({ example: '2026-01-15T00:00:00Z', description: 'Date and time when quiz becomes available' })
+    @Transform(({ value }) => {
+        if (!value || value === '' || value === null) return undefined;
+        if (value instanceof Date) return value;
+        // Parse string to Date
+        const date = new Date(value);
+        return isNaN(date.getTime()) ? undefined : date;
+    })
     @Type(() => Date)
     @IsDate()
     @IsOptional()
     available_from?: Date;
 
     @ApiPropertyOptional({ example: '2026-01-20T23:59:59Z', description: 'Date and time when quiz expires' })
+    @Transform(({ value }) => {
+        if (!value || value === '' || value === null) return undefined;
+        if (value instanceof Date) return value;
+        // Parse string to Date
+        const date = new Date(value);
+        return isNaN(date.getTime()) ? undefined : date;
+    })
     @Type(() => Date)
     @IsDate()
     @IsOptional()
@@ -104,4 +159,14 @@ export class UpdateQuizDto {
     @IsString()
     @IsOptional()
     settings_json?: string;
+
+    @ApiPropertyOptional({ 
+        description: 'Complete array of questions for this quiz. Questions with ques_id will be updated, questions without ques_id will be created. Questions not in this array will be deleted.',
+        type: [UpdateQuestionDto]
+    })
+    @IsArray()
+    @IsOptional()
+    @ValidateNested({ each: true })
+    @Type(() => UpdateQuestionDto)
+    questions?: UpdateQuestionDto[];
 }

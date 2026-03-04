@@ -39,8 +39,13 @@ export class JsonParseInterceptor implements NestInterceptor {
     }
 
     // If it's an object, recursively process each property
-    // The other if clauses are base cases!
+    // BUT skip Date objects and other built-in types
     if (typeof obj === 'object') {
+        // Skip Date objects - return them as-is
+        if (obj instanceof Date) {
+            return obj;
+        }
+
         const parsed: Record<string, any> = {};
 
         for (const [key, value] of Object.entries(obj)) {
