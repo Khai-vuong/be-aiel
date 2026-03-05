@@ -63,10 +63,9 @@ export class OrchestratorService {
     const result = await this.outerApiService.chat({
       prompt: text,
       role: user.role,
-      caller: 'general',
-      provider: 'groq', // or 'openai'
+      caller: 'direct',
+      provider: 'groq',
     });
-
     console.log('Direct chat result:', result);
     return result.text;
   }

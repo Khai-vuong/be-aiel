@@ -66,7 +66,7 @@ export class GroqService implements OnModuleInit, iProvider {
         model: this.model,
         messages,
         temperature,
-        max_completion_tokens: this.maxCompletionTokens,
+        // max_completion_tokens: this.maxCompletionTokens,
       }),
     });
 

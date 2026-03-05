@@ -21,6 +21,7 @@ import { QuizGeneratorService } from './services/teaching-assistant/quiz-generat
 import { ContentGeneratorService } from './services/teaching-assistant/content-generator.service';
 import { ContentSummarizerService } from './services/teaching-assistant/content-summarizer.service';
 import { OuterApiService } from './services/outer-api/outer-api.service';
+import { GeminiProvider } from './providers/gemini.provider';
 import { OpenAIService } from './providers/openai.provider';
 import { GroqService } from './providers/groq.provider';
 import { LocalLlmProvider } from './providers/local-llm.provider';
@@ -59,6 +60,7 @@ import { PrismaService } from '../../prisma.service';
     ContentSummarizerService,
     OuterApiService,
     // Providers
+    GeminiProvider,
     OpenAIService,
     GroqService,
     LocalLlmProvider,

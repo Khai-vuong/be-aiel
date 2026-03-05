@@ -1,9 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ContextBuilderService } from '../../orchestrator/context-builder.service';
+import { GeminiProvider } from '../../providers/gemini.provider';
 import { GroqService } from '../../providers/groq.provider';
 import { OpenAIService } from '../../providers/openai.provider';
 
-export type OuterApiProvider = 'groq' | 'openai';
+export type OuterApiProvider = 'gemini' | 'groq' | 'openai';
 
 export type OuterApiRequest = {
   prompt: string;
@@ -31,10 +32,12 @@ type ProviderHealth = {
 export class OuterApiService {
   private readonly logger = new Logger(OuterApiService.name);
   private readonly knownProviders: OuterApiProvider[] = [
+    'gemini',
     'groq',
     'openai',
   ];
   private readonly providerHealth: Record<OuterApiProvider, ProviderHealth> = {
+    gemini: { failureCount: 0, disabledUntil: 0, lastError: null },
     groq: { failureCount: 0, disabledUntil: 0, lastError: null },
     openai: { failureCount: 0, disabledUntil: 0, lastError: null },
   };
@@ -43,6 +46,7 @@ export class OuterApiService {
 
   constructor(
     private readonly contextBuilderService: ContextBuilderService,
+    private readonly geminiProvider: GeminiProvider,
     private readonly groqService: GroqService,
     private readonly openaiService: OpenAIService,
   ) {}
@@ -111,7 +115,7 @@ export class OuterApiService {
       return Array.from(new Set(fromEnv));
     }
 
-    return ['groq', 'openai'];
+    return ['gemini', 'groq', 'openai'];
   }
 
   private getProviderOrder(
@@ -137,9 +141,19 @@ export class OuterApiService {
     settings: { temperature?: number; systemPrompt: string },
   ): Promise<string> {
     switch (provider) {
+      case 'gemini': {
+        const response = await this.geminiProvider.chat(prompt, settings);
+        if (typeof response === 'string' && response.trim().length > 0) {
+          return response;
+        }
+        throw new Error('Gemini Error: Empty response content.');
+      }
       case 'groq': {
         const response = await this.groqService.chat(prompt, settings);
-        return response;
+        if (typeof response === 'string' && response.trim().length > 0) {
+          return response;
+        }
+        throw new Error('Groq Error: Empty response content.');
       }
       case 'openai': {
         const response = await this.openaiService.chat(prompt, settings);

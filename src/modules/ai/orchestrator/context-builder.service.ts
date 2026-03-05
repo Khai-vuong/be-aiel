@@ -62,8 +62,8 @@ export class ContextBuilderService {
         'This request comes from the tutor module. Focus on explanation quality, conceptual clarity, and progressive guidance.',
       'system-control':
         'This request comes from system control. Prioritize safety, reliability, and incident-oriented recommendations.',
-      'general':
-        'This request comes from a general assistant path. Keep responses precise, useful, and context-aware.',
+      'direct':
+        'This request comes directly from the user. Adapt tone and depth to the user context while staying concise and accurate.',
     };
 
     const roleInstruction =
