@@ -7,18 +7,27 @@ import {
   Get,
   Param,
   Query,
+  ParseIntPipe,
+  DefaultValuePipe,
+  Delete,
+  Patch,
+  Put,
 } from '@nestjs/common';
 import { OrchestratorService } from './orchestrator/orchestrator.service';
+import { ConversationService } from './services/conversation.service';
 import { JwtGuard } from '../../common/guards/jwt.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { AiRequestDto } from './models/ai-request.dto';
+import { AiRequestDto } from './dtos/ai-request.dto';
 import { SwaggerAiChat } from './swagger/ai.swagger';
 
 @Controller('ai')
 @UseGuards(JwtGuard, RolesGuard)
 export class AiController {
-  constructor(private readonly orchestratorService: OrchestratorService) {}
+  constructor(
+    private readonly orchestratorService: OrchestratorService,
+    private readonly conversationService: ConversationService,
+  ) {}
 
   @Post('chat')
   @Roles('any')
@@ -31,28 +40,68 @@ export class AiController {
   @Roles('any')
   @SwaggerAiChat()
   async chatDirect(@Request() req, @Body() aiRequest: AiRequestDto) {
-    return this.orchestratorService.directChat(aiRequest.text, req.user);
+    return this.orchestratorService.directChat(aiRequest, req.user);
   }
+
   @Get('conversations')
   @Roles('any')
-  async getConversations(@Request() req, @Query('limit') limit?: number) {
-    // TODO: Implement get conversations
-    return { message: 'Get conversations - to be implemented' };
+  async getConversations(
+    @Request() req,
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
+    // @Query('status') status?: 'active' | 'archived',
+  ) {
+    return this.conversationService.findUserConversations({
+      userId: req.user.uid,
+      // status,
+      limit,
+      offset,
+    });
   }
 
   @Get('conversations/:id')
   @Roles('any')
-  async getConversation(@Request() req, @Param('id') conversationId: string) {
-    // TODO: Implement get conversation by ID
-    return { message: 'Get conversation - to be implemented' };
+  async getConversation(
+    @Request() req,
+    @Param('id') conversationId: string,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
+    @Query('beforeMessageId') beforeMessageId?: string,
+  ) {
+    return this.conversationService.getConversationWithMessages(
+      conversationId,
+      req.user.uid,
+      { limit, beforeMessageId },
+    );
   }
 
-  @Post('system-control/analyze')
-  @Roles('ADMIN')
-  async analyzeSystem(@Request() req, @Body() params: any) {
-    // TODO: Implement system analysis
-    return { message: 'System analysis - to be implemented' };
+  @Put('conversations/:id')
+  @Roles('any')
+  async updateConversation(
+    @Request() req,
+    @Param('id') conversationId: string,
+    @Body() body: { title?: string; status?: 'active' | 'archived' },
+  ) {
+    return this.conversationService.updateConversation(
+      conversationId,
+      req.user.uid,
+      body,
+    );
   }
+
+  @Delete('conversations/:id')
+  @Roles('any')
+  async deleteConversation(@Request() req, @Param('id') conversationId: string) {
+    await this.conversationService.deleteConversation(conversationId, req.user.uid);
+    return { message: 'Conversation deleted successfully' };
+  }
+
+  // @Put('conversations/:id/archive')
+  // @Roles('any')
+  // async archiveConversation(@Request() req, @Param('id') conversationId: string) {
+  //   return this.conversationService.archiveConversation(conversationId, req.user.uid);
+  // }
+
+
 
   // @Post('study-analyst/report')
   // @Roles('ADMIN', 'LECTURER')

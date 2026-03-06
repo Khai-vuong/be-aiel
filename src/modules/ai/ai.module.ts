@@ -3,7 +3,7 @@ import { AiController } from './ai.controller';
 import { OrchestratorService } from './orchestrator/orchestrator.service';
 import { IntentClassifierService } from './orchestrator/intent-classifier.service';
 import { ContextBuilderService } from './orchestrator/context-builder.service';
-import { ResponseAggregatorService } from './orchestrator/response-aggregator.service';
+// import { ResponseAggregatorService } from './orchestrator/response-aggregator.service';
 import { SystemControlAiService } from './services/system-control/system-control-ai.service';
 import { AnomalyDetectorService } from './services/system-control/anomaly-detector.service';
 import { TrafficAnalyzerService } from './services/system-control/traffic-analyzer.service';
@@ -20,6 +20,7 @@ import { TeachingAssistantAiService } from './services/teaching-assistant/teachi
 import { QuizGeneratorService } from './services/teaching-assistant/quiz-generator.service';
 import { ContentGeneratorService } from './services/teaching-assistant/content-generator.service';
 import { ContentSummarizerService } from './services/teaching-assistant/content-summarizer.service';
+import { ConversationService } from './services/conversation.service';
 import { OuterApiService } from './services/outer-api/outer-api.service';
 import { GeminiProvider } from './providers/gemini.provider';
 import { OpenAIService } from './providers/openai.provider';
@@ -37,7 +38,7 @@ import { PrismaService } from '../../prisma.service';
     OrchestratorService,
     IntentClassifierService,
     ContextBuilderService,
-    ResponseAggregatorService,
+    // ResponseAggregatorService,
     // System Control
     SystemControlAiService,
     AnomalyDetectorService,
@@ -58,6 +59,8 @@ import { PrismaService } from '../../prisma.service';
     QuizGeneratorService,
     ContentGeneratorService,
     ContentSummarizerService,
+    // Conversation Management
+    ConversationService,
     OuterApiService,
     // Providers
     GeminiProvider,
@@ -74,6 +77,7 @@ import { PrismaService } from '../../prisma.service';
     TeachingAssistantAiService,
     StudyAnalystAiService,
     SystemControlAiService,
+    ConversationService,
     OuterApiService,
   ],
 })

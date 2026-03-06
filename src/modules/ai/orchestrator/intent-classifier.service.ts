@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { AIServiceType } from '../models/ai-context.interface';
 // import { fewShotExamples, fewShotTokenCache as curatedFewShotTokenCache } from '../fewShotData.js';
 import { fewShotExamples, curatedFewShotTokenCache } from '../fewShotData';
 import { EmbeddingPipeline } from './embedding-pipeline';

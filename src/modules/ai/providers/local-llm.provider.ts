@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { AIProviderConfig } from '../models/ai-context.interface';
+import { AIProviderConfig } from '../dtos/ai-context.interface';
 
 @Injectable()
 export class LocalLlmProvider {

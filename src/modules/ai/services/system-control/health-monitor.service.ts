@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../../prisma.service';
-import { AIContext } from '../../models/ai-context.interface';
+import { AIContext } from '../../dtos/ai-context.interface';
 
 @Injectable()
 export class HealthMonitorService {
