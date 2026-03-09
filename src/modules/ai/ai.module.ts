@@ -8,7 +8,7 @@ import { SystemControlAiService } from './services/system-control/system-control
 import { AnomalyDetectorService } from './services/system-control/anomaly-detector.service';
 import { TrafficAnalyzerService } from './services/system-control/traffic-analyzer.service';
 import { HealthMonitorService } from './services/system-control/health-monitor.service';
-import { StudyAnalystAiService } from './services/study-analyst/study-analyst-ai.service';
+import { StudyAnalystAIService } from './services/study-analyst/study-analyst-ai.service';
 import { PerformanceCalculatorService } from './services/study-analyst/performance-calculator.service';
 import { InsightGeneratorService } from './services/study-analyst/insight-generator.service';
 import { ReportBuilderService } from './services/study-analyst/report-builder.service';
@@ -43,7 +43,7 @@ import { PrismaService } from '../../prisma.service';
     TrafficAnalyzerService,
     HealthMonitorService,
     // Study Analyst
-    StudyAnalystAiService,
+    StudyAnalystAIService,
     PerformanceCalculatorService,
     InsightGeneratorService,
     ReportBuilderService,
@@ -70,7 +70,7 @@ import { PrismaService } from '../../prisma.service';
     OrchestratorService,
     TutorAiService,
     TeachingAssistantAiService,
-    StudyAnalystAiService,
+    StudyAnalystAIService,
     SystemControlAiService,
     OuterApiService,
   ],

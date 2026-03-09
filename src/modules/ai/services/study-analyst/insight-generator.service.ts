@@ -1,15 +1,22 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class InsightGeneratorService {
-  private readonly logger = new Logger(InsightGeneratorService.name);
+  generateInsights(metrics: any) {
+    const insights: string[] = [];
 
-  async generate(metrics: any, userQuery: string) {
-    // TODO: Implement AI insight generation logic
-    this.logger.log('Generating insights - to be implemented');
-    return {
-      aiGenerated: false,
-      insights: 'To be implemented',
-    };
+    if (metrics.averageScore < 60) {
+      insights.push('Class performance is below average.');
+    }
+
+    if (metrics.atRiskCount > 0) {
+      insights.push(`${metrics.atRiskCount} students are at risk.`);
+    }
+
+    if (metrics.completionRate < 70) {
+      insights.push('Course completion rate is decreasing.');
+    }
+
+    return insights;
   }
 }

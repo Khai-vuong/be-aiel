@@ -5,7 +5,7 @@ import { fewShotExamples, curatedFewShotTokenCache } from '../fewShotData';
 import { EmbeddingPipeline } from './embedding-pipeline';
 import { Chunk } from '@xenova/transformers';
 
-type Decision =  {
+type Decision = {
   category: string;
   score: number;
 };
@@ -21,11 +21,15 @@ type ChunkClassification = {
 
 type IntentRating = {
   maxConfidence: number;
-  chunkAppearances: Array<{ chunkIndex: number; score: number; isWinner: boolean }>;
+  chunkAppearances: Array<{
+    chunkIndex: number;
+    score: number;
+    isWinner: boolean;
+  }>;
   secondaryCoverage: number;
   totalScore: number;
   positionWeightedScore: number;
-}
+};
 
 @Injectable()
 export class IntentClassifierService {
@@ -46,24 +50,24 @@ export class IntentClassifierService {
   public coefMaxConfidence = 0.5;
   public coefPositionWeighted = 0.2;
   public coefCoverage = 0.3;
-  
+
   // Role-based heuristic coefficients (0 to 1 scale)
   private roleCoefficients: Record<string, Record<string, number>> = {
-    'admin': {
-      'system_configuration': 1.00,
-      'data_analysis': 0.50,
-      'quiz_creation': 0.00
+    admin: {
+      system_configuration: 1.0,
+      data_analysis: 0.5,
+      quiz_creation: 0.0,
     },
-    'lecturer': {
-      'system_configuration': 0.00,
-      'data_analysis': 0.50,
-      'quiz_creation': 1.00
+    lecturer: {
+      system_configuration: 0.0,
+      data_analysis: 0.5,
+      quiz_creation: 1.0,
     },
-    'student': {
-      'system_configuration': 0.00,
-      'data_analysis': 0.00,
-      'quiz_creation': 0.00
-    }
+    student: {
+      system_configuration: 0.0,
+      data_analysis: 0.0,
+      quiz_creation: 0.0,
+    },
   };
 
   // Get (and initialize if needed) the embedding model instance
@@ -71,7 +75,7 @@ export class IntentClassifierService {
     if (this.categoryEmbeddings === null) {
       await this.computeCategoryEmbeddings();
     }
- 
+
     return progress_callback === undefined
       ? EmbeddingPipeline.init(progress_callback)
       : EmbeddingPipeline.getInstance();
@@ -96,7 +100,10 @@ export class IntentClassifierService {
     this.categoryEmbeddings = {};
     const embeddingInstance = await this.getInstance();
 
-    for (const [category, examples] of Object.entries(fewShotExamples) as [string, string[]][]) {
+    for (const [category, examples] of Object.entries(fewShotExamples) as [
+      string,
+      string[],
+    ][]) {
       const embeddings: number[][] = [];
       for (const example of examples) {
         const result = await embeddingInstance(example, {
@@ -119,7 +126,9 @@ export class IntentClassifierService {
         centroid[i] /= embeddings.length;
       }
 
-      const magnitude = Math.sqrt(centroid.reduce((sum, val) => sum + val * val, 0));
+      const magnitude = Math.sqrt(
+        centroid.reduce((sum, val) => sum + val * val, 0),
+      );
       for (let i = 0; i < embeddingDim; i++) {
         centroid[i] /= magnitude;
       }
@@ -142,7 +151,7 @@ export class IntentClassifierService {
     const curated = curatedFewShotTokenCache || {};
     for (const [category, tokenList] of Object.entries(curated)) {
       const tokens = new Set();
-      for (const token of (tokenList as unknown[])) {
+      for (const token of tokenList as unknown[]) {
         const normalized = String(token).toLowerCase().trim();
         if (normalized.length >= 4) tokens.add(normalized);
       }
@@ -150,14 +159,17 @@ export class IntentClassifierService {
     }
 
     // Fallback: build from examples if no curated tokens exist for a category
-    for (const [category, examples] of Object.entries(fewShotExamples) as [string, string[]][]) {
+    for (const [category, examples] of Object.entries(fewShotExamples) as [
+      string,
+      string[],
+    ][]) {
       if (cache[category]) continue;
       const tokens = new Set();
-      for (const example of examples ) {
+      for (const example of examples) {
         const words = example
           .toLowerCase()
           .split(/[^a-z0-9]+/)
-          .filter(w => w.length >= 4);
+          .filter((w) => w.length >= 4);
         for (const w of words) tokens.add(w);
       }
       cache[category] = tokens;
@@ -166,7 +178,7 @@ export class IntentClassifierService {
     return cache;
   }
 
-  public hasFewShotOverlap(category, text : string) {
+  public hasFewShotOverlap(category, text: string) {
     if (!text) return 0;
     const cache = this.getFewShotTokenCache();
     const tokenSet = cache[category];
@@ -174,7 +186,7 @@ export class IntentClassifierService {
     const words = text
       .toLowerCase()
       .split(/[^a-z0-9]+/)
-      .filter(w => w.length >= 4);
+      .filter((w) => w.length >= 4);
     let hits = 0;
     for (const w of words) {
       if (tokenSet.has(w)) {
@@ -185,17 +197,21 @@ export class IntentClassifierService {
     return hits;
   }
 
-  public applyRoleHeuristic(categoryScores, role?: string, text?: string ) : Record<string, number> {
+  public applyRoleHeuristic(
+    categoryScores,
+    role?: string,
+    text?: string,
+  ): Record<string, number> {
     if (!role) return categoryScores;
-    
+
     const normalizedRole = role.toLowerCase();
     const coefficients = this.roleCoefficients[normalizedRole];
-    
+
     if (!coefficients) {
       console.warn(`Unknown role: ${role}. No heuristic applied.`);
       return categoryScores;
     }
-    
+
     const minBoostScore = 0.45;
     const maxBoostScore = 0.08;
     const minBoostScoreDelta = 0.04;
@@ -212,15 +228,15 @@ export class IntentClassifierService {
       if (coef > 0 && score >= minBoostScore) {
         // Map 0-1 coefficient to a 4% - 8% boost range.
         const normalized = Math.min(1, coef);
-        desiredBoosts[category] = minBoostScoreDelta + (maxBoostScore - minBoostScoreDelta) * normalized;
+        desiredBoosts[category] =
+          minBoostScoreDelta +
+          (maxBoostScore - minBoostScoreDelta) * normalized;
       } else {
         desiredBoosts[category] = 0;
       }
     }
 
-    const topAllowedBoost = topCategory
-      ? desiredBoosts[topCategory]
-      : 0;
+    const topAllowedBoost = topCategory ? desiredBoosts[topCategory] : 0;
 
     const boostedScores = {};
     for (const [category, score] of entries) {
@@ -242,10 +258,11 @@ export class IntentClassifierService {
 
     if (text) {
       for (const [category, score] of entries) {
-        if (score >= 0.40) {
+        if (score >= 0.4) {
           const hits = this.hasFewShotOverlap(category, text);
           if (hits > 0) {
-            boostedScores[category] = boostedScores[category] + (microBoostTextAmount * hits);
+            boostedScores[category] =
+              boostedScores[category] + microBoostTextAmount * hits;
           }
         }
       }
@@ -254,7 +271,9 @@ export class IntentClassifierService {
     return boostedScores;
   }
 
-  public async classifySingleText(text: string): Promise<Record<string, number>> {
+  public async classifySingleText(
+    text: string,
+  ): Promise<Record<string, number>> {
     const embeddingInstance = await this.getInstance();
     const textEmbedding = await embeddingInstance(text, {
       pooling: 'mean',
@@ -281,39 +300,38 @@ export class IntentClassifierService {
    * @param userRole - The user's role (admin, lecturer, student)
    * @returns Classification result with routing decision
    */
-  public async classify(  
-    text: string,
-    role?: string,
-  ): Promise<Decision[]> 
-  {
+  public async classify(text: string, role?: string): Promise<Decision[]> {
     // Step 1: Base case and split sentences
     if (role === 'Student') {
       return [
         {
           category: 'outer_api',
           score: 1.0,
-        }] as Decision[];
+        },
+      ] as Decision[];
     }
 
     const sentences = this.splitIntoSentences(text);
     console.log(`Split into ${sentences.length} sentences \n\n`);
     sentences.forEach((s, i) => console.log(`  [${i}] ${s}`));
 
-
     if (sentences.length <= 1) {
-      const result =  await this.classifySingleText(text);
+      const result = await this.classifySingleText(text);
       const boostedResult = this.applyRoleHeuristic(result, role, text);
-      if (Object.values(boostedResult)[0]  >= this.decisionThreshold) {
-        return [{
-          category: Object.keys(boostedResult)[0],
-          score: Object.values(boostedResult)[0]
-        }] as Decision[];
-      }
-      else {
-        return [{
+      if (Object.values(boostedResult)[0] >= this.decisionThreshold) {
+        return [
+          {
+            category: Object.keys(boostedResult)[0],
+            score: Object.values(boostedResult)[0],
+          },
+        ] as Decision[];
+      } else {
+        return [
+          {
             category: 'outer_api',
-            score: 1- Object.values(boostedResult)[0]
-        }] as Decision[];  
+            score: 1 - Object.values(boostedResult)[0],
+          },
+        ] as Decision[];
       }
     }
 
@@ -327,8 +345,6 @@ export class IntentClassifierService {
       });
       sentenceEmbeddings.push(embedding.data as Embedding);
     }
-
-    
 
     // Step 3: Group consecutive sentences into chunks based on cosine similarity
     const chunks: number[][] = [];
@@ -359,7 +375,9 @@ export class IntentClassifierService {
     for (let chunkIdx = 0; chunkIdx < chunks.length; chunkIdx++) {
       //Merge the sentences in the chunk
       const chunk = chunks[chunkIdx]; //Eg: [0,1,2]
-      const chunkText = chunk.map((localIndex) => sentences[localIndex]).join(' ');
+      const chunkText = chunk
+        .map((localIndex) => sentences[localIndex])
+        .join(' ');
 
       // Classify the chunk + apply heuristic boost
       const scores = await this.classifySingleText(chunkText);
@@ -367,16 +385,15 @@ export class IntentClassifierService {
 
       //Store result
       chunkClassifications.push({
-          chunkIndex: chunkIdx,
-          text: chunkText,
-          scores: boostedScores,
-          position: chunks.length > 1 ? chunkIdx / (chunks.length - 1) : 0,
-        } as ChunkClassification
-      );
+        chunkIndex: chunkIdx,
+        text: chunkText,
+        scores: boostedScores,
+        position: chunks.length > 1 ? chunkIdx / (chunks.length - 1) : 0,
+      } as ChunkClassification);
     }
 
     // Step 5: Collect multiple signals (max confidence, coverage, position weighting)
-    const intentStats: Record< string, IntentRating > = {};
+    const intentStats: Record<string, IntentRating> = {};
     const categories = Object.keys(this.categoryEmbeddings ?? {}) as string[];
 
     //Init the intent ratings
@@ -425,7 +442,7 @@ export class IntentClassifierService {
             score: score,
             isWinner: true,
           });
-        } 
+        }
         // Add secondary coverage for close contenders (only get coverage, a fraction of full winner)
         else if (
           winningCategory &&
@@ -451,8 +468,8 @@ export class IntentClassifierService {
       const avgPositionWeighted = stats.positionWeightedScore / numChunks;
 
       totalScores[category] =
-        stats.maxConfidence * this.coefMaxConfidence + 
-        avgPositionWeighted * this.coefPositionWeighted + 
+        stats.maxConfidence * this.coefMaxConfidence +
+        avgPositionWeighted * this.coefPositionWeighted +
         coverageRatio * this.coefCoverage;
     }
 
@@ -465,13 +482,47 @@ export class IntentClassifierService {
     // If no category passes the threshold, return outer_api with score = 1 - max
     if (decisions.length === 0) {
       const maxScore = Math.max(...Object.values(totalScores));
-      return [{ 
-        category: "outer_api", 
-        score: 1 - maxScore 
-      }] as Decision[];
+      return [
+        {
+          category: 'outer_api',
+          score: 1 - maxScore,
+        },
+      ] as Decision[];
     }
 
     return decisions;
   }
-   
+
+  // Map classifier categories to AI intents
+  private intentRouteMap: Record<string, string> = {
+    data_analysis: 'class_analysis',
+    quiz_creation: 'teaching_recommendation',
+    system_configuration: 'system_config',
+    outer_api: 'general_ai',
+  };
+
+  /**
+   * Convert classifier decisions into a routing intent
+   */
+  public mapDecisionToIntent(decisions: Decision[]): string {
+    if (!decisions || decisions.length === 0) {
+      return 'general_ai';
+    }
+
+    // Sort by score descending
+    const sorted = [...decisions].sort((a, b) => b.score - a.score);
+
+    const topDecision = sorted[0];
+
+    return this.intentRouteMap[topDecision.category] ?? 'general_ai';
+  }
+
+  /**
+   * Simplified classification API for orchestrator
+   */
+  public async classifyIntent(text: string, role?: string): Promise<string> {
+    const decisions = await this.classify(text, role);
+
+    return this.mapDecisionToIntent(decisions);
+  }
 }

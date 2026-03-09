@@ -1,54 +1,59 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { PerformanceCalculatorService } from './performance-calculator.service';
+import { InsightGeneratorService } from './insight-generator.service';
+import { ReportBuilderService } from './report-builder.service';
 
 @Injectable()
-export class StudyAnalystAiService {
-  private readonly logger = new Logger(StudyAnalystAiService.name);
+export class StudyAnalystAIService {
+  constructor(
+    private performanceCalculator: PerformanceCalculatorService,
+    private insightGenerator: InsightGeneratorService,
+    private reportBuilder: ReportBuilderService,
+  ) {}
 
-  /**
-   */
-  async process(input: {
-    prompt: string;
-    metadata?: {
-      classId?: string;
-      courseId?: string;
-    };
-    user: any;
-  }) {
-    this.logger.log('Processing STUDY_ANALYST request');
+  async analyzeClass(classId: string) {
+    const students = [
+      { id: 1, score: 85, completed: true },
+      { id: 2, score: 72, completed: true },
+      { id: 3, score: 40, completed: false },
+      { id: 4, score: 35, completed: false },
+      { id: 5, score: 90, completed: true },
+    ];
 
-    // ======================
-    // ======================
+    const metrics = this.performanceCalculator.calculateMetrics(students);
+
+    const insights = this.insightGenerator.generateInsights(metrics);
+
+    const prompt = this.reportBuilder.buildPrompt(classId, metrics, insights);
 
     return {
-      title: 'Class Performance Overview',
-      requestedBy: {
-        userId: input.user.id,
-        role: input.user.role,
-      },
-      scope: {
-        classId: input.metadata?.classId ?? null,
-        courseId: input.metadata?.courseId ?? null,
-      },
-      prompt: input.prompt,
+      metrics,
+      insights,
+      prompt,
+    };
+  }
 
-      metrics: {
-        averageScore: 6.8,
-        passRate: '72%',
-        totalStudents: 45,
-        quizzesAnalyzed: 3,
-      },
+  async detectStudentRisk(classId: string) {
+    const students = [
+      { id: 1, score: 85, completed: true },
+      { id: 2, score: 45, completed: false },
+      { id: 3, score: 38, completed: false },
+      { id: 4, score: 90, completed: true },
+    ];
 
-      insights: [
-        'Overall performance is moderate.',
-        'Quiz 2 has the lowest average score.',
-        'Top-performing students show consistent results across quizzes.',
-        'Several students failed multiple attempts, indicating knowledge gaps.',
-      ],
+    const riskyStudents = students.filter((s) => s.score < 50 || !s.completed);
 
+    return {
+      classId,
+      riskyStudents,
+    };
+  }
+
+  async generateTeachingRecommendations(classId: string) {
+    return {
+      classId,
       recommendation:
-        'Consider reviewing Quiz 2 topics and providing additional practice materials.',
-
-      generatedAt: new Date().toISOString(),
+        'Focus more on students scoring below 50%. Provide additional practice exercises.',
     };
   }
 }

@@ -30,15 +30,14 @@ type ProviderHealth = {
 @Injectable()
 export class OuterApiService {
   private readonly logger = new Logger(OuterApiService.name);
-  private readonly knownProviders: OuterApiProvider[] = [
-    'groq',
-    'openai',
-  ];
+  private readonly knownProviders: OuterApiProvider[] = ['groq', 'openai'];
   private readonly providerHealth: Record<OuterApiProvider, ProviderHealth> = {
     groq: { failureCount: 0, disabledUntil: 0, lastError: null },
     openai: { failureCount: 0, disabledUntil: 0, lastError: null },
   };
-  private readonly baseCooldownMs = Number(process.env.OUTER_API_COOLDOWN_MS ?? 60000);
+  private readonly baseCooldownMs = Number(
+    process.env.OUTER_API_COOLDOWN_MS ?? 60000,
+  );
   private readonly providerPriority = this.resolveProviderPriority();
 
   constructor(
@@ -48,13 +47,12 @@ export class OuterApiService {
   ) {}
 
   /**
-   * 
+   *
    * @param input
    * @returns OuterApiResponse
    * @summary Tries to get a response from the specified provider first (if any), then falls back to others based on priority and health status. Automatically disables providers that show transient error patterns for a cooldown period.
    */
   async chat(input: OuterApiRequest): Promise<OuterApiResponse> {
-
     const systemPrompt = this.contextBuilderService.buildSystemPrompt({
       role: input.role,
       caller: input.caller,
@@ -122,7 +120,9 @@ export class OuterApiService {
     }
 
     if (!this.knownProviders.includes(preferredProvider)) {
-      throw new Error(`OuterApi Error: unknown provider "${preferredProvider}"`);
+      throw new Error(
+        `OuterApi Error: unknown provider "${preferredProvider}"`,
+      );
     }
 
     return [

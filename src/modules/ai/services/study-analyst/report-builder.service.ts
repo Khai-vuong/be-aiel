@@ -1,20 +1,25 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class ReportBuilderService {
-  private readonly logger = new Logger(ReportBuilderService.name);
+  buildPrompt(classId: string, metrics: any, insights: string[]) {
+    return `
+You are an education data analyst AI.
 
-  async build(params: {
-    metrics: any;
-    insights: any;
-    reportType: string;
-    context: any;
-  }) {
-    // TODO: Implement report building logic
-    this.logger.log('Building report - to be implemented');
-    return {
-      title: 'Report',
-      generatedAt: new Date().toISOString(),
-    };
+Class ID: ${classId}
+
+Metrics:
+- Average Score: ${metrics.averageScore}
+- Students at Risk: ${metrics.atRiskCount}
+- Completion Rate: ${metrics.completionRate}%
+
+Insights:
+${insights.join('\n')}
+
+Please provide:
+1. A short analysis
+2. Possible causes
+3. Recommendations for instructors
+`;
   }
 }

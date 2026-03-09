@@ -1,15 +1,21 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '../../../../prisma.service';
+import { Injectable } from '@nestjs/common';
 
 @Injectable()
 export class PerformanceCalculatorService {
-  private readonly logger = new Logger(PerformanceCalculatorService.name);
+  calculateMetrics(students: any[]) {
+    const total = students.length;
 
-  constructor(private readonly prisma: PrismaService) {}
+    const avgScore = students.reduce((sum, s) => sum + s.score, 0) / total;
 
-  async calculate(params: { courseId?: string; classId?: string; context: any }) {
-    // TODO: Implement local performance calculation logic
-    this.logger.log('Calculating performance metrics - to be implemented');
-    return {};
+    const atRisk = students.filter((s) => s.score < 50);
+
+    const completionRate = students.filter((s) => s.completed).length / total;
+
+    return {
+      totalStudents: total,
+      averageScore: avgScore.toFixed(2),
+      atRiskCount: atRisk.length,
+      completionRate: (completionRate * 100).toFixed(1),
+    };
   }
 }
