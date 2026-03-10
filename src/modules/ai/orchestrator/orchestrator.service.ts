@@ -14,12 +14,6 @@ import { OuterApiService } from '../services/outer-api/outer-api.service';
 import { StudyAnalystAiService } from '../services/study-analyst/study-analyst-ai.service';
 import { ConversationService } from '../services/conversation.service';
 
-export type AIServiceType = 
-  | 'SYSTEM_CONTROL' 
-  | 'STUDY_ANALYST' 
-  | 'TUTOR' 
-  | 'TEACHING_ASSISTANT';
-
 
 @Injectable()
 export class OrchestratorService {

@@ -79,7 +79,7 @@ export class ConversationService {
         createdAt: conv.created_at,
         updatedAt: conv.updated_at,
       })),
-      total,
+      total: limit ? total : conversations.length,
       hasMore: total > offset + limit,
     };
   }
