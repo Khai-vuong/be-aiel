@@ -95,6 +95,10 @@ export class OrchestratorService {
         role: user.role,
         caller: 'direct',
         provider: 'groq',
+        conversationId,
+        userId: user.uid,
+        convLimit: 20, // Optimal: 10 user-assistant pairs for context
+        convOffset: 0, // Always get latest messages
       });
 
       // Step 4: Save assistant message
