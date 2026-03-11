@@ -1,8 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 // import { fewShotExamples, fewShotTokenCache as curatedFewShotTokenCache } from '../fewShotData.js';
 import { fewShotExamples, curatedFewShotTokenCache } from '../fewShotData';
-import { EmbeddingPipeline } from './embedding-pipeline';
-import { Chunk } from '@xenova/transformers';
+import { EmbeddingPipeline } from './embedding.pipeline';
 
 type Decision =  {
   category: string;
