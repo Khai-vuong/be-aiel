@@ -141,33 +141,33 @@ export class AiController {
 //     };
 //   }
 
-  @Post('study-analyst/report')
-  @Roles('ADMIN', 'LECTURER')
-  async generateReport(@Request() req, @Body() body: any) {
-    return this.orchestratorService.studyAnalystReport(req.user, body);
-  }
+//   @Post('study-analyst/report')
+//   @Roles('ADMIN', 'LECTURER')
+//   async generateReport(@Request() req, @Body() body: any) {
+//     return this.orchestratorService.studyAnalystReport(req.user, body);
+//   }
 
-  @Post('tutor/ask')
-  @Roles('STUDENT')
-  async askTutor(
-    @Request() req,
-    @Body() body: { message: string; courseId?: string },
-  ) {
-    // TODO: Implement tutor chat
-    return { message: 'Tutor chat - to be implemented' };
-  }
+//   @Post('tutor/ask')
+//   @Roles('STUDENT')
+//   async askTutor(
+//     @Request() req,
+//     @Body() body: { message: string; courseId?: string },
+//   ) {
+//     // TODO: Implement tutor chat
+//     return { message: 'Tutor chat - to be implemented' };
+//   }
 
-  @Post('teaching-assistant/generate-quiz')
-  @Roles('LECTURER')
-  async generateQuiz(@Request() req, @Body() params: any) {
-    // TODO: Implement quiz generation
-    return { message: 'Quiz generation - to be implemented' };
-  }
+//   @Post('teaching-assistant/generate-quiz')
+//   @Roles('LECTURER')
+//   async generateQuiz(@Request() req, @Body() params: any) {
+//     // TODO: Implement quiz generation
+//     return { message: 'Quiz generation - to be implemented' };
+//   }
 
-  @Post('teaching-assistant/summarize-content')
-  @Roles('LECTURER')
-  async summarizeContent(@Request() req, @Body() params: any) {
-    // TODO: Implement content summarization
-    return { message: 'Content summarization - to be implemented' };
-  }
+//   @Post('teaching-assistant/summarize-content')
+//   @Roles('LECTURER')
+//   async summarizeContent(@Request() req, @Body() params: any) {
+//     // TODO: Implement content summarization
+//     return { message: 'Content summarization - to be implemented' };
+//   }
 }
