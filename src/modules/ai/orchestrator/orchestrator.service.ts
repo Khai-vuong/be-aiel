@@ -13,6 +13,7 @@ import { OuterApiService } from '../services/outer-api/outer-api.service';
 // ======================
 import { StudyAnalystAiService } from '../services/study-analyst/study-analyst-ai.service';
 import { ConversationService } from '../services/conversation.service';
+import { SummarizationService, SummarizeOptions } from '../services/summarization.service';
 
 
 @Injectable()
@@ -31,6 +32,7 @@ export class OrchestratorService {
     // inject StudyAnalystAiService
     // ======================
     private readonly studyAnalystAiService: StudyAnalystAiService,
+    private readonly summarizationService: SummarizationService,
   ) {}
 
   async processRequest(request: AiRequestDto, user: JwtPayload) {
@@ -71,9 +73,20 @@ export class OrchestratorService {
     try {
       // Step 1: Create or get conversation
       if (!conversationId) {
+        //Summarize first message to generate conversation title
+        const newConversationTitle = await this.summarizationService.summarize(request.text, { 
+            minLength: 3,
+            maxLength: 7, 
+            onlyUseSystemPrompt: true,
+            // customsystemPrompt: 'You are generating a concise title for a conversation, with the first message provided. Return only the title without any additional text or formatting.'
+            customsystemPrompt: ''
+          } as SummarizeOptions);
+
         const conversation = await this.conversationService.createConversation({
           userId: user.uid,
+          title: newConversationTitle.summary || 'New Conversation',
         });
+
         conversationId = conversation.acid;
       } else {
         // Verify conversation exists and belongs to user
@@ -113,14 +126,6 @@ export class OrchestratorService {
         },
       });
 
-      // Step 5: Generate title for new conversations
-      if (!request.conversationId) {
-        const title = await this.conversationService.generateConversationTitle(
-          conversationId,
-          user.uid,
-        );
-        await this.conversationService.updateConversation(conversationId, user.uid, { title });
-      }
 
       const processingTime = Date.now() - startTime;
       this.logger.log(`Direct chat completed for conversation ${conversationId}`);
@@ -214,5 +219,26 @@ Return a concise analytical insight for a lecturer.
   async getConversation(conversationId: string, userId: string) {
     // TODO: Implement when AIConversation model is added to schema
     return null;
+  }
+
+  async summarize(text: string, provider?: 'gemini' | 'groq' | 'openai') {
+    // return this.summarizationService.summarize(text, { provider } as SummarizeOptions);
+
+    const startTime = Date.now();
+
+
+    const newConversationTitle = await this.summarizationService.summarize(text, { 
+        minLength: 3,
+        maxLength: 7, 
+        provider,
+        onlyUseSystemPrompt: true,
+        // customsystemPrompt: 'You are generating a concise title for a conversation, with the first message provided. Return only the title without any additional text or formatting.'
+        customsystemPrompt: ''
+      } as SummarizeOptions);
+
+
+    const processingTime = Date.now() - startTime;
+
+    return { processTime: processingTime, result: newConversationTitle };
   }
 }

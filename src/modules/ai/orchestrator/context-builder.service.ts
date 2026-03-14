@@ -32,7 +32,13 @@ export class ContextBuilderService {
     role: string;
     caller?: string;
     customSystemPrompt?: string;
+    onlyUseSystemPrompt?: boolean;
   }): string {
+
+    if (params.onlyUseSystemPrompt && params.customSystemPrompt) {
+      return params.customSystemPrompt;
+    }
+    
     const normalizedRole = (params.role ?? 'user').toLowerCase().trim();
     const normalizedCaller = (params.caller ?? 'general').toLowerCase().trim();
 
@@ -67,9 +73,9 @@ export class ContextBuilderService {
     };
 
     const roleInstruction =
-      roleInstructionMap[normalizedRole] ?? roleInstructionMap.user;
+      roleInstructionMap[normalizedRole] ?? "";
     const callerInstruction =
-      callerInstructionMap[normalizedCaller] ?? callerInstructionMap.general;
+      callerInstructionMap[normalizedCaller] ?? "";
 
     const segments = [
       'You are an AI assistant for an e-learning platform.',

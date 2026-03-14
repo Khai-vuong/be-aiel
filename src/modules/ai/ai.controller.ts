@@ -95,6 +95,12 @@ export class AiController {
     return { message: 'Conversation deleted successfully' };
   }
 
+  @Post('summarize')
+  @Roles('any')
+  async summarize(@Body() body: { text: string }) {
+    return this.orchestratorService.summarize(body.text);
+  }
+
   // @Put('conversations/:id/archive')
   // @Roles('any')
   // async archiveConversation(@Request() req, @Param('id') conversationId: string) {

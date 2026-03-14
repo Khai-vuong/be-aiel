@@ -14,6 +14,7 @@ export type OuterApiRequest = {
   caller?: string;
   temperature?: number;
   customSystemPrompt?: string;
+  onlyUseSystemPrompt?: boolean;
 
   conversationId?: string;
   userId?: string; // Required for conversation history fetch
@@ -70,6 +71,7 @@ export class OuterApiService {
       role: input.role,
       caller: input.caller,
       customSystemPrompt: input.customSystemPrompt,
+      onlyUseSystemPrompt: input.onlyUseSystemPrompt,
     });
 
     this.logger.log('='.repeat(80));
@@ -87,6 +89,7 @@ export class OuterApiService {
     const now = Date.now();
     let lastError: unknown = null;
 
+    // Try providers in order of priority, skipping any that are currently disabled due to recent failures
     for (const provider of providerOrder) {
       const health = this.providerHealth[provider];
       if (health.disabledUntil > now) {
