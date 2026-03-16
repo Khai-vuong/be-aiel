@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsObject, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsObject, IsEnum, IsNumber } from 'class-validator';
 import type { AIServiceType } from './ai-context.interface';
 
 export class AiRequestDto {
@@ -17,6 +17,18 @@ export class AiRequestDto {
   @IsOptional()
   @IsObject()
   context?: Record<string, any>;
+
+  @IsOptional()
+  @IsString()
+  provider?: string;
+
+  @IsOptional()
+  @IsNumber()
+  temperature?: number;
+
+  @IsOptional()
+  @IsString()
+  customSystemPrompt?: string;
 
   //Will not be use in deployment. The orchestrator will determine the serviceType based on intent classification. This is for testing and future extensibility.
   @IsOptional()

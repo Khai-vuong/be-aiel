@@ -73,10 +73,6 @@ export class AiResponseDto {
   @IsString()
   messageId?: string;
 
-  @IsOptional()
-  @IsEnum(['user', 'assistant', 'system', 'tool'])
-  role?: 'user' | 'assistant' | 'system' | 'tool';
-
   @IsBoolean()
   success: boolean;
 
@@ -92,19 +88,4 @@ export class AiResponseDto {
   @ValidateNested()
   @Type(() => AiMetadataDto)
   metadata?: AiMetadataDto;
-}
-
-export interface ChatMessage {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  timestamp: string;
-  metadata?: any;
-}
-
-export interface ConversationResponse {
-  id: string;
-  messages: ChatMessage[];
-  serviceType: string;
-  createdAt: string;
-  updatedAt: string;
 }

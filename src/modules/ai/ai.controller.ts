@@ -20,6 +20,8 @@ import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { AiRequestDto } from './dtos/ai-request.dto';
 import { SwaggerAiChat } from './swagger/ai.swagger';
+import { OuterApiProvider } from './services/outer-api/outer-api.service';
+import { QuizGenerationService } from './services/Quiz-gen/quizGeneration.service';
 
 @Controller('ai')
 @UseGuards(JwtGuard, RolesGuard)
@@ -27,6 +29,7 @@ export class AiController {
   constructor(
     private readonly orchestratorService: OrchestratorService,
     private readonly conversationService: ConversationService,
+    private readonly quizGenerationService: QuizGenerationService,
   ) {}
 
   @Post('chat')
@@ -99,6 +102,20 @@ export class AiController {
   @Roles('any')
   async summarize(@Body() body: { text: string }) {
     return this.orchestratorService.summarize(body.text);
+  }
+
+  @Post('quizgen')
+  @Roles('Lecturer', 'Admin')
+  async generateQuiz(
+    @Request() req,
+    @Body()
+    body: AiRequestDto,
+  ) {
+    return this.quizGenerationService.generateQuiz({
+      prompt: body.text,
+      role: req.user.role,
+      provider: body.provider as OuterApiProvider,
+    });
   }
 
   // @Put('conversations/:id/archive')

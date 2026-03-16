@@ -1,0 +1,164 @@
+====QUIZ GENERATION SERVICE API DOCUMENTATION
+
+Base URL: /ai
+Authentication: Required (JWT Token in Authorization header)
+
+====1. POST /ai/quizgen
+====Description: Tao quiz questions bang AI va tra ve du lieu JSON da duoc validate
+Method: POST
+Role: Lecturer, Admin
+Caller to LLM: quiz-generator
+
+Request Body:
+{
+  "text": "Tao 5 cau hoi trac nghiem ve OOP cho sinh vien nam 2",
+  "provider": "groq"
+}
+
+Request Fields:
+  - text (required): string - Prompt de yeu cau AI tao quiz
+  - provider (optional): 'gemini' | 'groq' | 'openai' - Provider uu tien muon thu truoc
+
+Example Request 1 (auto provider order):
+POST /ai/quizgen
+{
+  "text": "Tao 3 cau hoi trac nghiem co 4 dap an ve SQL JOIN"
+}
+
+Example Request 2 (preferred provider):
+POST /ai/quizgen
+{
+  "text": "Tao 5 cau hoi ve Data Structures muc do trung binh",
+  "provider": "openai"
+}
+
+Example Output:
+{
+  "text": "Here are 3 SQL JOIN questions with clear options and answer keys.",
+  "questions": [
+    {
+      "content": "Which JOIN returns all rows from the left table and matching rows from the right table?",
+      "options_json": {
+        "A": "INNER JOIN",
+        "B": "LEFT JOIN",
+        "C": "RIGHT JOIN",
+        "D": "CROSS JOIN"
+      },
+      "answer_key_json": {
+        "correct": "B"
+      },
+      "points": 1
+    },
+    {
+      "content": "What does INNER JOIN return?",
+      "options_json": {
+        "A": "Only unmatched rows",
+        "B": "All rows from both tables",
+        "C": "Only matching rows",
+        "D": "Only rows from left table"
+      },
+      "answer_key_json": {
+        "correct": "C"
+      },
+      "points": 1
+    }
+  ],
+  "provider": "groq",
+  "rawText": "{\"text\":\"Here are 3 SQL JOIN questions...\",\"questions\":[...]}"
+}
+
+Response Fields:
+  - text: string - Loi giai thich ngan cua AI cho bo cau hoi
+  - questions: Array<Question>
+    - content: string (required) - Noi dung cau hoi
+    - options_json: object | array (optional) - Cac lua chon dap an
+    - answer_key_json: object | array (required) - Dap an dung
+    - points: number (required in output, default = 1)
+  - provider: 'gemini' | 'groq' | 'openai' - Provider da thanh cong
+  - rawText: string - Noi dung text goc tra ve tu provider
+
+
+====RETRY AND FALLBACK BEHAVIOR
+====Description: Co che xu ly loi parse JSON trong QuizGenerationService
+
+1. Service thu provider theo thu tu:
+   - Neu request co provider: thu provider do truoc, sau do fallback qua provider con lai
+   - Neu request khong co provider: thu theo thu tu mac dinh gemini -> groq -> openai
+
+2. Moi lan goi provider:
+   - Goi OuterApiService.chat(...)
+   - Thu parse response thanh JSON object voi format bat buoc:
+     {
+       "text": "...",
+       "questions": [ ... ]
+     }
+
+3. Neu provider tra text khong parse duoc JSON hoac sai schema:
+   - Ghi log warning
+   - Thu provider tiep theo
+
+4. Chi throw loi khi tat ca provider deu that bai parse/validate hoac provider-level request fail
+
+
+====VALIDATION RULES
+====Description: Kiem tra schema cua response sau khi parse
+
+Top-level JSON:
+  - Phai la object
+  - Co field "questions" va phai la array
+  - Field "text" la optional string (neu khong co se la chuoi rong)
+  - questions khong duoc rong
+
+Moi phan tu question:
+  - content: string, non-empty
+  - answer_key_json: object | array | JSON string hop le (required)
+  - options_json: object | array | JSON string hop le (optional)
+  - points: number hop le neu co; neu khong co thi mac dinh = 1
+
+
+====ERROR RESPONSES
+====400 Bad Request
+- text rong hoac thieu
+- Khong parse duoc response thanh JSON
+- JSON khong dung schema bat buoc
+- Tat ca providers deu that bai parse/validate
+
+Example:
+{
+  "statusCode": 400,
+  "message": "Quiz generation failed for all providers. Details: groq: Quiz generation response is not valid JSON... | gemini: ...",
+  "error": "Bad Request"
+}
+
+====401 Unauthorized
+- Chua dang nhap
+- JWT token khong hop le
+
+====403 Forbidden
+- User khong co role Lecturer/Admin
+
+Example:
+{
+  "statusCode": 403,
+  "message": "Access denied. Required roles: Lecturer, Admin. Your role: Student",
+  "error": "Forbidden"
+}
+
+
+====NOTES
+====General Information
+
+0. JWT token gui trong Authorization header
+   Format: Authorization: Bearer <token>
+
+1. Endpoint nay da duoc bao ve boi JwtGuard + RolesGuard
+
+2. Prompt he thong cho caller quiz-generator da ep model tra ve JSON object dung schema
+
+3. Du lieu "rawText" giup debug khi can doi chieu output goc cua model
+
+4. Validation va fallback duoc xu ly tai service layer, khong phu thuoc provider co bao loi hay khong
+
+5. Khuyen nghi:
+   - Prompt can ro rang ve so luong cau hoi, muc do kho, va chu de
+   - Neu muon uu tien provider cu the, truyen field "provider"
