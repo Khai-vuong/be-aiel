@@ -223,7 +223,7 @@ export class QuizzesService {
       },
     });
 
-    await this.logService.createLog('create_quiz', 'Quiz', newQuiz.qid);
+    await this.logService.createLog('create_quiz', lecturerExists.user_id, 'Quiz', newQuiz.qid);
     return newQuiz;
   }
 
@@ -231,6 +231,13 @@ export class QuizzesService {
   async update(id: string, updateData: UpdateQuizDto): Promise<Quiz> {
     const existingQuiz = await this.prisma.quiz.findUnique({
       where: { qid: id },
+      include: {
+        creator: {
+          select: {
+            user_id: true,
+          },
+        },
+      },
     });
 
     if (!existingQuiz) {
@@ -245,17 +252,144 @@ export class QuizzesService {
       }
     }
 
-    const updatedQuiz = await this.prisma.quiz.update({
-      where: { qid: id },
-      data: updateData,
-      include: {
-        class: { select: { name: true } },
-        creator: { select: { name: true } },
-        _count: { select: { questions: true } },
-      },
+    // Validate clid if provided
+    if (updateData.clid) {
+      const classExists = await this.prisma.class.findUnique({
+        where: { clid: updateData.clid },
+      });
+
+      if (!classExists) {
+        throw new BadRequestException(
+          `Class with ID ${updateData.clid} not found`,
+        );
+      }
+    }
+
+    // Separate questions from other update data
+    const { questions, ...quizUpdateData } = updateData;
+
+    // Use transaction to ensure all operations succeed or fail together
+    const updatedQuiz = await this.prisma.$transaction(async (prisma) => {
+      // Process questions if provided
+      if (questions !== undefined) {
+        // Get list of question IDs that should be kept (existing questions with ques_id)
+        const questionIdsToKeep = questions
+          .filter((q) => q.ques_id)
+          .map((q) => q.ques_id!);
+
+        // Delete questions that are not in the new list
+        if (questionIdsToKeep.length > 0) {
+          // If there are questions to keep, delete only those not in the list
+          await prisma.question.deleteMany({
+            where: {
+              quiz_id: id,
+              ques_id: {
+                notIn: questionIdsToKeep,
+              },
+            },
+          });
+        } else {
+          // If no questions to keep (all new questions), delete all existing questions
+          await prisma.question.deleteMany({
+            where: { quiz_id: id },
+          });
+        }
+
+        // Update existing questions and create new ones
+        for (const questionData of questions) {
+          if (questionData.ques_id) {
+            // Update existing question
+            const { ques_id, ...questionUpdateData } = questionData;
+            
+            // Only include fields that are defined
+            const updateFields: any = {};
+            if (questionUpdateData.content !== undefined)
+              updateFields.content = questionUpdateData.content;
+            if (questionUpdateData.options_json !== undefined)
+              updateFields.options_json = questionUpdateData.options_json;
+            if (questionUpdateData.answer_key_json !== undefined)
+              updateFields.answer_key_json = questionUpdateData.answer_key_json;
+            if (questionUpdateData.points !== undefined)
+              updateFields.points = questionUpdateData.points;
+
+            await prisma.question.update({
+              where: { ques_id: ques_id },
+              data: updateFields,
+            });
+          } else {
+            // Create new question - validate required fields
+            if (!questionData.content || !questionData.answer_key_json) {
+              throw new BadRequestException(
+                'content and answer_key_json are required when creating a new question',
+              );
+            }
+
+            await prisma.question.create({
+              data: {
+                content: questionData.content,
+                options_json: questionData.options_json || null,
+                answer_key_json: questionData.answer_key_json,
+                points: questionData.points || 1.0,
+                quiz_id: id,
+              },
+            });
+          }
+        }
+      }
+
+      // Update quiz data
+      const updateFields: any = {};
+      if (quizUpdateData.name !== undefined)
+        updateFields.name = quizUpdateData.name;
+      if (quizUpdateData.description !== undefined)
+        updateFields.description = quizUpdateData.description;
+      if (quizUpdateData.status !== undefined)
+        updateFields.status = quizUpdateData.status;
+      if (quizUpdateData.available_from !== undefined)
+        updateFields.available_from = quizUpdateData.available_from || null;
+      if (quizUpdateData.available_until !== undefined)
+        updateFields.available_until = quizUpdateData.available_until || null;
+      if (quizUpdateData.settings_json !== undefined)
+        updateFields.settings_json = quizUpdateData.settings_json;
+      if (quizUpdateData.clid !== undefined)
+        updateFields.class_id = quizUpdateData.clid;
+
+      return prisma.quiz.update({
+        where: { qid: id },
+        data: updateFields,
+        include: {
+          class: { 
+            select: { 
+              clid: true,
+              name: true 
+            } 
+          },
+          creator: { 
+            select: { 
+              lid: true,
+              name: true 
+            } 
+          },
+          questions: {
+            select: {
+              ques_id: true,
+              content: true,
+              options_json: true,
+              answer_key_json: true,
+              points: true,
+            },
+          },
+          _count: { 
+            select: { 
+              questions: true,
+              attempts: true,
+            } 
+          },
+        },
+      });
     });
 
-    await this.logService.createLog('update_quiz', 'Quiz', id);
+    await this.logService.createLog('update_quiz', existingQuiz.creator.user_id, 'Quiz', id);
     return updatedQuiz;
   }
 
@@ -263,6 +397,13 @@ export class QuizzesService {
   async delete(id: string): Promise<Quiz> {
     const existingQuiz = await this.prisma.quiz.findUnique({
       where: { qid: id },
+      include: {
+        creator: {
+          select: {
+            user_id: true,
+          },
+        },
+      },
     });
 
     if (!existingQuiz) {
@@ -274,7 +415,7 @@ export class QuizzesService {
       data: { status: 'archived' },
     });
 
-    await this.logService.createLog('delete_quiz', 'Quiz', id);
+    await this.logService.createLog('delete_quiz', existingQuiz.creator.user_id, 'Quiz', id);
     return deletedQuiz;
   }
 }

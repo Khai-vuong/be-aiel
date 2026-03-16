@@ -1299,6 +1299,446 @@ async function main() {
     },
   });
 
+  // ========================================
+  // CREATE QUESTIONS FOR OTHER QUIZZES
+  // ========================================
+  
+  // Questions for quiz002 (Variables and Data Types) - 5 questions
+  const quiz2_q1 = await prisma.question.create({
+    data: {
+      ques_id: 'question006',
+      content: 'What is the correct way to create a string variable in Python?',
+      options_json: JSON.stringify({
+        A: 'string x = "Hello"',
+        B: 'x = "Hello"',
+        C: 'char x = "Hello"',
+        D: 'str x = "Hello"',
+      }),
+      answer_key_json: JSON.stringify({ correct: 'B' }),
+      points: 1.0,
+      quiz_id: quiz2.qid,
+    },
+  });
+
+  const quiz2_q2 = await prisma.question.create({
+    data: {
+      ques_id: 'question007',
+      content: 'What is the output of: print(type(True))?',
+      options_json: JSON.stringify({
+        A: '<class \'boolean\'>',
+        B: '<class \'bool\'>',
+        C: '<class \'int\'>',
+        D: '<class \'true\'>',
+      }),
+      answer_key_json: JSON.stringify({ correct: 'B' }),
+      points: 1.0,
+      quiz_id: quiz2.qid,
+    },
+  });
+
+  const quiz2_q3 = await prisma.question.create({
+    data: {
+      ques_id: 'question008',
+      content: 'How do you convert a string "123" to an integer?',
+      options_json: JSON.stringify({
+        A: 'integer("123")',
+        B: 'int("123")',
+        C: 'toInt("123")',
+        D: 'parse("123")',
+      }),
+      answer_key_json: JSON.stringify({ correct: 'B' }),
+      points: 1.0,
+      quiz_id: quiz2.qid,
+    },
+  });
+
+  const quiz2_q4 = await prisma.question.create({
+    data: {
+      ques_id: 'question009',
+      content: 'What is the output of: print(10 / 3)?',
+      options_json: JSON.stringify({
+        A: '3',
+        B: '3.0',
+        C: '3.333333333333333',
+        D: '3.33',
+      }),
+      answer_key_json: JSON.stringify({ correct: 'C' }),
+      points: 1.0,
+      quiz_id: quiz2.qid,
+    },
+  });
+
+  const quiz2_q5 = await prisma.question.create({
+    data: {
+      ques_id: 'question010',
+      content: 'Which data type is mutable in Python?',
+      options_json: JSON.stringify({
+        A: 'tuple',
+        B: 'string',
+        C: 'list',
+        D: 'integer',
+      }),
+      answer_key_json: JSON.stringify({ correct: 'C' }),
+      points: 1.0,
+      quiz_id: quiz2.qid,
+    },
+  });
+
+  // Questions for quiz003 (Control Flow and Loops) - 5 questions
+  const quiz3_q1 = await prisma.question.create({
+    data: {
+      ques_id: 'question011',
+      content: 'What is the correct syntax for an if statement in Python?',
+      options_json: JSON.stringify({
+        A: 'if (x == 5):',
+        B: 'if x == 5:',
+        C: 'if x = 5:',
+        D: 'if x == 5 then:',
+      }),
+      answer_key_json: JSON.stringify({ correct: 'B' }),
+      points: 1.0,
+      quiz_id: quiz3.qid,
+    },
+  });
+
+  const quiz3_q2 = await prisma.question.create({
+    data: {
+      ques_id: 'question012',
+      content: 'How many times will this loop run? for i in range(5):',
+      options_json: JSON.stringify({
+        A: '4',
+        B: '5',
+        C: '6',
+        D: 'Infinite',
+      }),
+      answer_key_json: JSON.stringify({ correct: 'B' }),
+      points: 1.0,
+      quiz_id: quiz3.qid,
+    },
+  });
+
+  const quiz3_q3 = await prisma.question.create({
+    data: {
+      ques_id: 'question013',
+      content: 'What keyword is used to exit a loop prematurely?',
+      options_json: JSON.stringify({
+        A: 'exit',
+        B: 'stop',
+        C: 'break',
+        D: 'return',
+      }),
+      answer_key_json: JSON.stringify({ correct: 'C' }),
+      points: 1.0,
+      quiz_id: quiz3.qid,
+    },
+  });
+
+  const quiz3_q4 = await prisma.question.create({
+    data: {
+      ques_id: 'question014',
+      content: 'What is the difference between while and for loops?',
+      options_json: JSON.stringify({
+        A: 'while runs forever, for has a fixed count',
+        B: 'while is condition-based, for is iteration-based',
+        C: 'They are exactly the same',
+        D: 'while is faster than for',
+      }),
+      answer_key_json: JSON.stringify({ correct: 'B' }),
+      points: 1.0,
+      quiz_id: quiz3.qid,
+    },
+  });
+
+  const quiz3_q5 = await prisma.question.create({
+    data: {
+      ques_id: 'question015',
+      content: 'What does the continue statement do in a loop?',
+      options_json: JSON.stringify({
+        A: 'Exits the loop',
+        B: 'Skips to the next iteration',
+        C: 'Stops the program',
+        D: 'Restarts the loop from beginning',
+      }),
+      answer_key_json: JSON.stringify({ correct: 'B' }),
+      points: 1.0,
+      quiz_id: quiz3.qid,
+    },
+  });
+
+  // Questions for quiz004 (Functions and Modules) - 5 questions
+  const quiz4_q1 = await prisma.question.create({
+    data: {
+      ques_id: 'question016',
+      content: 'What keyword is used to define a function in Python?',
+      options_json: JSON.stringify({
+        A: 'function',
+        B: 'def',
+        C: 'func',
+        D: 'define',
+      }),
+      answer_key_json: JSON.stringify({ correct: 'B' }),
+      points: 1.0,
+      quiz_id: quiz4.qid,
+    },
+  });
+
+  const quiz4_q2 = await prisma.question.create({
+    data: {
+      ques_id: 'question017',
+      content: 'How do you import a specific function from a module?',
+      options_json: JSON.stringify({
+        A: 'import math.sqrt',
+        B: 'from math import sqrt',
+        C: 'import sqrt from math',
+        D: 'using math.sqrt',
+      }),
+      answer_key_json: JSON.stringify({ correct: 'B' }),
+      points: 1.0,
+      quiz_id: quiz4.qid,
+    },
+  });
+
+  const quiz4_q3 = await prisma.question.create({
+    data: {
+      ques_id: 'question018',
+      content: 'What does the return statement do?',
+      options_json: JSON.stringify({
+        A: 'Prints a value',
+        B: 'Exits the function and optionally returns a value',
+        C: 'Stores a value in memory',
+        D: 'Creates a variable',
+      }),
+      answer_key_json: JSON.stringify({ correct: 'B' }),
+      points: 1.0,
+      quiz_id: quiz4.qid,
+    },
+  });
+
+  const quiz4_q4 = await prisma.question.create({
+    data: {
+      ques_id: 'question019',
+      content: 'What is a default parameter in a function?',
+      options_json: JSON.stringify({
+        A: 'A parameter that must be provided',
+        B: 'A parameter with a pre-assigned value',
+        C: 'The first parameter',
+        D: 'A parameter of type default',
+      }),
+      answer_key_json: JSON.stringify({ correct: 'B' }),
+      points: 1.0,
+      quiz_id: quiz4.qid,
+    },
+  });
+
+  const quiz4_q5 = await prisma.question.create({
+    data: {
+      ques_id: 'question020',
+      content: 'What is *args used for in function parameters?',
+      options_json: JSON.stringify({
+        A: 'To multiply arguments',
+        B: 'To accept variable number of positional arguments',
+        C: 'To create a pointer',
+        D: 'To make arguments optional',
+      }),
+      answer_key_json: JSON.stringify({ correct: 'B' }),
+      points: 1.0,
+      quiz_id: quiz4.qid,
+    },
+  });
+
+  // Questions for quiz005 (Lists, Dictionaries, and Sets) - 5 questions
+  const quiz5_q1 = await prisma.question.create({
+    data: {
+      ques_id: 'question021',
+      content: 'How do you create an empty dictionary in Python?',
+      options_json: JSON.stringify({
+        A: 'd = []',
+        B: 'd = {}',
+        C: 'd = ()',
+        D: 'd = dict[]',
+      }),
+      answer_key_json: JSON.stringify({ correct: 'B' }),
+      points: 1.0,
+      quiz_id: quiz5.qid,
+    },
+  });
+
+  const quiz5_q2 = await prisma.question.create({
+    data: {
+      ques_id: 'question022',
+      content: 'What method adds an element to the end of a list?',
+      options_json: JSON.stringify({
+        A: 'add()',
+        B: 'append()',
+        C: 'insert()',
+        D: 'push()',
+      }),
+      answer_key_json: JSON.stringify({ correct: 'B' }),
+      points: 1.0,
+      quiz_id: quiz5.qid,
+    },
+  });
+
+  const quiz5_q3 = await prisma.question.create({
+    data: {
+      ques_id: 'question023',
+      content: 'What is unique about sets in Python?',
+      options_json: JSON.stringify({
+        A: 'They allow duplicate values',
+        B: 'They are ordered',
+        C: 'They do not allow duplicate values',
+        D: 'They are immutable',
+      }),
+      answer_key_json: JSON.stringify({ correct: 'C' }),
+      points: 1.0,
+      quiz_id: quiz5.qid,
+    },
+  });
+
+  const quiz5_q4 = await prisma.question.create({
+    data: {
+      ques_id: 'question024',
+      content: 'How do you access a value in a dictionary with key "name"?',
+      options_json: JSON.stringify({
+        A: 'd.name',
+        B: 'd[name]',
+        C: 'd["name"]',
+        D: 'd->name',
+      }),
+      answer_key_json: JSON.stringify({ correct: 'C' }),
+      points: 1.0,
+      quiz_id: quiz5.qid,
+    },
+  });
+
+  const quiz5_q5 = await prisma.question.create({
+    data: {
+      ques_id: 'question025',
+      content: 'What does list slicing [1:3] return?',
+      options_json: JSON.stringify({
+        A: 'Elements at index 1 and 3',
+        B: 'Elements at index 1 and 2',
+        C: 'Elements at index 0, 1, 2',
+        D: 'Elements at index 1, 2, 3',
+      }),
+      answer_key_json: JSON.stringify({ correct: 'B' }),
+      points: 1.0,
+      quiz_id: quiz5.qid,
+    },
+  });
+
+  // ========================================
+  // CREATE QUIZ ATTEMPTS FOR CLASS001 STUDENTS
+  // ========================================
+
+  // Helper function to generate random score rounded to 10%
+  const getRandomScore = () => {
+    const scores = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+    return scores[Math.floor(Math.random() * scores.length)];
+  };
+
+  // Helper function to generate answers based on percentage
+  const generateAnswersForAttempt = async (
+    attemptId: string,
+    studentId: string,
+    questions: any[],
+    percentage: number,
+  ) => {
+    const correctCount = Math.round((percentage / 100) * questions.length);
+    const shuffledIndices = Array.from({ length: questions.length }, (_, i) => i)
+      .sort(() => Math.random() - 0.5);
+    
+    for (let i = 0; i < questions.length; i++) {
+      const question = questions[i];
+      const isCorrect = i < correctCount;
+      const answerKey = JSON.parse(question.answer_key_json);
+      const options = JSON.parse(question.options_json);
+      
+      let selectedAnswer;
+      if (Array.isArray(answerKey.correct)) {
+        selectedAnswer = isCorrect ? answerKey.correct : [Object.keys(options)[0]];
+      } else {
+        if (isCorrect) {
+          selectedAnswer = answerKey.correct;
+        } else {
+          const wrongOptions = Object.keys(options).filter(k => k !== answerKey.correct);
+          selectedAnswer = wrongOptions[Math.floor(Math.random() * wrongOptions.length)];
+        }
+      }
+
+      await prisma.answer.create({
+        data: {
+          ansid: `answer_${attemptId}_${question.ques_id}`,
+          answer_json: JSON.stringify({ 
+            selected: selectedAnswer 
+          }),
+          is_correct: isCorrect,
+          points_awarded: isCorrect ? question.points : 0,
+          attempt_id: attemptId,
+          question_id: question.ques_id,
+          student_id: studentId,
+        },
+      });
+    }
+  };
+
+  // Get all questions for each quiz
+  const quiz1Questions = [question1, question2, question3, question4, question5];
+  const quiz2Questions = [quiz2_q1, quiz2_q2, quiz2_q3, quiz2_q4, quiz2_q5];
+  const quiz3Questions = [quiz3_q1, quiz3_q2, quiz3_q3, quiz3_q4, quiz3_q5];
+  const quiz4Questions = [quiz4_q1, quiz4_q2, quiz4_q3, quiz4_q4, quiz4_q5];
+  const quiz5Questions = [quiz5_q1, quiz5_q2, quiz5_q3, quiz5_q4, quiz5_q5];
+
+  const quizData = [
+    { quiz: quiz1, questions: quiz1Questions },
+    { quiz: quiz2, questions: quiz2Questions },
+    { quiz: quiz3, questions: quiz3Questions },
+    { quiz: quiz4, questions: quiz4Questions },
+    { quiz: quiz5, questions: quiz5Questions },
+  ];
+
+  const class001Students = [
+    { user: student1User, sid: student1User.student!.sid },
+    { user: student3User, sid: student3User.student!.sid },
+    { user: student5User, sid: student5User.student!.sid },
+  ];
+
+  let attemptCounter = 2; // Start from 2 because attempt001 already exists
+  let answerCounter = 6; // Start from 6 because answer001-005 already exist
+
+  console.log('🎯 Creating quiz attempts for class001 students...');
+
+  for (const student of class001Students) {
+    for (const { quiz, questions } of quizData) {
+      // Skip first attempt for student001 on quiz001 (already exists)
+      const startAttempt = (student.sid === student1User.student!.sid && quiz.qid === quiz1.qid) ? 2 : 1;
+      
+      for (let attemptNum = startAttempt; attemptNum <= 2; attemptNum++) {
+        const percentage = getRandomScore();
+        const score = (percentage / 100) * 5.0; // 5 questions per quiz
+        
+        const attempt = await prisma.attempt.create({
+          data: {
+            atid: `attempt${String(attemptCounter).padStart(3, '0')}`,
+            score: score,
+            max_score: 5.0,
+            percentage: percentage,
+            status: 'graded',
+            attempt_number: attemptNum,
+            quiz_id: quiz.qid,
+            student_id: student.sid,
+            submitted_at: new Date(`2024-01-${16 + (attemptCounter % 12)}T${10 + (attemptCounter % 10)}:30:00Z`),
+          },
+        });
+
+        await generateAnswersForAttempt(attempt.atid, student.sid, questions, percentage);
+        
+        console.log(`  ✓ Created attempt ${attemptCounter} for ${student.user.username} on ${quiz.name} - Score: ${percentage}%`);
+        attemptCounter++;
+      }
+    }
+  }
+
   console.log('✅ Database seeded successfully!');
   console.log(`Created:`);
   console.log(`- 1 Admin user`);
@@ -1310,11 +1750,11 @@ async function main() {
   console.log(`- 11 Course enrollments (10 students enrolled in CS101)`);
   console.log(`- 2 Files`);
   console.log(`- 5 Quizzes for class001 (CS101-L1) created by lecturer001`);
-  console.log(`- 5 Questions for Python Basics Quiz`);
-  console.log(`- 1 Quiz attempt by student001 with 3/5 correct answers (60%)`);
-  console.log(`- 5 Answers with mixed correct/incorrect responses`);
+  console.log(`- 25 Questions (5 questions per quiz)`);
+  console.log(`- 30 Quiz attempts (3 students x 2 attempts x 5 quizzes) with random scores (10-100%, rounded to 10%)`);
+  console.log(`- 150 Answers (30 attempts x 5 questions each)`);
   console.log(`- 3 Notifications for student001 (2 unread, 1 read)`);
-  console.log(`- 13 Log records simulating real user actions`);
+  console.log(`- 28 Log records simulating real user actions`);
 }
 
 main()

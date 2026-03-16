@@ -246,8 +246,8 @@ export function SwaggerUpdateQuiz() {
   return applyDecorators(
     ApiBearerAuth('JWT-auth'),
     ApiOperation({
-      summary: 'Update quiz',
-      description: 'Update quiz information. Class ID can optionally be updated in the request body. Only accessible by Admin and Lecturer roles.'
+      summary: 'Update quiz and questions',
+      description: 'Update quiz information and questions. When "questions" field is provided, it automatically syncs: questions WITH ques_id are UPDATED, questions WITHOUT ques_id are CREATED, questions NOT in the array are DELETED. Class ID can optionally be updated in the request body. Only accessible by Admin and Lecturer roles.'
     }),
     ApiParam({
       name: 'qid',
@@ -261,17 +261,51 @@ export function SwaggerUpdateQuiz() {
       schema: {
         type: 'object',
         properties: {
-          qid: { type: 'string' },
-          name: { type: 'string' },
-          description: { type: 'string' },
-          status: { type: 'string' },
+          qid: { type: 'string', example: 'quiz001' },
+          name: { type: 'string', example: 'Updated Midterm Quiz' },
+          description: { type: 'string', example: 'Updated description' },
+          status: { type: 'string', example: 'published', enum: ['draft', 'published', 'archived'] },
           available_from: { type: 'string', format: 'date-time' },
           available_until: { type: 'string', format: 'date-time' },
-          class_id: { type: 'string', example: 'class001' }
+          class_id: { type: 'string', example: 'class001' },
+          class: {
+            type: 'object',
+            properties: {
+              clid: { type: 'string', example: 'class001' },
+              name: { type: 'string', example: 'CS101 - L1' }
+            }
+          },
+          creator: {
+            type: 'object',
+            properties: {
+              lid: { type: 'string', example: 'lecturer001' },
+              name: { type: 'string', example: 'Dr. John Smith' }
+            }
+          },
+          questions: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                ques_id: { type: 'string', example: 'ques001' },
+                content: { type: 'string', example: 'Updated question content' },
+                options_json: { type: 'string', example: '{"A":"Option A","B":"Option B"}' },
+                answer_key_json: { type: 'string', example: '{"correct":"A"}' },
+                points: { type: 'number', example: 10 }
+              }
+            }
+          },
+          _count: {
+            type: 'object',
+            properties: {
+              questions: { type: 'number', example: 5 },
+              attempts: { type: 'number', example: 25 }
+            }
+          }
         }
       }
     }),
-    ApiResponse({ status: 400, description: 'Bad Request - Invalid data or invalid date range' }),
+    ApiResponse({ status: 400, description: 'Bad Request - Invalid data, invalid date range, or missing required fields for new questions' }),
     ApiResponse({ status: 404, description: 'Quiz not found' }),
     ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing JWT token' }),
     ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions (Admin or Lecturer role required)' })

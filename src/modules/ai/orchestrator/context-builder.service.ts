@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../prisma.service';
-import { AIContext, AIServiceType } from '../models/ai-context.interface';
+// import { AIContext, AIServiceType } from '../dtos/ai-context.interface';
 
 @Injectable()
 export class ContextBuilderService {
@@ -8,31 +8,37 @@ export class ContextBuilderService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async buildContext(params: {
-    userId: string;
-    userRole: string;
-    serviceType: AIServiceType;
-    additionalContext?: any;
-  }): Promise<AIContext> {
-    // TODO: Implement context building logic
-    this.logger.log('Building context - to be implemented');
+  // async buildContext(params: {
+  //   userId: string;
+  //   userRole: string;
+  //   serviceType: AIServiceType;
+  //   additionalContext?: any;
+  // }): Promise<AIContext> {
+  //   // TODO: Implement context building logic
+  //   this.logger.log('Building context - to be implemented');
     
-    const context: AIContext = {
-      userId: params.userId,
-      userRole: params.userRole,
-      serviceType: params.serviceType,
-      timestamp: new Date(),
-      additionalContext: params.additionalContext || {},
-    };
+  //   const context: AIContext = {
+  //     userId: params.userId,
+  //     userRole: params.userRole,
+  //     serviceType: params.serviceType,
+  //     timestamp: new Date(),
+  //     additionalContext: params.additionalContext || {},
+  //   };
 
-    return context;
-  }
+  //   return context;
+  // }
 
   buildSystemPrompt(params: {
     role: string;
     caller?: string;
     customSystemPrompt?: string;
+    onlyUseSystemPrompt?: boolean;
   }): string {
+
+    if (params.onlyUseSystemPrompt && params.customSystemPrompt) {
+      return params.customSystemPrompt;
+    }
+    
     const normalizedRole = (params.role ?? 'user').toLowerCase().trim();
     const normalizedCaller = (params.caller ?? 'general').toLowerCase().trim();
 
@@ -62,14 +68,14 @@ export class ContextBuilderService {
         'This request comes from the tutor module. Focus on explanation quality, conceptual clarity, and progressive guidance.',
       'system-control':
         'This request comes from system control. Prioritize safety, reliability, and incident-oriented recommendations.',
-      'general':
-        'This request comes from a general assistant path. Keep responses precise, useful, and context-aware.',
+      'direct':
+        'This request comes directly from the user. Adapt tone and depth to the user context while staying concise and accurate.',
     };
 
     const roleInstruction =
-      roleInstructionMap[normalizedRole] ?? roleInstructionMap.user;
+      roleInstructionMap[normalizedRole] ?? "";
     const callerInstruction =
-      callerInstructionMap[normalizedCaller] ?? callerInstructionMap.general;
+      callerInstructionMap[normalizedCaller] ?? "";
 
     const segments = [
       'You are an AI assistant for an e-learning platform.',

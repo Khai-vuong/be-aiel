@@ -185,7 +185,7 @@ Example Output:
 
 
 ====5. PUT /quizzes/:qid
-====Description: Cap nhat thong tin bai kiem tra
+====Description: Cap nhat thong tin bai kiem tra va cac cau hoi
 Method: PUT
 Role: Admin, Lecturer
 URL Parameters:
@@ -198,7 +198,24 @@ Request Body:
   "description": "Updated description",
   "status": "published",
   "clid": "class001",
-  "settings_json": "{\"timeLimit\":60,\"maxAttempts\":3}"
+  "settings_json": "{\"timeLimit\":60,\"maxAttempts\":3}",
+  "available_from": "2026-02-20T08:00:00Z",
+  "available_until": "2026-02-27T23:59:00Z",
+  "questions": [
+    {
+      "ques_id": "ques001",
+      "content": "Updated question content",
+      "options_json": "{\"A\":\"Option A\",\"B\":\"Option B\"}",
+      "answer_key_json": "{\"correct\":\"A\"}",
+      "points": 10
+    },
+    {
+      "content": "New question without ques_id",
+      "options_json": "{\"A\":\"Option A\",\"B\":\"Option B\"}",
+      "answer_key_json": "{\"correct\":\"B\"}",
+      "points": 5
+    }
+  ]
 }
 
 Optional Fields:
@@ -209,6 +226,18 @@ Optional Fields:
   - status: string (draft, published, archived)
   - available_from: datetime
   - available_until: datetime
+  - questions: array of question objects (if provided, replaces all questions)
+    - ques_id: string (optional - if provided, updates existing question; if omitted, creates new question)
+    - content: string (optional for update, required for new)
+    - options_json: string (optional, JSON format)
+    - answer_key_json: string (optional for update, required for new, JSON format)
+    - points: number (optional)
+
+NOTE: When "questions" field is provided:
+  - Questions WITH ques_id will be UPDATED
+  - Questions WITHOUT ques_id will be CREATED as new
+  - Questions NOT in the array will be DELETED
+  - If you want to keep existing questions unchanged, include them with their ques_id
 
 Example Output:
 {
@@ -218,7 +247,35 @@ Example Output:
   "status": "published",
   "available_from": "2026-02-20T08:00:00Z",
   "available_until": "2026-02-27T23:59:00Z",
-  "class_id": "class001"
+  "class_id": "class001",
+  "class": {
+    "clid": "class001",
+    "name": "CS101 - L1"
+  },
+  "creator": {
+    "lid": "lecturer001",
+    "name": "Dr. John Smith"
+  },
+  "questions": [
+    {
+      "ques_id": "ques001",
+      "content": "Updated question content",
+      "options_json": "{\"A\":\"Option A\",\"B\":\"Option B\"}",
+      "answer_key_json": "{\"correct\":\"A\"}",
+      "points": 10
+    },
+    {
+      "ques_id": "ques002",
+      "content": "New question without ques_id",
+      "options_json": "{\"A\":\"Option A\",\"B\":\"Option B\"}",
+      "answer_key_json": "{\"correct\":\"B\"}",
+      "points": 5
+    }
+  ],
+  "_count": {
+    "questions": 2,
+    "attempts": 25
+  }
 }
 
 
@@ -267,10 +324,11 @@ Example Output:
 4. settings_json va answer_key_json, options_json phai la string o dinh dang JSON
 
 5. Question data:
-   - content: Noi dung cau hoi (required)
-   - answer_key_json: Dap an dung (required, JSON string)
+   - content: Noi dung cau hoi (required for create, optional for update)
+   - answer_key_json: Dap an dung (required for create, optional for update, JSON string)
    - options_json: Cac lua chon (optional, JSON string)
    - points: Diem cho cau hoi (optional, default: 1.0)
+   - ques_id: ID cua cau hoi (optional - neu co thi update, neu khong co thi tao moi)
 
 6. creator_id (Lecturer ID) bat buoc khi tao quiz
 
@@ -281,5 +339,13 @@ Example Output:
 9. Students chi xem duoc quiz voi status "published"
 
 10. available_from phai nho hon available_until
+
+11. Khi cap nhat quiz voi field "questions":
+    - Backend se tu dong SYNC danh sach cau hoi
+    - Cau hoi CO ques_id: se duoc UPDATE
+    - Cau hoi KHONG CO ques_id: se duoc TAO MOI
+    - Cau hoi KHONG NAM trong array: se bi XOA
+    - Muon giu nguyen cau hoi cu, phai include chung voi ques_id trong array
+    - Transaction dam bao tat ca thao tac thanh cong hoac that bai cung nhau
 
 ====

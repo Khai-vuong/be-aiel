@@ -1,0 +1,110 @@
+import { 
+  IsBoolean, 
+  IsEnum, 
+  IsInt, 
+  IsObject, 
+  IsOptional, 
+  IsString,
+  Min,
+  ValidateNested 
+} from "class-validator";
+import { Type } from "class-transformer";
+
+// Nested DTO cho error
+export class AiErrorDto {
+  @IsOptional()
+  @IsString()
+  message?: string;
+
+  @IsOptional()
+  @IsString()
+  code?: string;
+}
+
+// Nested DTO cho metadata
+export class AiMetadataDto {
+  @IsOptional()
+  @IsString()
+  createdAt?: string;
+
+  @IsOptional()
+  @IsString()
+  serviceType?: string;
+
+  @IsOptional()
+  @IsString()
+  provider?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  processingTime?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  promptTokens?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  completionTokens?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  totalTokens?: number;
+
+  @IsOptional()
+  @IsString()
+  modelName?: string;
+}
+
+export class AiResponseDto {
+  @IsOptional()
+  @IsString()
+  conversationId?: string;
+
+  @IsOptional()
+  @IsString()
+  conversationTitle?: string;
+
+  @IsOptional()
+  @IsString()
+  messageId?: string;
+
+  @IsOptional()
+  @IsEnum(['user', 'assistant', 'system', 'tool'])
+  role?: 'user' | 'assistant' | 'system' | 'tool';
+
+  @IsBoolean()
+  success: boolean;
+
+  @IsString()
+  text: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AiErrorDto)
+  error?: AiErrorDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AiMetadataDto)
+  metadata?: AiMetadataDto;
+}
+
+export interface ChatMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: string;
+  metadata?: any;
+}
+
+export interface ConversationResponse {
+  id: string;
+  messages: ChatMessage[];
+  serviceType: string;
+  createdAt: string;
+  updatedAt: string;
+}

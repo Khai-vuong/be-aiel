@@ -6,9 +6,15 @@ import { AiChatSetting, iProvider } from './iProvider.interface';
 export class OpenAIService implements OnModuleInit, iProvider {
   private openai: OpenAI;
 
-  private model = process.env.OPENAI_CHAT_MODEL ?? 'gpt-4o-mini';
+  // Prefer an explicit OpenAI model. Fall back to shared CHATBOT_MODEL for compatibility.
+  private model =
+    process.env.OPENAI_CHAT_MODEL ??
+    process.env.CHATBOT_MODEL ??
+    'gpt-3.5-turbo';
   private maxCompletionTokens = Number(
-    process.env.OPENAI_MAX_COMPLETION_TOKENS ?? 1024,
+    process.env.OPENAI_MAX_COMPLETION_TOKENS ??
+      process.env.CHATBOT_MAX_TOKENS ??
+      1024,
   );
 
   onModuleInit() {

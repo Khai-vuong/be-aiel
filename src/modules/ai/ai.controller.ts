@@ -7,28 +7,122 @@ import {
   Get,
   Param,
   Query,
+  ParseIntPipe,
+  DefaultValuePipe,
+  Delete,
+  Put,
 } from '@nestjs/common';
+import {
+  ApiBody,
+  ApiProperty,
+  ApiOperation,
+  ApiTags,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 
 import { OrchestratorService } from './orchestrator/orchestrator.service';
+import { ConversationService } from './services/conversation.service';
 import { JwtGuard } from '../../common/guards/jwt.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
-import { AiRequestDto } from './models/ai-request.dto';
+import { AiRequestDto } from './dtos/ai-request.dto';
 import { SwaggerAiChat } from './swagger/ai.swagger';
-
-// ADD: import StudyAnalystAIService
 import { StudyAnalystAIService } from './services/study-analyst/study-analyst-ai.service';
 
+/**
+ * DTO dành riêng cho việc test Study Analyst trên Swagger
+ * Giúp hiển thị ô nhập Prompt và ClassId
+ */
+class StudyAnalystPromptDto {
+  @ApiProperty({
+    example: 'Give me an overview of quiz results for class L01.',
+    description: 'Câu hỏi bằng ngôn ngữ tự nhiên về dữ liệu học tập',
+  })
+  prompt: string;
+
+  @ApiProperty({
+    example: 'L01',
+    description: 'Mã lớp học cần phân tích',
+  })
+  classId: string;
+}
+
+@ApiTags('AI - Study Analyst')
+@ApiBearerAuth() // Hiển thị biểu tượng ổ khóa để nhập Token trên Swagger
 @Controller('ai')
 @UseGuards(JwtGuard, RolesGuard)
 export class AiController {
   constructor(
     private readonly orchestratorService: OrchestratorService,
-
-    // ADD: inject service
+    private readonly conversationService: ConversationService,
     private readonly studyAnalystAIService: StudyAnalystAIService,
   ) {}
 
+  /**
+   * USE CASE 1: CLASS PERFORMANCE ANALYSIS
+   * Lecturer nhập prompt để nhận thống kê: Tổng SV, Điểm TB, Tỉ lệ đạt...
+   */
+  @Post('study-analyst/report')
+  @Roles('Lecturer', 'Admin')
+  @ApiOperation({ summary: 'Truy vấn báo cáo học tập bằng Prompt (Overview)' })
+  @ApiBody({ type: StudyAnalystPromptDto })
+  async generateReport(@Request() req, @Body() body: StudyAnalystPromptDto) {
+    return this.studyAnalystAIService.analyzeClass(
+      body.classId,
+      body.prompt,
+      req.user.uid,
+      req.user.role,
+    );
+  }
+
+  /**
+   * USE CASE 2: IDENTIFY TOP & BOTTOM STUDENTS
+   * Nhận diện sinh viên học tốt và sinh viên có rủi ro
+   */
+  @Post('study-analyst/risk')
+  @Roles('Lecturer', 'Admin')
+  @ApiOperation({
+    summary: 'Phát hiện sinh viên có nguy cơ (Identify Top/Bottom)',
+  })
+  @ApiBody({ type: StudyAnalystPromptDto })
+  async detectRisk(@Request() req, @Body() body: StudyAnalystPromptDto) {
+    // Đã thêm @Request() req và truyền đủ 4 tham số cho Service
+    return this.studyAnalystAIService.detectStudentRisk(
+      body.classId,
+      body.prompt,
+      req.user.uid,
+      req.user.role,
+    );
+  }
+
+  /**
+   * USE CASE 3: COMPLETION TRENDS & RECOMMENDATIONS
+   * Phân tích xu hướng hoàn thành bài tập và đưa ra lời khuyên
+   */
+  @Post('study-analyst/recommendations')
+  @Roles('Lecturer', 'Admin')
+  @ApiOperation({ summary: 'Lấy xu hướng hoàn thành và khuyến nghị giảng dạy' })
+  @ApiBody({ type: StudyAnalystPromptDto })
+  async getRecommendations(
+    @Request() req,
+    @Body() body: StudyAnalystPromptDto,
+  ) {
+    // Lấy prompt, nếu rỗng thì dùng câu mặc định
+    const prompt =
+      body.prompt ||
+      'Show the quiz completion trend in the last 3 months in this course.';
+
+    return this.studyAnalystAIService.generateTeachingRecommendations(
+      body.classId,
+      prompt,
+      req.user.uid,
+      req.user.role,
+    );
+  }
+
+  /**
+   * HỆ THỐNG CHAT GENERAL (ORCHESTRATOR)
+   */
   @Post('chat')
   @Roles('any')
   @SwaggerAiChat()
@@ -40,80 +134,42 @@ export class AiController {
   @Roles('any')
   @SwaggerAiChat()
   async chatDirect(@Request() req, @Body() aiRequest: AiRequestDto) {
-    return this.orchestratorService.directChat(aiRequest.text, req.user);
+    return this.orchestratorService.directChat(aiRequest, req.user);
   }
 
+  /**
+   * QUẢN LÝ HỘI THOẠI
+   */
   @Get('conversations')
   @Roles('any')
-  async getConversations(@Request() req, @Query('limit') limit?: number) {
-    return { message: 'Get conversations - to be implemented' };
-  }
-
-  @Get('conversations/:id')
-  @Roles('any')
-  async getConversation(@Request() req, @Param('id') conversationId: string) {
-    return { message: 'Get conversation - to be implemented' };
-  }
-
-  @Post('system-control/analyze')
-  @Roles('ADMIN')
-  async analyzeSystem(@Request() req, @Body() params: any) {
-    return { message: 'System analysis - to be implemented' };
-  }
-
-  /**
-   * =================================
-   * STUDY ANALYST APIs
-   * =================================
-   */
-
-  @Post('study-analyst/report')
-  async generateReport(@Body() body: any) {
-    return this.studyAnalystAIService.analyzeClass(body.classId);
-  }
-
-  @Post('study-analyst/risk')
-  async detectRisk(@Body() body: any) {
-    return this.studyAnalystAIService.detectStudentRisk(body.classId);
-  }
-
-  @Post('study-analyst/recommendations')
-  async getRecommendations(@Body() body: any) {
-    return this.studyAnalystAIService.generateTeachingRecommendations(
-      body.classId,
-    );
-  }
-
-  /**
-   * =================================
-   * TUTOR
-   * =================================
-   */
-
-  @Post('tutor/ask')
-  @Roles('STUDENT')
-  async askTutor(
+  async getConversations(
     @Request() req,
-    @Body() body: { message: string; courseId?: string },
+    @Query('limit', new DefaultValuePipe(20), ParseIntPipe) limit: number,
+    @Query('offset', new DefaultValuePipe(0), ParseIntPipe) offset: number,
   ) {
-    return { message: 'Tutor chat - to be implemented' };
+    return this.conversationService.findUserConversations({
+      userId: req.user.uid,
+      limit,
+      offset,
+    });
   }
 
-  /**
-   * =================================
-   * TEACHING ASSISTANT
-   * =================================
-   */
-
-  @Post('teaching-assistant/generate-quiz')
-  @Roles('LECTURER')
-  async generateQuiz(@Request() req, @Body() params: any) {
-    return { message: 'Quiz generation - to be implemented' };
+  @Delete('conversations/:id')
+  @Roles('any')
+  async deleteConversation(
+    @Request() req,
+    @Param('id') conversationId: string,
+  ) {
+    await this.conversationService.deleteConversation(
+      conversationId,
+      req.user.uid,
+    );
+    return { message: 'Conversation deleted successfully' };
   }
 
-  @Post('teaching-assistant/summarize-content')
-  @Roles('LECTURER')
-  async summarizeContent(@Request() req, @Body() params: any) {
-    return { message: 'Content summarization - to be implemented' };
+  @Post('summarize')
+  @Roles('any')
+  async summarize(@Body() body: { text: string }) {
+    return this.orchestratorService.summarize(body.text);
   }
 }
