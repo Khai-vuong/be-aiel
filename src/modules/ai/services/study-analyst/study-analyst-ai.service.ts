@@ -15,32 +15,58 @@ export class StudyAnalystAIService {
   // USE CASE 1: CLASS PERFORMANCE OVERVIEW
   // ==========================================
   async analyzeClass(
-    classId: string,
+    defaultClassId: string, // Nhận classId từ request body làm dự phòng
     prompt: string,
     userId: string,
     userRole: string,
   ) {
     try {
+      // 1. AI TRÍCH XUẤT THỰC THỂ TỪ PROMPT
+      console.log('Đang phân tích câu lệnh:', prompt);
+      const extracted =
+        await this.insightGenerator.extractEntitiesFromPrompt(prompt);
+
+      // Ưu tiên lấy classId do AI tìm được trong câu chữ, nếu không có mới dùng defaultClassId
+      const targetClassId = extracted.classId || defaultClassId;
+      const targetQuizId = extracted.quizId;
+
+      console.log(
+        `Đã trích xuất: ClassID=${targetClassId}, QuizID=${targetQuizId}`,
+      );
+
+      // 2. KIỂM TRA PHÂN QUYỀN
       if (userRole === 'Lecturer') {
         const classData = await this.prisma.class.findUnique({
-          where: { clid: classId },
+          where: { clid: targetClassId },
           include: { lecturer: true },
         });
 
         if (!classData || classData.lecturer?.user_id !== userId) {
           throw new ForbiddenException(
-            'You do not have permission to view this class.',
+            'You do not have permission to view this class or it does not exist.',
           );
         }
       }
 
+      // 3. TỐI ƯU QUERY DATABASE: Xây dựng bộ lọc (Filter)
+      const queryFilter: any = {
+        student: { classes: { some: { clid: targetClassId } } },
+        quiz: { class_id: targetClassId },
+      };
+
+      // Nếu AI phát hiện người dùng nhắc đến 1 Quiz cụ thể -> Thêm điều kiện lọc để Query cực nhẹ
+      if (targetQuizId) {
+        // Tuỳ thuộc vào cấu trúc DB của bạn, ví dụ trường id của quiz là qid
+        // (Nếu DB bạn là quiz_id thì sửa thành: quiz_id: targetQuizId)
+        queryFilter.quiz_id = targetQuizId;
+      }
+
+      // 4. LẤY DỮ LIỆU THÔ (Với bộ lọc đã tối ưu)
       const attempts = await this.prisma.attempt.findMany({
-        where: {
-          student: { classes: { some: { clid: classId } } },
-          quiz: { class_id: classId },
-        },
+        where: queryFilter,
         select: {
           percentage: true,
+          quiz_id: true,
           student: { select: { sid: true } },
         },
       });
@@ -49,17 +75,28 @@ export class StudyAnalystAIService {
       if (attempts.length > 0) {
         rawDataString = attempts
           .map(
-            (a) => `Student ID: ${a.student.sid}, Score: ${a.percentage || 0}`,
+            (a) =>
+              `Quiz ID: ${a.quiz_id}, Student ID: ${a.student.sid}, Score: ${a.percentage || 0}`,
           )
           .join('\n');
       }
 
+      console.log(
+        `Đã fetch ${attempts.length} records. Bắt đầu AI nhận xét...`,
+      );
+
+      // 5. AI PHÂN TÍCH VÀ NHẬN XÉT
       const aiAnalysis = await this.insightGenerator.generateTextualInsight(
         prompt,
         rawDataString,
       );
 
-      return { classId, timestamp: new Date().toISOString(), ...aiAnalysis };
+      return {
+        classId: targetClassId,
+        quizId: targetQuizId,
+        timestamp: new Date().toISOString(),
+        ...aiAnalysis,
+      };
     } catch (error) {
       console.error('Error in analyzeClass:', error);
       throw error;

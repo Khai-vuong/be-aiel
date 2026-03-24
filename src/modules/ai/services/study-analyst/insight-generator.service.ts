@@ -289,6 +289,9 @@ STRICT RULE: You MUST respond ONLY with a valid JSON object matching this exact 
     return providers;
   }
 
+  // ==========================================
+  // USE CASE 3: COMPLETION TRENDS
+  // ==========================================
   async generateTrendInsight(
     promptText: string,
     trendData: string,
@@ -362,5 +365,65 @@ STRICT RULE: You MUST respond ONLY with a valid JSON object matching this exact 
       insight:
         'The AI trend analysis is temporarily unavailable. Please try again later.',
     };
+  }
+
+  // ==========================================
+  // NLP: EXTRACT ENTITIES FROM PROMPT
+  // ==========================================
+  async extractEntitiesFromPrompt(
+    promptText: string,
+  ): Promise<{ classId: string | null; quizId: string | null }> {
+    const prompt = `
+You are an AI assistant helping a backend system parse user intents.
+Read the following user prompt and extract the relevant IDs for a Class or a Quiz.
+User prompt: "${promptText}"
+
+Rules:
+1. If the user mentions a class (e.g., "class001", "class L01", "L01"), extract it as 'classId' (format exactly as the user typed the ID, removing the word 'class' if needed).
+2. If the user mentions a specific quiz (e.g., "quiz 1", "quiz001", "assignment 2"), extract it as 'quizId'.
+3. If an entity is not mentioned, set its value to null.
+
+STRICT RULE: Respond ONLY with a valid JSON object matching this structure. Do NOT wrap it in markdown block quotes (like \`\`\`json).
+{
+  "classId": "string or null",
+  "quizId": "string or null"
+}
+`;
+
+    const providersToTry = this.getProviderOrder();
+
+    for (const provider of providersToTry) {
+      try {
+        let aiResponse: string;
+        switch (provider) {
+          case 'groq':
+            aiResponse = await this.groqService.chat(prompt);
+            break;
+          case 'gemini':
+            aiResponse = await this.geminiProvider.chat(prompt);
+            break;
+          case 'openai':
+          default:
+            aiResponse = await this.openAIService.chat(prompt);
+            break;
+        }
+
+        if (!aiResponse || !aiResponse.trim())
+          throw new Error('Empty response');
+
+        const cleanJson = aiResponse
+          .replace(/```json/gi, '')
+          .replace(/```/g, '')
+          .trim();
+        return JSON.parse(cleanJson);
+      } catch (error: any) {
+        this.logger.warn(
+          `Entity extraction failed using provider=${provider}: ${error?.message}`,
+        );
+      }
+    }
+
+    // Fallback: Nếu AI sập, trả về null để Backend dùng ID mặc định từ request body
+    return { classId: null, quizId: null };
   }
 }

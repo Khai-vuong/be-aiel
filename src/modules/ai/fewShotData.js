@@ -36,6 +36,7 @@ export const fewShotExamples = {
   ],
 
   data_analysis: [
+    'Give me an overview of quiz results',
     'Analyze the scores from class L01',
     'Show me statistics about student performance in this course',
     'What are the average grades?',
@@ -138,6 +139,7 @@ export const curatedFewShotTokenCache = {
   ],
 
   data_analysis: [
+    'overview',
     'analysis',
     'analyze',
     'statistics',

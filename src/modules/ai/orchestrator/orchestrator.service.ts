@@ -31,6 +31,7 @@ export class OrchestratorService {
   async processRequest(request: AiRequestDto, user: JwtPayload) {
     this.logger.log('AI request received');
 
+    //
     const intent = await this.intentClassifier.classifyIntent(
       request.text,
       user.role,
@@ -38,91 +39,88 @@ export class OrchestratorService {
 
     this.logger.log(`Intent detected: ${intent}`);
 
+    //
     switch (intent) {
+      case 'data_analysis':
       case 'class_analysis':
         return this.handleClassAnalysis(request, user);
+
+      //
       case 'teaching_recommendation':
-        return this.handleStudentRisk(request, user);
+      case 'quiz_creation':
+        // return this.handleQuizCreation(request, user); // (Ví dụ cho tương lai)
+        return this.handleGeneralChat(request, user);
+
       default:
         return this.handleGeneralChat(request, user);
     }
   }
 
   /**
-   * USE CASE 1: CLASS PERFORMANCE ANALYSIS
+  Risk, Trend, Overview
    */
   private async handleClassAnalysis(request: AiRequestDto, user: JwtPayload) {
-    this.logger.log('Routing to Study Analyst AI');
-    const classId = request.metadata?.classId || 'demo-class';
-    const prompt = request.text || 'Provide an overview of class performance.';
-    const result = await this.studyAnalystAIService.analyzeClass(
-      classId,
-      prompt,
-      user.uid,
-      user.role,
-    );
+    this.logger.log('Routing to Study Analyst AI Domain...');
+    const classId = request.metadata?.classId || 'default-class';
 
-    return {
-      usecase: 'CLASS_ANALYSIS',
-      ...result,
-    };
+    const promptLower = (request.text || '').toLowerCase();
+    const originalPrompt =
+      request.text || 'Provide an overview of class performance.';
+
+    //
+    if (
+      promptLower.includes('risk') ||
+      promptLower.includes('bottom') ||
+      promptLower.includes('top') ||
+      promptLower.includes('struggling') ||
+      promptLower.includes('weak') ||
+      promptLower.includes('alarming')
+    ) {
+      this.logger.log('--> Sub-intent detected: STUDENT RISK');
+      const result = await this.studyAnalystAIService.detectStudentRisk(
+        classId,
+        originalPrompt,
+        user.uid,
+        user.role,
+      );
+      return { usecase: 'STUDENT_RISK', ...result };
+    }
+
+    //
+    else if (
+      promptLower.includes('trend') ||
+      promptLower.includes('recommend') ||
+      promptLower.includes('month') ||
+      promptLower.includes('strategy') ||
+      promptLower.includes('completion') ||
+      promptLower.includes('advice')
+    ) {
+      this.logger.log('--> Sub-intent detected: TEACHING RECOMMENDATIONS');
+      const result =
+        await this.studyAnalystAIService.generateTeachingRecommendations(
+          classId,
+          originalPrompt,
+          user.uid,
+          user.role,
+        );
+      return { usecase: 'TEACHING_RECOMMENDATIONS', ...result };
+    }
+
+    // 3
+    else {
+      this.logger.log('--> Sub-intent detected: CLASS OVERVIEW');
+      const result = await this.studyAnalystAIService.analyzeClass(
+        classId,
+        originalPrompt,
+        user.uid,
+        user.role,
+      );
+      return { usecase: 'CLASS_ANALYSIS', ...result };
+    }
   }
 
   /**
-   * USE CASE 2: STUDENT RISK DETECTION
-   */
-  private async handleStudentRisk(request: AiRequestDto, user: JwtPayload) {
-    this.logger.log('Student risk detection');
-    const classId = request.metadata?.classId;
-    if (!classId) throw new Error('Class ID is required');
-
-    const classData = await this.prisma.class.findUnique({
-      where: { clid: classId },
-      include: {
-        students: {
-          include: {
-            attempts: {
-              include: { quiz: true },
-              orderBy: { started_at: 'desc' },
-            },
-            enrollments: true,
-          },
-        },
-        course: true,
-      },
-    });
-
-    if (!classData) throw new Error('Class not found');
-
-    const students = classData.students.map((student) => {
-      const scores = student.attempts
-        .filter((a) => a.score !== null)
-        .map((a) => a.score!);
-      const avg =
-        scores.length > 0
-          ? scores.reduce((a, b) => a + b, 0) / scores.length
-          : 0;
-      return {
-        id: student.sid,
-        name: student.name,
-        score: Math.round(avg * 100) / 100,
-        completed: student.attempts.some((a) => a.status === 'submitted'),
-      };
-    });
-
-    const riskyStudents = students.filter((s) => s.score < 50);
-    const aiResult = await this.outerApiService.chat({
-      prompt: `Identify risk for: ${JSON.stringify(riskyStudents)}`,
-      role: user.role,
-      caller: 'risk-analysis',
-      provider: 'openai',
-    });
-
-    return { usecase: 'STUDENT_RISK', riskyStudents, analysis: aiResult.text };
-  }
-
-  /**
-   * USE CASE 3: GENERAL AI CHAT
+   * USE CASE: GENERAL AI CHAT
    */
   private async handleGeneralChat(request: AiRequestDto, user: JwtPayload) {
     const result = await this.outerApiService.chat({
@@ -161,6 +159,7 @@ export class OrchestratorService {
       role: 'user',
       content: request.text,
     });
+
     const result = await this.outerApiService.chat({
       prompt: request.text,
       role: user.role,
@@ -169,6 +168,7 @@ export class OrchestratorService {
       conversationId,
       userId: user.uid,
     });
+
     const assistantMsg = await this.conversationService.createMessage({
       conversationId,
       role: 'assistant',
