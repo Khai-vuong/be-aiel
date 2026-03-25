@@ -1,4 +1,4 @@
-import { pipeline } from '@xenova/transformers';
+// import { pipeline } from '@xenova/transformers';
 
 /**
  * Singleton class to manage the embedding model pipeline instance
@@ -14,7 +14,7 @@ export class EmbeddingPipeline {
    */
   public static async init(progress_callback?: (progress: any) => void) {
     if (this.embeddingInstance === null) {
-      // const { pipeline } = await import('@xenova/transformers');
+      const { pipeline } = await import('@xenova/transformers');
 
       this.embeddingInstance = await pipeline(
         'feature-extraction',

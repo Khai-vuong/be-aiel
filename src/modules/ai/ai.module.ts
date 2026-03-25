@@ -3,9 +3,7 @@ import { AiController } from './ai.controller';
 import { OrchestratorService } from './orchestrator/orchestrator.service';
 import { IntentClassifierService } from './orchestrator/intent-classifier.service';
 import { ContextBuilderService } from './orchestrator/context-builder.service';
-// import { ResponseAggregatorService } from './orchestrator/response-aggregator.service';
-
-import { StudyAnalystAiService } from './services/study-analyst/study-analyst-ai.service';
+import { StudyAnalystAIService } from './services/study-analyst/study-analyst-ai.service';
 import { PerformanceCalculatorService } from './services/study-analyst/performance-calculator.service';
 import { InsightGeneratorService } from './services/study-analyst/insight-generator.service';
 import { ReportBuilderService } from './services/study-analyst/report-builder.service';
@@ -28,10 +26,9 @@ import { PrismaService } from '../../prisma.service';
     OrchestratorService,
     IntentClassifierService,
     ContextBuilderService,
-    // ResponseAggregatorService,
 
     // Study Analyst
-    StudyAnalystAiService,
+    StudyAnalystAIService,
     PerformanceCalculatorService,
     InsightGeneratorService,
     ReportBuilderService,
@@ -45,11 +42,10 @@ import { PrismaService } from '../../prisma.service';
     GeminiProvider,
     OpenAIService,
     GroqService,
-
   ],
   exports: [
     OrchestratorService,
-    StudyAnalystAiService,
+    StudyAnalystAIService,
     ConversationService,
     OuterApiService,
     QuizGenerationService,

@@ -48,7 +48,9 @@ export class OuterApiService {
     groq: { failureCount: 0, disabledUntil: 0, lastError: null },
     openai: { failureCount: 0, disabledUntil: 0, lastError: null },
   };
-  private readonly baseCooldownMs = Number(process.env.OUTER_API_COOLDOWN_MS ?? 60000);
+  private readonly baseCooldownMs = Number(
+    process.env.OUTER_API_COOLDOWN_MS ?? 60000,
+  );
   private readonly providerPriority = this.resolveProviderPriority();
 
   constructor(
@@ -60,13 +62,12 @@ export class OuterApiService {
   ) {}
 
   /**
-   * 
+   *
    * @param input
    * @returns OuterApiResponse
    * @summary Tries to get a response from the specified provider first (if any), then falls back to others based on priority and health status. Automatically disables providers that show transient error patterns for a cooldown period.
    */
   async chat(input: OuterApiRequest): Promise<OuterApiResponse> {
-
     const systemPrompt = this.contextBuilderService.buildSystemPrompt({
       role: input.role,
       caller: input.caller,
@@ -76,14 +77,18 @@ export class OuterApiService {
 
     this.logger.log('='.repeat(80));
     this.logger.log('🤖 OUTER API CHAT REQUEST');
-    this.logger.log(`Provider: ${input.provider || 'auto'} | Caller: ${input.caller || 'unknown'}`);
-    this.logger.log(`User Role: ${input.role} | ConversationId: ${input.conversationId || 'none'}`);
+    this.logger.log(
+      `Provider: ${input.provider || 'auto'} | Caller: ${input.caller || 'unknown'}`,
+    );
+    this.logger.log(
+      `User Role: ${input.role} | ConversationId: ${input.conversationId || 'none'}`,
+    );
     this.logger.log(`System Prompt: ${systemPrompt}`);
     this.logger.log(`Current User Prompt: ${input.prompt}`);
 
     // Fetch conversation history if conversationId is provided
     const conversationMessages = await this.fetchConversationHistory(input);
-    
+
     const providerOrder = this.getProviderOrder(input.provider);
     const attemptedProviders: OuterApiProvider[] = [];
     const now = Date.now();
@@ -151,7 +156,9 @@ export class OuterApiService {
     }
 
     if (!this.knownProviders.includes(preferredProvider)) {
-      throw new Error(`OuterApi Error: unknown provider "${preferredProvider}"`);
+      throw new Error(
+        `OuterApi Error: unknown provider "${preferredProvider}"`,
+      );
     }
 
     return [
@@ -162,8 +169,8 @@ export class OuterApiService {
 
   /**
    * Fetch conversation history from database
-   * Return 
-   * [ 
+   * Return
+   * [
    *  { role: 'user' | 'assistant' | 'system', content: string }
    * ]
    * @private
@@ -179,15 +186,21 @@ export class OuterApiService {
       // Optimal settings: 20 messages (10 user-assistant pairs) for good context without token overflow
       const limit = input.convLimit ?? 20;
 
-      const messages = await this.conversationService.findMessagesByConversation(
-        input.conversationId,
-        input.userId,
-        limit,
-      );
+      const messages =
+        await this.conversationService.findMessagesByConversation(
+          input.conversationId,
+          input.userId,
+          limit,
+        );
 
       // Convert database messages to provider format
       const formattedMessages = messages.map((msg) => ({
-        role: msg.role === 'system' ? 'system' : msg.role === 'user' ? 'user' : 'assistant',
+        role:
+          msg.role === 'system'
+            ? 'system'
+            : msg.role === 'user'
+              ? 'user'
+              : 'assistant',
         content: msg.content,
       }));
 
@@ -202,10 +215,15 @@ export class OuterApiService {
         }
       }
 
-      this.logger.log(`📚 Conversation History Loaded: ${finalMessages.length} messages`);
+      this.logger.log(
+        `📚 Conversation History Loaded: ${finalMessages.length} messages`,
+      );
       if (finalMessages.length > 0) {
         finalMessages.forEach((msg, idx) => {
-          const preview = msg.content.length > 100 ? msg.content.substring(0, 100) + '...' : msg.content;
+          const preview =
+            msg.content.length > 100
+              ? msg.content.substring(0, 100) + '...'
+              : msg.content;
           console.log(`  [${idx + 1}] ${msg.role}: ${preview}`);
         });
       }
@@ -228,16 +246,22 @@ export class OuterApiService {
     settings: { temperature?: number; systemPrompt: string },
   ): Promise<string> {
     this.logger.log(`\n🔄 Calling Provider: ${provider.toUpperCase()}`);
-    
+
     switch (provider) {
       case 'gemini': {
         // Gemini: Build conversation context as single prompt
-        const contextPrompt = this.buildGeminiPrompt(conversationHistory, currentPrompt);
+        const contextPrompt = this.buildGeminiPrompt(
+          conversationHistory,
+          currentPrompt,
+        );
         this.logger.log(`📝 Formatted Prompt (Gemini):`);
         this.logger.log(contextPrompt);
-        
-        const response = await this.geminiProvider.chat(contextPrompt, settings);
-        
+
+        const response = await this.geminiProvider.chat(
+          contextPrompt,
+          settings,
+        );
+
         if (typeof response === 'string' && response.trim().length > 0) {
           this.logger.log(`✅ Response from ${provider}:`);
           this.logger.log(response);
@@ -248,12 +272,15 @@ export class OuterApiService {
       }
       case 'groq': {
         // Groq: Use native messages array (need to update provider to accept messages)
-        const fullPrompt = this.buildConversationPrompt(conversationHistory, currentPrompt);
+        const fullPrompt = this.buildConversationPrompt(
+          conversationHistory,
+          currentPrompt,
+        );
         this.logger.log(`📝 Formatted Prompt (Groq):`);
         this.logger.log(fullPrompt);
-        
+
         const response = await this.groqService.chat(fullPrompt, settings);
-        
+
         if (typeof response === 'string' && response.trim().length > 0) {
           this.logger.log(`✅ Response from ${provider}:`);
           this.logger.log(response);
@@ -264,12 +291,15 @@ export class OuterApiService {
       }
       case 'openai': {
         // OpenAI: Use native messages array (need to update provider to accept messages)
-        const fullPrompt = this.buildConversationPrompt(conversationHistory, currentPrompt);
+        const fullPrompt = this.buildConversationPrompt(
+          conversationHistory,
+          currentPrompt,
+        );
         this.logger.log(`📝 Formatted Prompt (OpenAI):`);
         this.logger.log(fullPrompt);
-        
+
         const response = await this.openaiService.chat(fullPrompt, settings);
-        
+
         if (typeof response === 'string' && response.trim().length > 0) {
           this.logger.log(`✅ Response from ${provider}:`);
           this.logger.log(response);
@@ -294,7 +324,7 @@ export class OuterApiService {
     }
 
     const contextLines: string[] = [];
-    console.log("History Messages: ", history);
+    console.log('History Messages: ', history);
     for (const msg of history) {
       if (msg.role === 'user') {
         contextLines.push(`User: ${msg.content}`);
@@ -304,7 +334,7 @@ export class OuterApiService {
     }
 
     contextLines.push(`User: ${currentPrompt}`);
-    console.log("Context Lines for Gemini Prompt: ", contextLines);
+    console.log('Context Lines for Gemini Prompt: ', contextLines);
 
     return contextLines.join('\n\n');
   }
@@ -322,7 +352,7 @@ export class OuterApiService {
     }
 
     const contextLines: string[] = ['Previous conversation:'];
-    
+
     // Append history messages with role labels
     for (const msg of history) {
       const roleLabel = msg.role === 'user' ? 'User' : 'Assistant';
@@ -334,7 +364,7 @@ export class OuterApiService {
     contextLines.push(`User: ${currentPrompt}`);
 
     // console.log("History Messages: ", contextLines);
-    
+
     return contextLines.join('\n'); //Turn array into string, separated by new lines
   }
 

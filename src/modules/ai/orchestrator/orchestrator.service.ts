@@ -1,20 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { IntentClassifierService } from './intent-classifier.service';
-import { ContextBuilderService } from './context-builder.service';
-// import { ResponseAggregatorService } from './response-aggregator.service';
-// import { PrismaService } from '../../../prisma.service';
+import { PrismaService } from '../../../prisma.service';
 import { AiRequestDto } from '../dtos/ai-request.dto';
 import { AiResponseDto } from '../dtos/ai-response.dto';
 import { JwtPayload } from 'src/modules/users/jwt.strategy';
 import { OuterApiService } from '../services/outer-api/outer-api.service';
-
-// ======================
-// ADD: import StudyAnalyst service
-// ======================
-import { StudyAnalystAiService } from '../services/study-analyst/study-analyst-ai.service';
+import { StudyAnalystAIService } from '../services/study-analyst/study-analyst-ai.service';
 import { ConversationService } from '../services/conversation.service';
-import { SummarizationService, SummarizeOptions } from '../services/summarization.service';
-
+import {
+  SummarizationService,
+  SummarizeOptions,
+} from '../services/summarization.service';
 
 @Injectable()
 export class OrchestratorService {
@@ -22,223 +18,181 @@ export class OrchestratorService {
 
   constructor(
     private readonly intentClassifier: IntentClassifierService,
-    // private readonly contextBuilder: ContextBuilderService,
-    // private readonly responseAggregator: ResponseAggregatorService,
-    // private readonly prisma: PrismaService,
+    private readonly prisma: PrismaService,
     private readonly outerApiService: OuterApiService,
+    private readonly studyAnalystAIService: StudyAnalystAIService,
     private readonly conversationService: ConversationService,
-
-    // ======================
-    // inject StudyAnalystAiService
-    // ======================
-    private readonly studyAnalystAiService: StudyAnalystAiService,
     private readonly summarizationService: SummarizationService,
   ) {}
 
+  /**
+   * MAIN AI PIPELINE
+   */
   async processRequest(request: AiRequestDto, user: JwtPayload) {
-    // ======================
-    // route STUDY_ANALYST FIRST
-    // ======================
-    if (request.serviceType === 'STUDY_ANALYST') {
-      this.logger.log('Routing request to STUDY_ANALYST service');
+    this.logger.log('AI request received');
 
-      return this.studyAnalystAiService.process({
-        prompt: request.text,
-        metadata: request.metadata,
-        user,
-      });
-    }
-
-    // ======================
-    // ======================
-    const userIntent = await this.intentClassifier.classify(
+    //
+    const intent = await this.intentClassifier.classifyIntent(
       request.text,
       user.role,
     );
 
-    console.log('Classified intent:', userIntent);
+    this.logger.log(`Intent detected: ${intent}`);
 
-    return {
-      text: request.text,
-      decisions: userIntent,
-      role: user.role,
-    };
-  }
+    //
+    switch (intent) {
+      case 'data_analysis':
+      case 'class_analysis':
+        return this.handleClassAnalysis(request, user);
 
-  async directChat(request: AiRequestDto, user: JwtPayload): Promise<AiResponseDto> {
-    const startTime = Date.now();
-    let conversationId = request.conversationId;
-    let userMessageId: string | undefined;
+      //
+      case 'teaching_recommendation':
+      case 'quiz_creation':
+        // return this.handleQuizCreation(request, user); // (Ví dụ cho tương lai)
+        return this.handleGeneralChat(request, user);
 
-    try {
-      // Step 1: Create or get conversation
-      if (!conversationId) {
-        //Summarize first message to generate conversation title
-        const newConversationTitle = await this.summarizationService.summarize(request.text, { 
-            minLength: 3,
-            maxLength: 7, 
-            onlyUseSystemPrompt: true,
-            // customsystemPrompt: 'You are generating a concise title for a conversation, with the first message provided. Return only the title without any additional text or formatting.'
-            customsystemPrompt: ''
-          } as SummarizeOptions);
-
-        const conversation = await this.conversationService.createConversation({
-          userId: user.uid,
-          title: newConversationTitle.summary || 'New Conversation',
-        });
-
-        conversationId = conversation.acid;
-      } else {
-        // Verify conversation exists and belongs to user
-        await this.conversationService.findConversationById(conversationId, user.uid);
-      }
-
-      // Step 2: Save user message
-      const userMessage = await this.conversationService.createMessage({
-        conversationId,
-        role: 'user',
-        content: request.text,
-        metadata: request.metadata,
-      });
-      userMessageId = userMessage.amid;
-
-      // Step 3: Call the outer API service
-      const result = await this.outerApiService.chat({
-        prompt: request.text,
-        role: user.role,
-        caller: 'direct',
-        provider: 'groq',
-        conversationId,
-        userId: user.uid,
-        convLimit: 20, // Optimal: 10 user-assistant pairs for context
-        convOffset: 0, // Always get latest messages
-      });
-
-      // Step 4: Save assistant message
-      const assistantMessage = await this.conversationService.createMessage({
-        conversationId,
-        role: 'assistant',
-        content: result.text,
-        modelName: result.provider,
-        metadata: {
-          systemPrompt: result.systemPrompt,
-          attemptedProviders: result.attemptedProviders,
-        },
-      });
-
-
-      const processingTime = Date.now() - startTime;
-      this.logger.log(`Direct chat completed for conversation ${conversationId}`);
-
-      // Step 6: Return success response
-      return {
-        success: true,
-        conversationId,
-        messageId: assistantMessage.amid,
-        role: 'assistant',
-        text: result.text,
-        metadata: {
-          createdAt: new Date().toISOString(),
-          serviceType: 'direct',
-          provider: result.provider,
-          processingTime,
-        },
-      } as AiResponseDto;
-    } catch (error) {
-      const processingTime = Date.now() - startTime;
-      this.logger.error('Direct chat failed:', error);
-
-      // User message is already saved, just return error response
-      return {
-        success: false,
-        conversationId,
-        messageId: userMessageId,
-        role: 'assistant',
-        text: '',
-        error: {
-          message: error instanceof Error ? error.message : 'Unknown error occurred',
-          code: 'DIRECT_CHAT_ERROR',
-        },
-        metadata: {
-          createdAt: new Date().toISOString(),
-          serviceType: 'direct',
-          processingTime,
-        },
-      } as AiResponseDto;
+      default:
+        return this.handleGeneralChat(request, user);
     }
   }
 
+  /**
+  Risk, Trend, Overview
+   */
+  private async handleClassAnalysis(request: AiRequestDto, user: JwtPayload) {
+    this.logger.log('Routing to Study Analyst AI Domain...');
+    const classId = request.metadata?.classId || 'default-class';
 
-  async studyAnalystReport(user: JwtPayload, body: any) {
-    const { prompt, classId } = body;
+    const promptLower = (request.text || '').toLowerCase();
+    const originalPrompt =
+      request.text || 'Provide an overview of class performance.';
 
-    // (PoC) context
-    const classContext = `
-Class ID: ${classId}
-Average score: 72%
-Department average: 78%
-Students below 50%: 2
-Department average below 50%: 1
-Completion trend: decreasing faster than department average
-`;
+    //
+    if (
+      promptLower.includes('risk') ||
+      promptLower.includes('bottom') ||
+      promptLower.includes('top') ||
+      promptLower.includes('struggling') ||
+      promptLower.includes('weak') ||
+      promptLower.includes('alarming')
+    ) {
+      this.logger.log('--> Sub-intent detected: STUDENT RISK');
+      const result = await this.studyAnalystAIService.detectStudentRisk(
+        classId,
+        originalPrompt,
+        user.uid,
+        user.role,
+      );
+      return { usecase: 'STUDENT_RISK', ...result };
+    }
 
-    const finalPrompt = `
-You are an educational data analyst.
+    //
+    else if (
+      promptLower.includes('trend') ||
+      promptLower.includes('recommend') ||
+      promptLower.includes('month') ||
+      promptLower.includes('strategy') ||
+      promptLower.includes('completion') ||
+      promptLower.includes('advice')
+    ) {
+      this.logger.log('--> Sub-intent detected: TEACHING RECOMMENDATIONS');
+      const result =
+        await this.studyAnalystAIService.generateTeachingRecommendations(
+          classId,
+          originalPrompt,
+          user.uid,
+          user.role,
+        );
+      return { usecase: 'TEACHING_RECOMMENDATIONS', ...result };
+    }
 
-User role: ${user.role}
+    // 3
+    else {
+      this.logger.log('--> Sub-intent detected: CLASS OVERVIEW');
+      const result = await this.studyAnalystAIService.analyzeClass(
+        classId,
+        originalPrompt,
+        user.uid,
+        user.role,
+      );
+      return { usecase: 'CLASS_ANALYSIS', ...result };
+    }
+  }
 
-Task:
-${prompt}
-
-Data:
-${classContext}
-
-Return a concise analytical insight for a lecturer.
-`;
-
-    const aiResult = await this.outerApiService.chat({
-      prompt: finalPrompt,
+  /**
+   * USE CASE: GENERAL AI CHAT
+   */
+  private async handleGeneralChat(request: AiRequestDto, user: JwtPayload) {
+    const result = await this.outerApiService.chat({
+      prompt: request.text,
       role: user.role,
-      caller: 'study-analyst',
-      provider: 'openai', // hoặc openai
+      caller: 'general',
+      provider: 'groq',
+    });
+    return { usecase: 'GENERAL_CHAT', text: result.text };
+  }
+
+  /**
+   * CONVERSATION & DIRECT CHAT
+   */
+  async directChat(
+    request: AiRequestDto,
+    user: JwtPayload,
+  ): Promise<AiResponseDto> {
+    const startTime = Date.now();
+    let conversationId = request.conversationId;
+
+    if (!conversationId) {
+      const titleRes = await this.summarizationService.summarize(request.text, {
+        minLength: 3,
+        maxLength: 7,
+      } as SummarizeOptions);
+      const conv = await this.conversationService.createConversation({
+        userId: user.uid,
+        title: titleRes.summary || 'New Chat',
+      });
+      conversationId = conv.acid;
+    }
+
+    const userMsg = await this.conversationService.createMessage({
+      conversationId,
+      role: 'user',
+      content: request.text,
+    });
+
+    const result = await this.outerApiService.chat({
+      prompt: request.text,
+      role: user.role,
+      caller: 'direct',
+      provider: 'groq',
+      conversationId,
+      userId: user.uid,
+    });
+
+    const assistantMsg = await this.conversationService.createMessage({
+      conversationId,
+      role: 'assistant',
+      content: result.text,
+      modelName: result.provider,
     });
 
     return {
-      role: user.role,
-      prompt,
-      classId,
-      insight: aiResult.text,
-    };
-  }
-
-  async getUserConversations(userId: string, limit: number) {
-    // TODO: Implement when AIConversation model is added to schema
-    return [];
-  }
-
-  async getConversation(conversationId: string, userId: string) {
-    // TODO: Implement when AIConversation model is added to schema
-    return null;
+      success: true,
+      conversationId,
+      messageId: assistantMsg.amid,
+      role: 'assistant',
+      text: result.text,
+      metadata: { processingTime: Date.now() - startTime },
+    } as AiResponseDto;
   }
 
   async summarize(text: string, provider?: 'gemini' | 'groq' | 'openai') {
-    // return this.summarizationService.summarize(text, { provider } as SummarizeOptions);
-
-    const startTime = Date.now();
-
-
-    const newConversationTitle = await this.summarizationService.summarize(text, { 
-        minLength: 3,
-        maxLength: 7, 
-        provider,
-        onlyUseSystemPrompt: true,
-        // customsystemPrompt: 'You are generating a concise title for a conversation, with the first message provided. Return only the title without any additional text or formatting.'
-        customsystemPrompt: ''
-      } as SummarizeOptions);
-
-
-    const processingTime = Date.now() - startTime;
-
-    return { processTime: processingTime, result: newConversationTitle };
+    const start = Date.now();
+    const res = await this.summarizationService.summarize(text, {
+      provider,
+      minLength: 3,
+      maxLength: 7,
+    } as SummarizeOptions);
+    return { processTime: Date.now() - start, result: res };
   }
 }

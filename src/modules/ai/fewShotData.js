@@ -1,6 +1,6 @@
 // Few-shot examples: provide example texts for each category
 export const fewShotExamples = {
-  'system_configuration': [
+  system_configuration: [
     'Check the server status and uptime',
     'Is the system running properly?',
     'Monitor the infrastructure health and performance',
@@ -32,9 +32,11 @@ export const fewShotExamples = {
     'Check for correlations between high traffic and resource consumption',
     'Review server health, error logs, and timeout events',
     'Verify database connection pool settings and API response times',
-    'Confirm backup jobs are completing and report any failures'
+    'Confirm backup jobs are completing and report any failures',
   ],
-  'data_analysis': [
+
+  data_analysis: [
+    'Give me an overview of quiz results',
     'Analyze the scores from class L01',
     'Show me statistics about student performance in this course',
     'What are the average grades?',
@@ -45,6 +47,22 @@ export const fewShotExamples = {
     'Analyze the improvement trend over time',
     'Calculate the median score for the assignment',
     'Generate analytics dashboard for student progress',
+
+    'Analyze class performance',
+    'Analyze student performance',
+    'Class performance analysis',
+    'Student performance analysis',
+    'Show class statistics',
+    'Analyze quiz results',
+    'Analyze learning results',
+    'Show learning analytics',
+    'Provide class insights',
+    'Evaluate student scores',
+    'Identify weak students',
+    'Analyze completion rate',
+    'Analyze class progress',
+    'Education performance analytics',
+
     'Analyze how students performed in the last two assignments and summarize the trend',
     'I want the average, median, and distribution by score band',
     'Compare performance between sections A and B',
@@ -59,9 +77,10 @@ export const fewShotExamples = {
     'Generate a correlation analysis between quiz and exam scores',
     'Show the distribution of scores across all assignments',
     'Calculate average improvement rates per student cohort',
-    'Analyze attendance patterns and their impact on performance'
+    'Analyze attendance patterns and their impact on performance',
   ],
-  'quiz_creation': [
+
+  quiz_creation: [
     'Create a quiz about mathematics',
     'Generate assessment questions for chapter 5',
     'Design a test for chapter 3',
@@ -86,12 +105,12 @@ export const fewShotExamples = {
     'Build a quiz package covering limits, derivatives, and integrals',
     'Create application problems about optimization',
     'Generate conceptual questions that test intuition rather than computation',
-    'Make practice exercises for the review session'
-  ]
+    'Make practice exercises for the review session',
+  ],
 };
 
 export const curatedFewShotTokenCache = {
-  'system_configuration': [
+  system_configuration: [
     'server',
     'uptime',
     'health',
@@ -116,10 +135,13 @@ export const curatedFewShotTokenCache = {
     'disk',
     'replication',
     'pipeline',
-    'config'
+    'config',
   ],
-  'data_analysis': [
+
+  data_analysis: [
+    'overview',
     'analysis',
+    'analyze',
     'statistics',
     'average',
     'median',
@@ -138,9 +160,17 @@ export const curatedFewShotTokenCache = {
     'scores',
     'grades',
     'passrate',
-    'completion'
+    'completion',
+    'class',
+    'student',
+    'students',
+    'analytics',
+    'results',
+    'progress',
+    'insights',
   ],
-  'quiz_creation': [
+
+  quiz_creation: [
     'quiz',
     'questions',
     'assessment',
@@ -164,7 +194,6 @@ export const curatedFewShotTokenCache = {
     'probability',
     'physics',
     'chemistry',
-    'algebra'
-  ]
+    'algebra',
+  ],
 };
-
