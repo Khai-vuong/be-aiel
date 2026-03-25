@@ -85,9 +85,9 @@ export class ContextBuilderService {
       );
     }
 
-    if (normalizedCaller === 'quiz-generator') {
-      segments.push(this.quizGeneratorOutputFormat);
-    }
+    // if (normalizedCaller === 'quiz-generator') {
+    //   segments.push(this.quizGeneratorOutputFormat);
+    // }
 
     return segments.join(' ');
   }
