@@ -11,7 +11,7 @@ import {
   SummarizationService,
   SummarizeOptions,
 } from '../services/summarization.service';
-
+import { RagPlannerService } from '../services/RAG/rag-planner.service';
 @Injectable()
 export class OrchestratorService {
   private readonly logger = new Logger(OrchestratorService.name);
@@ -23,6 +23,7 @@ export class OrchestratorService {
     private readonly studyAnalystAIService: StudyAnalystAIService,
     private readonly conversationService: ConversationService,
     private readonly summarizationService: SummarizationService,
+    private readonly ragPlannerService: RagPlannerService,
   ) {}
 
   /**
@@ -194,5 +195,12 @@ export class OrchestratorService {
       maxLength: 7,
     } as SummarizeOptions);
     return { processTime: Date.now() - start, result: res };
+  }
+
+  async testRag(req: any, body: { text: string }) {
+    return this.ragPlannerService.selectCapabilitiesFromPrompt({
+      prompt: body.text,
+      userRole: req.user.role,
+    });
   }
 }

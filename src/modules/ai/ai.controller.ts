@@ -190,6 +190,12 @@ export class AiController {
     });
   }
 
+  @Post('rag/test')
+  @Roles('any')
+  async testRag(@Request() req, @Body() body: { text: string }) {
+    return this.orchestratorService.testRag(req, body);
+  }
+
   // @Put('conversations/:id/archive')
   // @Roles('any')
   // async archiveConversation(@Request() req, @Param('id') conversationId: string) {
