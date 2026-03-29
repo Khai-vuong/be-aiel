@@ -12,6 +12,7 @@ import {
   SummarizeOptions,
 } from '../services/summarization.service';
 import { RagPlannerService } from '../services/RAG/rag-planner.service';
+import { RagOrchestratorService } from '../services/RAG/rag-orchestrator.service';
 @Injectable()
 export class OrchestratorService {
   private readonly logger = new Logger(OrchestratorService.name);
@@ -24,6 +25,7 @@ export class OrchestratorService {
     private readonly conversationService: ConversationService,
     private readonly summarizationService: SummarizationService,
     private readonly ragPlannerService: RagPlannerService,
+    private readonly ragOrchestratorService: RagOrchestratorService,
   ) {}
 
   /**
@@ -198,9 +200,18 @@ export class OrchestratorService {
   }
 
   async testRag(req: any, body: { text: string }) {
-    return this.ragPlannerService.selectCapabilitiesFromPrompt({
-      prompt: body.text,
-      userRole: req.user.role,
+    const aiRequest: AiRequestDto = {
+      text: body.text,
+      metadata: req.body?.metadata,
+      provider: req.body?.provider,
+      conversationId: req.body?.conversationId,
+      temperature: req.body?.temperature,
+      customSystemPrompt: req.body?.customSystemPrompt,
+    };
+
+    return this.ragOrchestratorService.chat({
+      aiRequest,
+      user: req.user,
     });
   }
 }

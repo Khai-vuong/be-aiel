@@ -1299,6 +1299,73 @@ async function main() {
     },
   });
 
+  // Suspicious admin activity for user001
+  await prisma.log.create({
+    data: {
+      logid: 'log029',
+      action: 'failed_login',
+      resource_type: 'User',
+      resource_id: 'user001',
+      user_id: 'user001',
+      created_at: new Date('2024-01-22T01:12:00Z'),
+    },
+  });
+
+  await prisma.log.create({
+    data: {
+      logid: 'log030',
+      action: 'disable_audit_log_attempt',
+      resource_type: 'Log',
+      resource_id: 'system_audit',
+      user_id: 'user001',
+      created_at: new Date('2024-01-22T01:14:00Z'),
+    },
+  });
+
+  await prisma.log.create({
+    data: {
+      logid: 'log031',
+      action: 'mass_export_user_data',
+      resource_type: 'User',
+      resource_id: 'bulk_export_20240122',
+      user_id: 'user001',
+      created_at: new Date('2024-01-22T01:19:00Z'),
+    },
+  });
+
+  await prisma.log.create({
+    data: {
+      logid: 'log032',
+      action: 'permission_escalation_attempt',
+      resource_type: 'Admin',
+      resource_id: 'admin001',
+      user_id: 'user001',
+      created_at: new Date('2024-01-22T01:21:00Z'),
+    },
+  });
+
+  await prisma.log.create({
+    data: {
+      logid: 'log033',
+      action: 'delete_log_attempt',
+      resource_type: 'Log',
+      resource_id: 'log012',
+      user_id: 'user001',
+      created_at: new Date('2024-01-22T01:24:00Z'),
+    },
+  });
+
+  await prisma.log.create({
+    data: {
+      logid: 'log034',
+      action: 'access_denied',
+      resource_type: 'System',
+      resource_id: 'security_policy_guardrail',
+      user_id: 'user001',
+      created_at: new Date('2024-01-22T01:25:00Z'),
+    },
+  });
+
   // ========================================
   // CREATE QUESTIONS FOR OTHER QUIZZES
   // ========================================
@@ -1754,7 +1821,7 @@ async function main() {
   console.log(`- 30 Quiz attempts (3 students x 2 attempts x 5 quizzes) with random scores (10-100%, rounded to 10%)`);
   console.log(`- 150 Answers (30 attempts x 5 questions each)`);
   console.log(`- 3 Notifications for student001 (2 unread, 1 read)`);
-  console.log(`- 28 Log records simulating real user actions`);
+  console.log(`- 34 Log records simulating real user actions`);
 }
 
 main()

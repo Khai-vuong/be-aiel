@@ -24,7 +24,7 @@ export type RagMetadata = {
 export type plannerInputDTO = {
   prompt: string;
   userRole: string;
-  metadata?: RagMetadata;
+  metadata?: any;
   provider?: OuterApiProvider;
 }
 
@@ -78,8 +78,45 @@ export class RagPlannerService {
       };
 
       const response = await this.outerAPIService.chat(outerAPIRequest);
-      const parsedResponse = parseJsonStrings(response.text) as RagCapabilityExecution[];
-      return Array.isArray(parsedResponse) ? parsedResponse : [];
+      const parsedResponse = parseJsonStrings(response.text);
+
+      if (!Array.isArray(parsedResponse)) {
+        return [];
+      }
+
+      const normalized = parsedResponse
+        .map((item): RagCapabilityExecution | null => {
+          if (!item || typeof item !== 'object') {
+            return null;
+          }
+
+          const candidate = item as {
+            id?: unknown;
+            capabilityId?: unknown;
+            parameters?: unknown;
+            resolvedParameters?: unknown;
+          };
+
+          const capabilityId =
+            typeof candidate.capabilityId === 'string'
+              ? candidate.capabilityId
+              : typeof candidate.id === 'string'
+                ? candidate.id
+                : '';
+
+          if (!capabilityId) {
+            return null;
+          }
+
+          return {
+            capabilityId,
+            resolvedParameters:
+              candidate.resolvedParameters ?? candidate.parameters ?? {},
+          };
+        })
+        .filter((item): item is RagCapabilityExecution => item !== null);
+
+      return normalized;
     } catch (error) {
       console.error('Error selecting capabilities from prompt:', error);
       throw error;
