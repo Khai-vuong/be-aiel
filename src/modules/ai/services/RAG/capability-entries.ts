@@ -8,9 +8,9 @@ export type RagCapabilityEntry = {
 export const logEntries: RagCapabilityEntry[] = [
   {
     id: 'log-retrive',
-    description: 'Retrive logs from the system',
+    description: 'Retrive logs from the system with pagination',
     allowedRoles: ['Admin'],
-    parameters: 'limit: number, offset: number, logType: string',
+    parameters: 'limit: number, offset: number',
   },
   {
     id: 'log-from-user',

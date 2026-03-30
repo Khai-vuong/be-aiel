@@ -49,17 +49,21 @@ export class RagOrchestratorService{
 
 
     //Step 2: context retrieval phase
+    //     contextualData: {
+    //     capabilityId: string;
+    //     result: any;
+    // }[]
     const contextualData = await this.planExecuterService.execute(actionPlanList);
 
     //Step 3: prompt composition phase
-    const contextString = JSON.stringify(contextualData, null, 2);
+    // const contextString = JSON.stringify(contextualData, null, 2); //không dùng json stringify, format bên execute luôn
     const systemPrompt = [
       'You are given retrieved internal context data from system capabilities.',
       'Use this context as the primary source of truth when answering.',
       'If context is missing for some part, state that explicitly.',
       '',
       '--- RAG CONTEXT START ---',
-      contextString,
+      contextualData.map((ctx) => `${ctx.result}`).join('\n'),
       '--- RAG CONTEXT END ---',
       '',
     ].join('\n');
@@ -79,12 +83,14 @@ export class RagOrchestratorService{
 
     //step 5: response assembly and return
     return {
-      text: llmResponse.text,
+      userPrompt: params.aiRequest.text,
+      response: llmResponse.text,
       provider: llmResponse.provider,
       systemPrompt: llmResponse.systemPrompt,
       capabilityPlan: actionPlanList,
       contextualData,
       customSystemPrompt: systemPrompt,
+
     };
   }
 
