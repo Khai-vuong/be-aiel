@@ -49,10 +49,7 @@ export class InsightGeneratorService {
       }
     }
 
-    if (hasOpenAI) {
-      this.logger.log('Using OpenAI because OPENAI_API_KEY is set.');
-      return 'openai';
-    }
+    // ĐÃ SỬA: Ưu tiên Groq và Gemini lên trước OpenAI
     if (hasGroq) {
       this.logger.log('Using Groq because GROQ_API_KEY is set.');
       return 'groq';
@@ -61,11 +58,16 @@ export class InsightGeneratorService {
       this.logger.log('Using Gemini because GEMINI_API_KEY is set.');
       return 'gemini';
     }
+    if (hasOpenAI) {
+      this.logger.log('Using OpenAI because OPENAI_API_KEY is set.');
+      return 'openai';
+    }
 
     this.logger.warn(
       'No AI provider API key found (OPENAI_API_KEY, GROQ_API_KEY, GEMINI_API_KEY). Using built-in fallback insight.',
     );
-    return 'openai';
+    // Mặc định gọi groq nếu không có gì cấu hình (Groq đang miễn phí)
+    return 'groq';
   }
 
   // ==========================================
@@ -257,7 +259,7 @@ STRICT RULE: You MUST respond ONLY with a valid JSON object matching this exact 
     };
   }
 
-  private getProviderOrder(): Array<'openai' | 'groq' | 'gemini'> {
+  private getProviderOrder(): Array<'groq' | 'openai' | 'gemini'> {
     const configured = (process.env.INSIGHT_PROVIDER ?? '')
       .trim()
       .toLowerCase();
@@ -266,20 +268,21 @@ STRICT RULE: You MUST respond ONLY with a valid JSON object matching this exact 
     const hasGroq = Boolean(process.env.GROQ_API_KEY);
     const hasGemini = Boolean(process.env.GEMINI_API_KEY);
 
-    const providers: Array<'openai' | 'groq' | 'gemini'> = [];
+    const providers: Array<'groq' | 'openai' | 'gemini'> = [];
 
-    if (configured && ['openai', 'groq', 'gemini'].includes(configured)) {
+    if (configured && ['groq', 'openai', 'gemini'].includes(configured)) {
       providers.push(configured as any);
     }
 
-    if (hasOpenAI && !providers.includes('openai')) {
-      providers.push('openai');
-    }
+    // ĐÃ SỬA: Đưa Groq và Gemini lên trước OpenAI
     if (hasGroq && !providers.includes('groq')) {
       providers.push('groq');
     }
     if (hasGemini && !providers.includes('gemini')) {
       providers.push('gemini');
+    }
+    if (hasOpenAI && !providers.includes('openai')) {
+      providers.push('openai');
     }
 
     if (providers.length === 0) {
@@ -368,6 +371,82 @@ STRICT RULE: You MUST respond ONLY with a valid JSON object matching this exact 
   }
 
   // ==========================================
+  // USE CASE 4: KNOWLEDGE GAP & MISCONCEPTIONS
+  // ==========================================
+  async generateKnowledgeGapInsight(
+    promptText: string,
+    gapData: string,
+  ): Promise<any> {
+    const prompt = `
+You are an expert Educational Data Analyst AI for the TKEDU platform.
+User prompt: "${promptText}"
+
+Below is the aggregated data of student answers for a quiz/class, including question tags (skills) and the distribution of selected options:
+---
+${gapData}
+---
+
+Your Tasks:
+1. Identify 'Common Misconceptions' (Điểm mù chung): Find questions where a large percentage of students chose the EXACT SAME WRONG answer. This indicates a confusing concept or misleading question.
+2. Evaluate 'Skill Matrix' (Ma trận kỹ năng): Analyze the success rate based on 'Tags' to see which knowledge areas the class has mastered and which areas have critical gaps.
+3. Generate a pedagogical 'insight' report in ENGLISH (Markdown format) starting EXACTLY with:
+"Hello, I am the virtual assistant for the TKEDU platform. Here is the Knowledge Gap Analysis to help you optimize your upcoming lectures."
+- Detail the specific concepts students are struggling with.
+- Provide actionable advice on what topics need to be re-taught ("dạy bù").
+
+STRICT RULE: Respond ONLY with a valid JSON object matching this exact structure:
+{
+  "misconceptions": [
+    { "question": "...", "wrongAnswerChosen": "...", "percentage": 0 }
+  ],
+  "skillMatrix": [
+    { "skillTag": "...", "masteryLevel": "Strong | Weak | Average" }
+  ],
+  "insight": "Hello, I am the virtual assistant for the TKEDU platform. Here is the Knowledge Gap Analysis... \\n\\n[Detailed Markdown report here]"
+}
+`;
+
+    const providersToTry = this.getProviderOrder();
+
+    for (const provider of providersToTry) {
+      try {
+        let aiResponse: string;
+        switch (provider) {
+          case 'groq':
+            aiResponse = await this.groqService.chat(prompt);
+            break;
+          case 'gemini':
+            aiResponse = await this.geminiProvider.chat(prompt);
+            break;
+          case 'openai':
+          default:
+            aiResponse = await this.openAIService.chat(prompt);
+            break;
+        }
+
+        if (!aiResponse || !aiResponse.trim())
+          throw new Error('Empty response');
+
+        const cleanJson = aiResponse
+          .replace(/```json/gi, '')
+          .replace(/```/g, '')
+          .trim();
+        return JSON.parse(cleanJson);
+      } catch (error: any) {
+        this.logger.warn(
+          `Knowledge Gap Insight failed using provider=${provider}: ${error?.message}`,
+        );
+      }
+    }
+
+    return {
+      misconceptions: [],
+      skillMatrix: [],
+      insight: 'The AI Knowledge Gap analysis is temporarily unavailable.',
+    };
+  }
+
+  // ==========================================
   // NLP: EXTRACT ENTITIES FROM PROMPT
   // ==========================================
   async extractEntitiesFromPrompt(
@@ -425,5 +504,41 @@ STRICT RULE: Respond ONLY with a valid JSON object matching this structure. Do N
 
     // Fallback: Nếu AI sập, trả về null để Backend dùng ID mặc định từ request body
     return { classId: null, quizId: null };
+  }
+
+  async generateMaterialInsight(
+    promptText: string,
+    rawData: string,
+  ): Promise<any> {
+    const prompt = `
+You are an expert Educational Data Analyst.
+Analyze the correlation between study material usage and quiz performance:
+---
+${rawData}
+---
+Tasks:
+1. Identify if students who view materials more often get higher scores (Material Correlation).
+2. Detect 'Drop-off points': Do failures increase at the end of the quiz? (Indicates fatigue/loss of focus).
+3. Return ONLY a JSON object:
+{
+  "correlationScore": "High | Medium | Low",
+  "dropOffPoint": "Question #X or None",
+  "insight": "Hello, I am the virtual assistant for the TKEDU platform. [Markdown report analyzing if videos/materials are actually helping and where students lose interest...]"
+}
+`;
+    // Gọi provider (Groq/Gemini) tương tự các hàm trước
+    const providersToTry = this.getProviderOrder();
+    for (const provider of providersToTry) {
+      try {
+        const aiResponse = await this.groqService.chat(prompt); // Hoặc dùng Switch-case như cũ
+        const cleanJson = aiResponse
+          .replace(/```json/gi, '')
+          .replace(/```/g, '')
+          .trim();
+        return JSON.parse(cleanJson);
+      } catch (e) {
+        continue;
+      }
+    }
   }
 }

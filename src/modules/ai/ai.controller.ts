@@ -86,7 +86,6 @@ export class AiController {
   })
   @ApiBody({ type: StudyAnalystPromptDto })
   async detectRisk(@Request() req, @Body() body: StudyAnalystPromptDto) {
-    // Đã thêm @Request() req và truyền đủ 4 tham số cho Service
     return this.studyAnalystAIService.detectStudentRisk(
       body.classId,
       body.prompt,
@@ -107,12 +106,37 @@ export class AiController {
     @Request() req,
     @Body() body: StudyAnalystPromptDto,
   ) {
-    // Lấy prompt, nếu rỗng thì dùng câu mặc định
     const prompt =
       body.prompt ||
       'Show the quiz completion trend in the last 3 months in this course.';
 
     return this.studyAnalystAIService.generateTeachingRecommendations(
+      body.classId,
+      prompt,
+      req.user.uid,
+      req.user.role,
+    );
+  }
+
+  /**
+   * MODULE 2 / USE CASE 4: KNOWLEDGE GAP ANALYSIS
+   * Phân tích lỗ hổng kiến thức và điểm mù chung của lớp
+   */
+  @Post('study-analyst/knowledge-gap')
+  @Roles('Lecturer', 'Admin')
+  @ApiOperation({
+    summary: 'Phân tích lỗ hổng kiến thức và Ma trận kỹ năng (Knowledge Gap)',
+  })
+  @ApiBody({ type: StudyAnalystPromptDto })
+  async analyzeKnowledgeGaps(
+    @Request() req,
+    @Body() body: StudyAnalystPromptDto,
+  ) {
+    const prompt =
+      body.prompt ||
+      'Analyze the knowledge gaps, weak skills, and common misconceptions for this class.';
+
+    return this.studyAnalystAIService.analyzeKnowledgeGaps(
       body.classId,
       prompt,
       req.user.uid,

@@ -31,7 +31,7 @@ export class OrchestratorService {
   async processRequest(request: AiRequestDto, user: JwtPayload) {
     this.logger.log('AI request received');
 
-    //
+    // 1. Phân loại ý định từ câu chat của người dùng
     const intent = await this.intentClassifier.classifyIntent(
       request.text,
       user.role,
@@ -39,13 +39,13 @@ export class OrchestratorService {
 
     this.logger.log(`Intent detected: ${intent}`);
 
-    //
+    // 2. Điều phối đến đúng AI Agent
     switch (intent) {
       case 'data_analysis':
       case 'class_analysis':
+        // Gộp chung vào 1 hàm Sub-router để xử lý cả 4 nghiệp vụ phân tích
         return this.handleClassAnalysis(request, user);
 
-      //
       case 'teaching_recommendation':
       case 'quiz_creation':
         // return this.handleQuizCreation(request, user); // (Ví dụ cho tương lai)
@@ -57,7 +57,8 @@ export class OrchestratorService {
   }
 
   /**
-  Risk, Trend, Overview
+   * USE CASE: DATA ANALYSIS DOMAIN
+   * Trưởng phòng phân tích (Sub-router) chia việc cho 4 chuyên gia: Risk, Trend, Knowledge Gap, Overview
    */
   private async handleClassAnalysis(request: AiRequestDto, user: JwtPayload) {
     this.logger.log('Routing to Study Analyst AI Domain...');
@@ -67,7 +68,7 @@ export class OrchestratorService {
     const originalPrompt =
       request.text || 'Provide an overview of class performance.';
 
-    //
+    // 1. CHUYÊN GIA RISK (Tìm học sinh giỏi/yếu)
     if (
       promptLower.includes('risk') ||
       promptLower.includes('bottom') ||
@@ -86,7 +87,7 @@ export class OrchestratorService {
       return { usecase: 'STUDENT_RISK', ...result };
     }
 
-    //
+    // 2. CHUYÊN GIA TREND (Phân tích xu hướng)
     else if (
       promptLower.includes('trend') ||
       promptLower.includes('recommend') ||
@@ -106,7 +107,27 @@ export class OrchestratorService {
       return { usecase: 'TEACHING_RECOMMENDATIONS', ...result };
     }
 
-    // 3
+    // 3. CHUYÊN GIA KNOWLEDGE GAP (Phân tích lỗ hổng kiến thức) - MỚI THÊM
+    else if (
+      promptLower.includes('gap') ||
+      promptLower.includes('skill') ||
+      promptLower.includes('misconception') ||
+      promptLower.includes('weakness') ||
+      promptLower.includes('topic') ||
+      promptLower.includes('blind spot') ||
+      promptLower.includes('lỗ hổng')
+    ) {
+      this.logger.log('--> Sub-intent detected: KNOWLEDGE GAP ANALYSIS');
+      const result = await this.studyAnalystAIService.analyzeKnowledgeGaps(
+        classId,
+        originalPrompt,
+        user.uid,
+        user.role,
+      );
+      return { usecase: 'KNOWLEDGE_GAP', ...result };
+    }
+
+    // 4. CHUYÊN GIA OVERVIEW (Tổng quan - Mặc định)
     else {
       this.logger.log('--> Sub-intent detected: CLASS OVERVIEW');
       const result = await this.studyAnalystAIService.analyzeClass(

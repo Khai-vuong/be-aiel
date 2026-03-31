@@ -15,53 +15,39 @@ export class StudyAnalystAIService {
   // USE CASE 1: CLASS PERFORMANCE OVERVIEW
   // ==========================================
   async analyzeClass(
-    defaultClassId: string, // Nhận classId từ request body làm dự phòng
+    defaultClassId: string,
     prompt: string,
     userId: string,
     userRole: string,
   ) {
     try {
-      // 1. AI TRÍCH XUẤT THỰC THỂ TỪ PROMPT
-      console.log('Đang phân tích câu lệnh:', prompt);
       const extracted =
         await this.insightGenerator.extractEntitiesFromPrompt(prompt);
-
-      // Ưu tiên lấy classId do AI tìm được trong câu chữ, nếu không có mới dùng defaultClassId
       const targetClassId = extracted.classId || defaultClassId;
       const targetQuizId = extracted.quizId;
 
-      console.log(
-        `Đã trích xuất: ClassID=${targetClassId}, QuizID=${targetQuizId}`,
-      );
-
-      // 2. KIỂM TRA PHÂN QUYỀN
       if (userRole === 'Lecturer') {
         const classData = await this.prisma.class.findUnique({
           where: { clid: targetClassId },
           include: { lecturer: true },
         });
-
         if (!classData || classData.lecturer?.user_id !== userId) {
           throw new ForbiddenException(
-            'You do not have permission to view this class or it does not exist.',
+            'You do not have permission to view this class.',
           );
         }
       }
 
-      // 3. TỐI ƯU QUERY DATABASE: Xây dựng bộ lọc (Filter)
       const queryFilter: any = {
         student: { classes: { some: { clid: targetClassId } } },
         quiz: { class_id: targetClassId },
       };
 
-      // Nếu AI phát hiện người dùng nhắc đến 1 Quiz cụ thể -> Thêm điều kiện lọc để Query cực nhẹ
+      // Nâng cấp: Lọc theo Quiz cụ thể nếu AI trích xuất được
       if (targetQuizId) {
-        // Tuỳ thuộc vào cấu trúc DB của bạn, ví dụ trường id của quiz là qid
-        // (Nếu DB bạn là quiz_id thì sửa thành: quiz_id: targetQuizId)
         queryFilter.quiz_id = targetQuizId;
       }
 
-      // 4. LẤY DỮ LIỆU THÔ (Với bộ lọc đã tối ưu)
       const attempts = await this.prisma.attempt.findMany({
         where: queryFilter,
         select: {
@@ -81,11 +67,6 @@ export class StudyAnalystAIService {
           .join('\n');
       }
 
-      console.log(
-        `Đã fetch ${attempts.length} records. Bắt đầu AI nhận xét...`,
-      );
-
-      // 5. AI PHÂN TÍCH VÀ NHẬN XÉT
       const aiAnalysis = await this.insightGenerator.generateTextualInsight(
         prompt,
         rawDataString,
@@ -113,12 +94,16 @@ export class StudyAnalystAIService {
     userRole: string,
   ) {
     try {
+      const extracted =
+        await this.insightGenerator.extractEntitiesFromPrompt(prompt);
+      const targetClassId = classId;
+      const targetQuizId = extracted.quizId;
+
       if (userRole === 'Lecturer') {
         const classData = await this.prisma.class.findUnique({
-          where: { clid: classId },
+          where: { clid: targetClassId },
           include: { lecturer: true },
         });
-
         if (!classData || classData.lecturer?.user_id !== userId) {
           throw new ForbiddenException(
             'You do not have permission to view this class.',
@@ -126,11 +111,18 @@ export class StudyAnalystAIService {
         }
       }
 
+      const queryFilter: any = {
+        student: { classes: { some: { clid: targetClassId } } },
+        quiz: { class_id: targetClassId },
+      };
+
+      // Nâng cấp: Chỉ xét rủi ro dựa trên 1 Quiz cụ thể nếu được yêu cầu
+      if (targetQuizId) {
+        queryFilter.quiz_id = targetQuizId;
+      }
+
       const attempts = await this.prisma.attempt.findMany({
-        where: {
-          student: { classes: { some: { clid: classId } } },
-          quiz: { class_id: classId },
-        },
+        where: queryFilter,
         select: {
           percentage: true,
           student: { select: { sid: true } },
@@ -168,7 +160,12 @@ export class StudyAnalystAIService {
         rawDataString,
       );
 
-      return { classId, timestamp: new Date().toISOString(), ...aiAnalysis };
+      return {
+        classId: targetClassId,
+        quizId: targetQuizId,
+        timestamp: new Date().toISOString(),
+        ...aiAnalysis,
+      };
     } catch (error) {
       console.error('Error in detectStudentRisk:', error);
       throw error;
@@ -185,13 +182,11 @@ export class StudyAnalystAIService {
     userRole: string,
   ) {
     try {
-      // 1. Phân quyền
       if (userRole === 'Lecturer') {
         const classData = await this.prisma.class.findUnique({
           where: { clid: classId },
           include: { lecturer: true },
         });
-
         if (!classData || classData.lecturer?.user_id !== userId) {
           throw new ForbiddenException(
             'You do not have permission to view this class.',
@@ -199,22 +194,17 @@ export class StudyAnalystAIService {
         }
       }
 
-      // 2. Lấy dữ liệu bài làm kèm thời gian
       const attempts = await this.prisma.attempt.findMany({
         where: {
           student: { classes: { some: { clid: classId } } },
           quiz: { class_id: classId },
         },
-        // SỬA Ở ĐÂY: Dùng đúng tên cột trong database của bạn
         select: { submitted_at: true, started_at: true },
       });
 
-      // 3. Gom nhóm số lượng bài nộp theo Tháng-Năm (YYYY-MM)
       const monthlyStats: Record<string, number> = {};
       attempts.forEach((a) => {
-        // SỬA Ở ĐÂY: Ưu tiên submitted_at, dự phòng started_at
         const date = new Date(a.submitted_at || a.started_at || new Date());
-
         const monthYear = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         monthlyStats[monthYear] = (monthlyStats[monthYear] || 0) + 1;
       });
@@ -222,29 +212,139 @@ export class StudyAnalystAIService {
       let rawDataString = 'No quiz data available to analyze trends.';
       if (Object.keys(monthlyStats).length > 0) {
         rawDataString = Object.entries(monthlyStats)
-          .sort(([monthA], [monthB]) => monthA.localeCompare(monthB)) // Sắp xếp theo thời gian
+          .sort(([monthA], [monthB]) => monthA.localeCompare(monthB))
           .map(
             ([month, count]) => `Month: ${month}, Total Submissions: ${count}`,
           )
           .join('\n');
       }
 
-      console.log('Gửi dữ liệu cho AI phân tích Trend:\n', rawDataString);
-
-      // 4. Gọi AI xử lý xu hướng
       const aiAnalysis = await this.insightGenerator.generateTrendInsight(
         prompt,
         rawDataString,
       );
 
-      return {
-        classId,
-        timestamp: new Date().toISOString(),
-        ...aiAnalysis,
-      };
+      return { classId, timestamp: new Date().toISOString(), ...aiAnalysis };
     } catch (error) {
       console.error('Error in generateTeachingRecommendations:', error);
       throw error;
     }
   }
+
+  // ==========================================
+  // USE CASE 4: KNOWLEDGE GAP ANALYSIS
+  // ==========================================
+  async analyzeKnowledgeGaps(
+    classId: string,
+    prompt: string,
+    userId: string,
+    userRole: string,
+  ) {
+    try {
+      // Ép cứng Class ID từ Body, Quiz ID trích xuất linh hoạt từ Prompt
+      const targetClassId = classId;
+      const extracted =
+        await this.insightGenerator.extractEntitiesFromPrompt(prompt);
+      const targetQuizId = extracted.quizId;
+
+      console.log(
+        `\n[DEBUG] Phân tích lớp: ${targetClassId} | Quiz: ${targetQuizId || 'Tất cả'}`,
+      );
+
+      const queryFilter: any = {
+        attempt: {
+          student: { classes: { some: { clid: targetClassId } } },
+        },
+      };
+
+      // Chỉ lọc câu trả lời của Quiz cụ thể nếu có yêu cầu
+      if (targetQuizId) {
+        queryFilter.attempt.quiz_id = targetQuizId;
+      }
+
+      const answers = await this.prisma.answer.findMany({
+        where: queryFilter,
+        include: { question: true },
+      });
+
+      console.log(`[DEBUG] Prisma tìm thấy: ${answers.length} câu trả lời.`);
+
+      const questionStats: Record<string, any> = {};
+      answers.forEach((ans) => {
+        const qId = ans.question_id || 'unknown_question';
+        if (!questionStats[qId]) {
+          questionStats[qId] = {
+            content: ans.question?.content || `Question ID: ${qId}`,
+            tags: 'Unknown Topic', // Bạn có thể map tag thực tế từ ans.question tại đây
+            total: 0,
+            correct: 0,
+            wrongAnswers: {},
+          };
+        }
+
+        questionStats[qId].total += 1;
+        if (ans.is_correct) {
+          questionStats[qId].correct += 1;
+        } else {
+          let selectedStr = 'Unknown';
+          if (ans.answer_json) {
+            try {
+              const parsed =
+                typeof ans.answer_json === 'string'
+                  ? JSON.parse(ans.answer_json)
+                  : ans.answer_json;
+              selectedStr =
+                parsed.selected || parsed.answer || JSON.stringify(parsed);
+            } catch (e) {
+              selectedStr = String(ans.answer_json);
+            }
+          }
+          questionStats[qId].wrongAnswers[selectedStr] =
+            (questionStats[qId].wrongAnswers[selectedStr] || 0) + 1;
+        }
+      });
+
+      let rawDataString = 'No detailed answer data available.';
+      const statsArray = Object.values(questionStats);
+
+      if (statsArray.length > 0) {
+        rawDataString = statsArray
+          .map((stats) => {
+            const passRate = ((stats.correct / stats.total) * 100).toFixed(1);
+            let str = `[Tags: ${stats.tags}]\nQuestion: ${stats.content}\n- Pass rate: ${passRate}%\n`;
+            const wrongEntries = Object.entries(stats.wrongAnswers).sort(
+              (a: any, b: any) => b[1] - a[1],
+            );
+            if (wrongEntries.length > 0) {
+              const topWrong: any = wrongEntries[0];
+              const wrongPercentage = (
+                (topWrong[1] / stats.total) *
+                100
+              ).toFixed(1);
+              str += `- Most common wrong answer: "${topWrong[0]}" (chosen by ${wrongPercentage}% of failed students)\n`;
+            }
+            return str;
+          })
+          .join('\n\n');
+      }
+
+      const aiAnalysis =
+        await this.insightGenerator.generateKnowledgeGapInsight(
+          prompt,
+          rawDataString,
+        );
+
+      return {
+        classId: targetClassId,
+        quizId: targetQuizId,
+        timestamp: new Date().toISOString(),
+        ...aiAnalysis,
+      };
+    } catch (error) {
+      console.error('Error in analyzeKnowledgeGaps:', error);
+      throw error;
+    }
+  }
+
+  
 }
