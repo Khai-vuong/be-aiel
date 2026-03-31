@@ -5,28 +5,20 @@ import { PrismaService } from '../../../prisma.service';
 @Injectable()
 export class ContextBuilderService {
   private readonly logger = new Logger(ContextBuilderService.name);
+  private readonly quizGeneratorOutputFormat =
+    'Return ONLY a valid JSON object (no markdown, no code fences, no extra text). ' +
+    'The object must have exactly these fields: ' +
+    '"text" (string): your explanation or reasoning for the generated questions; ' +
+    '"questions" (array): the list of quiz questions. ' +
+    'Each question object must include: ' +
+    '"content" (string, required), ' +
+    '"options_json" (object, required for multiple-choice, e.g. {"A":"Paris","B":"London","C":"Berlin"}), ' +
+    '"answer_key_json" (object, required, e.g. {"correct":"A"}), ' +
+    '"points" (number, optional, defaults to 1). ' +
+    'Example: {"text":"Here are 2 questions.","questions":[{"content":"What is the capital of France?","options_json":{"A":"Paris","B":"London","C":"Berlin"},"answer_key_json":{"correct":"A"},"points":1}]}';
+
 
   constructor(private readonly prisma: PrismaService) {}
-
-  // async buildContext(params: {
-  //   userId: string;
-  //   userRole: string;
-  //   serviceType: AIServiceType;
-  //   additionalContext?: any;
-  // }): Promise<AIContext> {
-  //   // TODO: Implement context building logic
-  //   this.logger.log('Building context - to be implemented');
-    
-  //   const context: AIContext = {
-  //     userId: params.userId,
-  //     userRole: params.userRole,
-  //     serviceType: params.serviceType,
-  //     timestamp: new Date(),
-  //     additionalContext: params.additionalContext || {},
-  //   };
-
-  //   return context;
-  // }
 
   buildSystemPrompt(params: {
     role: string;
@@ -57,7 +49,7 @@ export class ContextBuilderService {
       'quiz-module':
         'This request comes from the quiz module. Focus on valid question design, answer correctness, and curriculum alignment.',
       'quiz-generator':
-        'This request comes from the quiz generator. Return structured, unambiguous outputs suitable for quiz generation.',
+        this.quizGeneratorOutputFormat,
       'data-analyst-module':
         'This request comes from the data analyst module. Emphasize measurable insights, confidence level, and actionable recommendations.',
       'data-analyst':
@@ -79,9 +71,9 @@ export class ContextBuilderService {
 
     const segments = [
       'You are an AI assistant for an e-learning platform.',
+      'If requirements are ambiguous, state assumptions explicitly and avoid fabricating details.',
       roleInstruction,
       callerInstruction,
-      'If requirements are ambiguous, state assumptions explicitly and avoid fabricating details.',
     ];
 
     if (
@@ -92,6 +84,10 @@ export class ContextBuilderService {
         `Additional instruction: ${params.customSystemPrompt.trim()}`,
       );
     }
+
+    // if (normalizedCaller === 'quiz-generator') {
+    //   segments.push(this.quizGeneratorOutputFormat);
+    // }
 
     return segments.join(' ');
   }

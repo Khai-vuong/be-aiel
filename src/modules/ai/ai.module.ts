@@ -11,6 +11,10 @@ import { ReportBuilderService } from './services/study-analyst/report-builder.se
 import { ConversationService } from './services/conversation.service';
 import { OuterApiService } from './services/outer-api/outer-api.service';
 import { SummarizationService } from './services/summarization.service';
+import { QuizGenerationService } from './services/Quiz-gen/quizGeneration.service';
+import { RagOrchestratorService } from './services/RAG/rag-orchestrator.service';
+import { RagPlannerService } from './services/RAG/rag-planner.service';
+import { RagPlanExecuterService } from './services/RAG/rag-plan-executer.service';
 import { GeminiProvider } from './providers/gemini.provider';
 import { OpenAIService } from './providers/openai.provider';
 import { GroqService } from './providers/groq.provider';
@@ -36,6 +40,10 @@ import { PrismaService } from '../../prisma.service';
     ConversationService,
     OuterApiService,
     SummarizationService,
+    QuizGenerationService,
+    RagPlannerService,
+    RagPlanExecuterService,
+    RagOrchestratorService,
     // Providers
     GeminiProvider,
     OpenAIService,
@@ -46,6 +54,8 @@ import { PrismaService } from '../../prisma.service';
     StudyAnalystAIService,
     ConversationService,
     OuterApiService,
+    QuizGenerationService,
+    RagOrchestratorService,
   ],
 })
 export class AiModule {}
