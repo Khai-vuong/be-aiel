@@ -19,6 +19,10 @@ function parseRequestedModules(args: string[]): SeedModule[] {
     return [...SEED_MODULES];
   }
 
+  const moduleNameMap = new Map<string, SeedModule>(
+    SEED_MODULES.map((moduleName) => [moduleName.toLowerCase(), moduleName]),
+  );
+
   const normalized = args
     .flatMap((arg) => arg.split(','))
     .map((arg) => arg.trim().toLowerCase())
@@ -29,7 +33,7 @@ function parseRequestedModules(args: string[]): SeedModule[] {
   }
 
   const uniqueModules = [...new Set(normalized)];
-  const invalid = uniqueModules.filter((name) => !SEED_MODULES.includes(name as SeedModule));
+  const invalid = uniqueModules.filter((name) => !moduleNameMap.has(name));
 
   if (invalid.length > 0) {
     throw new Error(
@@ -37,7 +41,7 @@ function parseRequestedModules(args: string[]): SeedModule[] {
     );
   }
 
-  return uniqueModules as SeedModule[];
+  return uniqueModules.map((name) => moduleNameMap.get(name) as SeedModule);
 }
 
 export async function runSeed(modules: SeedModule[]): Promise<void> {

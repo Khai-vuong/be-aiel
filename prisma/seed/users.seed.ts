@@ -1,26 +1,32 @@
 import { PrismaClient } from '@prisma/client';
+import { createIfMissing } from './utils';
 
 export async function seedUsers(prisma: PrismaClient): Promise<void> {
-  await prisma.user.create({
-    data: {
-      uid: 'user001',
-      username: 'admin',
-      hashed_password: 'admin123',
-      status: 'Active',
-      role: 'Admin',
-      admin: {
-        create: {
-          aid: 'admin001',
-          name: 'System Administrator',
-          personal_info: JSON.stringify({
-            address: 'Admin Office',
-            phone: '+1234567890',
-            dob: '1980-01-01',
-          }),
+  await createIfMissing(
+    prisma.user.findUnique({ where: { uid: 'user001' }, select: { uid: true } }),
+    () =>
+      prisma.user.create({
+        data: {
+          uid: 'user001',
+          username: 'admin',
+          hashed_password: 'admin123',
+          status: 'Active',
+          role: 'Admin',
+          admin: {
+            create: {
+              aid: 'admin001',
+              name: 'System Administrator',
+              personal_info: JSON.stringify({
+                address: 'Admin Office',
+                phone: '+1234567890',
+                dob: '1980-01-01',
+              }),
+            },
+          },
         },
-      },
-    },
-  });
+      }),
+    'User user001',
+  );
 
   const lecturers = [
     {
@@ -76,27 +82,32 @@ export async function seedUsers(prisma: PrismaClient): Promise<void> {
   ];
 
   for (const lecturer of lecturers) {
-    await prisma.user.create({
-      data: {
-        uid: lecturer.uid,
-        username: lecturer.username,
-        hashed_password: 'lecturer123',
-        status: 'Active',
-        role: 'Lecturer',
-        lecturer: {
-          create: {
-            lid: lecturer.lid,
-            name: lecturer.name,
-            personal_info_json: JSON.stringify({
-              address: lecturer.address,
-              phone: lecturer.phone,
-              dob: lecturer.dob,
-              department: lecturer.department,
-            }),
+    await createIfMissing(
+      prisma.user.findUnique({ where: { uid: lecturer.uid }, select: { uid: true } }),
+      () =>
+        prisma.user.create({
+          data: {
+            uid: lecturer.uid,
+            username: lecturer.username,
+            hashed_password: 'lecturer123',
+            status: 'Active',
+            role: 'Lecturer',
+            lecturer: {
+              create: {
+                lid: lecturer.lid,
+                name: lecturer.name,
+                personal_info_json: JSON.stringify({
+                  address: lecturer.address,
+                  phone: lecturer.phone,
+                  dob: lecturer.dob,
+                  department: lecturer.department,
+                }),
+              },
+            },
           },
-        },
-      },
-    });
+        }),
+      `User ${lecturer.uid}`,
+    );
   }
 
   const students = [
@@ -213,27 +224,32 @@ export async function seedUsers(prisma: PrismaClient): Promise<void> {
   ];
 
   for (const student of students) {
-    await prisma.user.create({
-      data: {
-        uid: student.uid,
-        username: student.username,
-        hashed_password: 'student123',
-        status: 'Active',
-        role: 'Student',
-        student: {
-          create: {
-            sid: student.sid,
-            name: student.name,
-            major: student.major,
-            personal_info_json: JSON.stringify({
-              address: student.address,
-              phone: student.phone,
-              dob: student.dob,
-              year: student.year,
-            }),
+    await createIfMissing(
+      prisma.user.findUnique({ where: { uid: student.uid }, select: { uid: true } }),
+      () =>
+        prisma.user.create({
+          data: {
+            uid: student.uid,
+            username: student.username,
+            hashed_password: 'student123',
+            status: 'Active',
+            role: 'Student',
+            student: {
+              create: {
+                sid: student.sid,
+                name: student.name,
+                major: student.major,
+                personal_info_json: JSON.stringify({
+                  address: student.address,
+                  phone: student.phone,
+                  dob: student.dob,
+                  year: student.year,
+                }),
+              },
+            },
           },
-        },
-      },
-    });
+        }),
+      `User ${student.uid}`,
+    );
   }
 }

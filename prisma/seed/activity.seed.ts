@@ -1,46 +1,62 @@
 import { PrismaClient } from '@prisma/client';
+import { createIfMissing } from './utils';
 
 async function createNotifications(prisma: PrismaClient): Promise<void> {
-  await prisma.notification.create({
-    data: {
-      nid: 'notification001',
-      title: 'New Quiz Available',
-      message:
-        'A new quiz "Variables and Data Types" has been posted for CS101 - L1. Available until Jan 27, 2024.',
-      type: 'quiz_posted',
-      is_read: false,
-      related_type: 'Quiz',
-      related_id: 'quiz002',
-      user_id: 'user004',
-    },
-  });
+  await createIfMissing(
+    prisma.notification.findUnique({ where: { nid: 'notification001' }, select: { nid: true } }),
+    () =>
+      prisma.notification.create({
+        data: {
+          nid: 'notification001',
+          title: 'New Quiz Available',
+          message:
+            'A new quiz "Variables and Data Types" has been posted for CS101 - L1. Available until Jan 27, 2024.',
+          type: 'quiz_posted',
+          is_read: false,
+          related_type: 'Quiz',
+          related_id: 'quiz002',
+          user_id: 'user004',
+        },
+      }),
+    'Notification notification001',
+  );
 
-  await prisma.notification.create({
-    data: {
-      nid: 'notification002',
-      title: 'Quiz Results Available',
-      message: 'Your results for "Python Basics Quiz" are now available. You scored 60% (3/5 correct).',
-      type: 'grade_released',
-      is_read: false,
-      related_type: 'Attempt',
-      related_id: 'attempt001',
-      user_id: 'user004',
-    },
-  });
+  await createIfMissing(
+    prisma.notification.findUnique({ where: { nid: 'notification002' }, select: { nid: true } }),
+    () =>
+      prisma.notification.create({
+        data: {
+          nid: 'notification002',
+          title: 'Quiz Results Available',
+          message: 'Your results for "Python Basics Quiz" are now available. You scored 60% (3/5 correct).',
+          type: 'grade_released',
+          is_read: false,
+          related_type: 'Attempt',
+          related_id: 'attempt001',
+          user_id: 'user004',
+        },
+      }),
+    'Notification notification002',
+  );
 
-  await prisma.notification.create({
-    data: {
-      nid: 'notification003',
-      title: 'Welcome to CS101',
-      message:
-        'Welcome to CS101 - Introduction to Programming! Please check the course materials and syllabus.',
-      type: 'general',
-      is_read: true,
-      related_type: 'Course',
-      related_id: 'course001',
-      user_id: 'user004',
-    },
-  });
+  await createIfMissing(
+    prisma.notification.findUnique({ where: { nid: 'notification003' }, select: { nid: true } }),
+    () =>
+      prisma.notification.create({
+        data: {
+          nid: 'notification003',
+          title: 'Welcome to CS101',
+          message:
+            'Welcome to CS101 - Introduction to Programming! Please check the course materials and syllabus.',
+          type: 'general',
+          is_read: true,
+          related_type: 'Course',
+          related_id: 'course001',
+          user_id: 'user004',
+        },
+      }),
+    'Notification notification003',
+  );
 }
 
 async function createLogs(prisma: PrismaClient): Promise<void> {
@@ -82,16 +98,21 @@ async function createLogs(prisma: PrismaClient): Promise<void> {
   ] as const;
 
   for (const [logid, action, resource_type, resource_id, user_id, createdAt] of logs) {
-    await prisma.log.create({
-      data: {
-        logid,
-        action,
-        resource_type,
-        resource_id,
-        user_id,
-        created_at: new Date(createdAt),
-      },
-    });
+    await createIfMissing(
+      prisma.log.findUnique({ where: { logid }, select: { logid: true } }),
+      () =>
+        prisma.log.create({
+          data: {
+            logid,
+            action,
+            resource_type,
+            resource_id,
+            user_id,
+            created_at: new Date(createdAt),
+          },
+        }),
+      `Log ${logid}`,
+    );
   }
 }
 export async function seedSystemActivity(prisma: PrismaClient): Promise<void> {

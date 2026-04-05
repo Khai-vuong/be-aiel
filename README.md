@@ -125,3 +125,23 @@ Seed log records.
 
 AI: chưa có seed tương ứng
 Hiện chưa có file seed riêng cho AI (ví dụ AI conversation/history/prompts).
+
+# seed toàn bộ (mặc định all)
+
+npm run db:seed
+
+# hoặc
+
+npm run db:init
+
+# seed 1 module
+
+npm run db:seed -- users
+
+# seed nhiều module
+
+npm run db:seed -- users,academics
+
+# hoặc
+
+npm run db:seed:module -- quizzes,activity

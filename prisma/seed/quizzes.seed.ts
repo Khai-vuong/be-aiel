@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { createIfMissing } from './utils';
 
 type QuestionSeed = {
   ques_id: string;
@@ -61,34 +62,46 @@ async function generateAnswersForAttempt(
       selectedAnswer = wrongOptions[Math.floor(Math.random() * wrongOptions.length)];
     }
 
-    await prisma.answer.create({
-      data: {
-        ansid: `answer_${attemptId}_${question.ques_id}`,
-        answer_json: JSON.stringify({ selected: selectedAnswer }),
-        is_correct: isCorrect,
-        points_awarded: isCorrect ? question.points : 0,
-        attempt_id: attemptId,
-        question_id: question.ques_id,
-        student_id: studentId,
-      },
-    });
+    const answerId = `answer_${attemptId}_${question.ques_id}`;
+    await createIfMissing(
+      prisma.answer.findUnique({ where: { ansid: answerId }, select: { ansid: true } }),
+      () =>
+        prisma.answer.create({
+          data: {
+            ansid: answerId,
+            answer_json: JSON.stringify({ selected: selectedAnswer }),
+            is_correct: isCorrect,
+            points_awarded: isCorrect ? question.points : 0,
+            attempt_id: attemptId,
+            question_id: question.ques_id,
+            student_id: studentId,
+          },
+        }),
+      `Answer ${answerId}`,
+    );
   }
 }
 
 async function createBaseAttemptAndAnswers(prisma: PrismaClient): Promise<void> {
-  const attempt1 = await prisma.attempt.create({
-    data: {
-      atid: 'attempt001',
-      score: 3,
-      max_score: 5,
-      percentage: 60,
-      status: 'graded',
-      attempt_number: 1,
-      quiz_id: 'quiz001',
-      student_id: 'student001',
-      submitted_at: new Date('2024-01-16T10:30:00Z'),
-    },
-  });
+  const baseAttemptId = 'attempt001';
+  await createIfMissing(
+    prisma.attempt.findUnique({ where: { atid: baseAttemptId }, select: { atid: true } }),
+    () =>
+      prisma.attempt.create({
+        data: {
+          atid: baseAttemptId,
+          score: 3,
+          max_score: 5,
+          percentage: 60,
+          status: 'graded',
+          attempt_number: 1,
+          quiz_id: 'quiz001',
+          student_id: 'student001',
+          submitted_at: new Date('2024-01-16T10:30:00Z'),
+        },
+      }),
+    `Attempt ${baseAttemptId}`,
+  );
 
   const baseAnswers = [
     { ansid: 'answer001', question_id: 'question001', selected: 'B', is_correct: true, points_awarded: 1 },
@@ -105,17 +118,22 @@ async function createBaseAttemptAndAnswers(prisma: PrismaClient): Promise<void> 
   ];
 
   for (const answer of baseAnswers) {
-    await prisma.answer.create({
-      data: {
-        ansid: answer.ansid,
-        answer_json: JSON.stringify({ selected: answer.selected }),
-        is_correct: answer.is_correct,
-        points_awarded: answer.points_awarded,
-        attempt_id: attempt1.atid,
-        question_id: answer.question_id,
-        student_id: 'student001',
-      },
-    });
+    await createIfMissing(
+      prisma.answer.findUnique({ where: { ansid: answer.ansid }, select: { ansid: true } }),
+      () =>
+        prisma.answer.create({
+          data: {
+            ansid: answer.ansid,
+            answer_json: JSON.stringify({ selected: answer.selected }),
+            is_correct: answer.is_correct,
+            points_awarded: answer.points_awarded,
+            attempt_id: baseAttemptId,
+            question_id: answer.question_id,
+            student_id: 'student001',
+          },
+        }),
+      `Answer ${answer.ansid}`,
+    );
   }
 }
 
@@ -156,26 +174,33 @@ async function createGeneratedAttempts(prisma: PrismaClient): Promise<void> {
         const score = (percentage / 100) * 5;
 
         const attemptId = `attempt${String(attemptCounter).padStart(3, '0')}`;
-        const attempt = await prisma.attempt.create({
-          data: {
-            atid: attemptId,
-            score,
-            max_score: 5,
-            percentage,
-            status: 'graded',
-            attempt_number: attemptNum,
-            quiz_id: quiz.qid,
-            student_id: student.sid,
-            submitted_at: new Date(
-              `2024-01-${16 + (attemptCounter % 12)}T${10 + (attemptCounter % 10)}:30:00Z`,
-            ),
-          },
-        });
-
-        await generateAnswersForAttempt(prisma, attempt.atid, student.sid, quiz.questions, percentage);
-        console.log(
-          `  Created ${attemptId} for ${student.username} on ${quiz.name} with score ${percentage}%`,
+        const createdAttempt = await createIfMissing(
+          prisma.attempt.findUnique({ where: { atid: attemptId }, select: { atid: true } }),
+          () =>
+            prisma.attempt.create({
+              data: {
+                atid: attemptId,
+                score,
+                max_score: 5,
+                percentage,
+                status: 'graded',
+                attempt_number: attemptNum,
+                quiz_id: quiz.qid,
+                student_id: student.sid,
+                submitted_at: new Date(
+                  `2024-01-${16 + (attemptCounter % 12)}T${10 + (attemptCounter % 10)}:30:00Z`,
+                ),
+              },
+            }),
+          `Attempt ${attemptId}`,
         );
+
+        await generateAnswersForAttempt(prisma, attemptId, student.sid, quiz.questions, percentage);
+        if (createdAttempt) {
+          console.log(
+            `  Created ${attemptId} for ${student.username} on ${quiz.name} with score ${percentage}%`,
+          );
+        }
         attemptCounter++;
       }
     }
@@ -188,91 +213,127 @@ async function createQuestions(
   questions: QuestionSeed[],
 ): Promise<void> {
   for (const question of questions) {
-    await prisma.question.create({
-      data: {
-        ques_id: question.ques_id,
-        content: question.content,
-        options_json: JSON.stringify(question.options),
-        answer_key_json: JSON.stringify(question.answerKey),
-        points: question.points,
-        quiz_id: quizId,
-      },
-    });
+    await createIfMissing(
+      prisma.question.findUnique({ where: { ques_id: question.ques_id }, select: { ques_id: true } }),
+      () =>
+        prisma.question.create({
+          data: {
+            ques_id: question.ques_id,
+            content: question.content,
+            options_json: JSON.stringify(question.options),
+            answer_key_json: JSON.stringify(question.answerKey),
+            points: question.points,
+            quiz_id: quizId,
+          },
+        }),
+      `Question ${question.ques_id}`,
+    );
   }
 }
 
 export async function seedQuizzes(prisma: PrismaClient): Promise<void> {
-  const quiz1 = await prisma.quiz.create({
-    data: {
-      qid: 'quiz001',
-      name: 'Python Basics Quiz',
-      description: 'Test your knowledge of Python fundamentals',
-      settings_json: JSON.stringify({ timeLimit: 30, maxAttempts: 2, shuffleQuestions: true }),
-      available_from: new Date('2024-01-15T09:00:00Z'),
-      available_until: new Date('2024-01-22T23:59:59Z'),
-      class_id: 'class001',
-      creator_id: 'lecturer001',
-      status: 'published',
-    },
-  });
+  const quiz1Id = 'quiz001';
+  const quiz2Id = 'quiz002';
+  const quiz3Id = 'quiz003';
+  const quiz4Id = 'quiz004';
+  const quiz5Id = 'quiz005';
 
-  const quiz2 = await prisma.quiz.create({
-    data: {
-      qid: 'quiz002',
-      name: 'Variables and Data Types',
-      description: 'Quiz on Python variables, data types, and type conversion',
-      settings_json: JSON.stringify({ timeLimit: 25, maxAttempts: 2, shuffleQuestions: false }),
-      available_from: new Date('2024-01-20T10:00:00Z'),
-      available_until: new Date('2024-01-27T23:59:59Z'),
-      class_id: 'class001',
-      creator_id: 'lecturer001',
-      status: 'published',
-    },
-  });
+  await createIfMissing(
+    prisma.quiz.findUnique({ where: { qid: quiz1Id }, select: { qid: true } }),
+    () =>
+      prisma.quiz.create({
+        data: {
+          qid: quiz1Id,
+          name: 'Python Basics Quiz',
+          description: 'Test your knowledge of Python fundamentals',
+          settings_json: JSON.stringify({ timeLimit: 30, maxAttempts: 2, shuffleQuestions: true }),
+          available_from: new Date('2024-01-15T09:00:00Z'),
+          available_until: new Date('2024-01-22T23:59:59Z'),
+          class_id: 'class001',
+          creator_id: 'lecturer001',
+          status: 'published',
+        },
+      }),
+    `Quiz ${quiz1Id}`,
+  );
 
-  const quiz3 = await prisma.quiz.create({
-    data: {
-      qid: 'quiz003',
-      name: 'Control Flow and Loops',
-      description: 'Assessment on if statements, for loops, and while loops',
-      settings_json: JSON.stringify({ timeLimit: 40, maxAttempts: 3, shuffleQuestions: true }),
-      available_from: new Date('2024-02-01T09:00:00Z'),
-      available_until: new Date('2024-02-08T23:59:59Z'),
-      class_id: 'class001',
-      creator_id: 'lecturer001',
-      status: 'published',
-    },
-  });
+  await createIfMissing(
+    prisma.quiz.findUnique({ where: { qid: quiz2Id }, select: { qid: true } }),
+    () =>
+      prisma.quiz.create({
+        data: {
+          qid: quiz2Id,
+          name: 'Variables and Data Types',
+          description: 'Quiz on Python variables, data types, and type conversion',
+          settings_json: JSON.stringify({ timeLimit: 25, maxAttempts: 2, shuffleQuestions: false }),
+          available_from: new Date('2024-01-20T10:00:00Z'),
+          available_until: new Date('2024-01-27T23:59:59Z'),
+          class_id: 'class001',
+          creator_id: 'lecturer001',
+          status: 'published',
+        },
+      }),
+    `Quiz ${quiz2Id}`,
+  );
 
-  const quiz4 = await prisma.quiz.create({
-    data: {
-      qid: 'quiz004',
-      name: 'Functions and Modules',
-      description: 'Quiz covering function definition, parameters, return values, and importing modules',
-      settings_json: JSON.stringify({ timeLimit: 35, maxAttempts: 2, shuffleQuestions: true }),
-      available_from: new Date('2024-02-10T10:00:00Z'),
-      available_until: new Date('2024-02-17T23:59:59Z'),
-      class_id: 'class001',
-      creator_id: 'lecturer001',
-      status: 'draft',
-    },
-  });
+  await createIfMissing(
+    prisma.quiz.findUnique({ where: { qid: quiz3Id }, select: { qid: true } }),
+    () =>
+      prisma.quiz.create({
+        data: {
+          qid: quiz3Id,
+          name: 'Control Flow and Loops',
+          description: 'Assessment on if statements, for loops, and while loops',
+          settings_json: JSON.stringify({ timeLimit: 40, maxAttempts: 3, shuffleQuestions: true }),
+          available_from: new Date('2024-02-01T09:00:00Z'),
+          available_until: new Date('2024-02-08T23:59:59Z'),
+          class_id: 'class001',
+          creator_id: 'lecturer001',
+          status: 'published',
+        },
+      }),
+    `Quiz ${quiz3Id}`,
+  );
 
-  const quiz5 = await prisma.quiz.create({
-    data: {
-      qid: 'quiz005',
-      name: 'Lists, Dictionaries, and Sets',
-      description: 'Comprehensive assessment on Python collections and data structures',
-      settings_json: JSON.stringify({ timeLimit: 45, maxAttempts: 2, shuffleQuestions: true }),
-      available_from: new Date('2024-02-20T09:00:00Z'),
-      available_until: new Date('2024-02-27T23:59:59Z'),
-      class_id: 'class001',
-      creator_id: 'lecturer001',
-      status: 'draft',
-    },
-  });
+  await createIfMissing(
+    prisma.quiz.findUnique({ where: { qid: quiz4Id }, select: { qid: true } }),
+    () =>
+      prisma.quiz.create({
+        data: {
+          qid: quiz4Id,
+          name: 'Functions and Modules',
+          description: 'Quiz covering function definition, parameters, return values, and importing modules',
+          settings_json: JSON.stringify({ timeLimit: 35, maxAttempts: 2, shuffleQuestions: true }),
+          available_from: new Date('2024-02-10T10:00:00Z'),
+          available_until: new Date('2024-02-17T23:59:59Z'),
+          class_id: 'class001',
+          creator_id: 'lecturer001',
+          status: 'draft',
+        },
+      }),
+    `Quiz ${quiz4Id}`,
+  );
 
-  await createQuestions(prisma, quiz1.qid, [
+  await createIfMissing(
+    prisma.quiz.findUnique({ where: { qid: quiz5Id }, select: { qid: true } }),
+    () =>
+      prisma.quiz.create({
+        data: {
+          qid: quiz5Id,
+          name: 'Lists, Dictionaries, and Sets',
+          description: 'Comprehensive assessment on Python collections and data structures',
+          settings_json: JSON.stringify({ timeLimit: 45, maxAttempts: 2, shuffleQuestions: true }),
+          available_from: new Date('2024-02-20T09:00:00Z'),
+          available_until: new Date('2024-02-27T23:59:59Z'),
+          class_id: 'class001',
+          creator_id: 'lecturer001',
+          status: 'draft',
+        },
+      }),
+    `Quiz ${quiz5Id}`,
+  );
+
+  await createQuestions(prisma, quiz1Id, [
     {
       ques_id: 'question001',
       content: 'What is the correct way to declare a variable in Python?',
@@ -320,7 +381,7 @@ export async function seedQuizzes(prisma: PrismaClient): Promise<void> {
     },
   ]);
 
-  await createQuestions(prisma, quiz2.qid, [
+  await createQuestions(prisma, quiz2Id, [
     {
       ques_id: 'question006',
       content: 'What is the correct way to create a string variable in Python?',
@@ -368,7 +429,7 @@ export async function seedQuizzes(prisma: PrismaClient): Promise<void> {
     },
   ]);
 
-  await createQuestions(prisma, quiz3.qid, [
+  await createQuestions(prisma, quiz3Id, [
     {
       ques_id: 'question011',
       content: 'What is the correct syntax for an if statement in Python?',
@@ -416,7 +477,7 @@ export async function seedQuizzes(prisma: PrismaClient): Promise<void> {
     },
   ]);
 
-  await createQuestions(prisma, quiz4.qid, [
+  await createQuestions(prisma, quiz4Id, [
     {
       ques_id: 'question016',
       content: 'What keyword is used to define a function in Python?',
@@ -474,7 +535,7 @@ export async function seedQuizzes(prisma: PrismaClient): Promise<void> {
     },
   ]);
 
-  await createQuestions(prisma, quiz5.qid, [
+  await createQuestions(prisma, quiz5Id, [
     {
       ques_id: 'question021',
       content: 'How do you create an empty dictionary in Python?',

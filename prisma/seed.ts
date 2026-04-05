@@ -1,1 +1,1 @@
-import './seed';
+import './seed/index';
