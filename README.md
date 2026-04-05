@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 <p align="center">
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
 </p>
@@ -90,14 +89,39 @@ Nest is an MIT-licensed open source project. It can grow thanks to the sponsors 
 
 ## Stay in touch
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
 - Website - [https://nestjs.com](https://nestjs.com/)
 - Twitter - [@nestframework](https://twitter.com/nestframework)
 
 ## License
 
 Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
-=======
+
 # be-aiel
+
 A capstone project for semester 251
->>>>>>> a9a185744e04d08a3485a4bf172e4f5d455ad6cc
+
+### Seeding
+
+User: users.seed.ts
+Seed User + các subtype (Admin, Lecturer, Student).
+
+Course: academics.seed.ts
+Seed Course + CourseEnrollment.
+
+Class: academics.seed.ts
+Seed Class + liên kết student trong class.
+
+Quiz: quizzes.seed.ts
+Seed Quiz + Question.
+
+Attempts: activity.seed.ts
+Seed Attempt + Answer (cả fixed attempt và attempts random).
+
+Notifications: activity.seed.ts
+Seed notification records.
+
+Logs: activity.seed.ts
+Seed log records.
+
+AI: chưa có seed tương ứng
+Hiện chưa có file seed riêng cho AI (ví dụ AI conversation/history/prompts).
