@@ -35,6 +35,26 @@ export class RagPlannerService {
     private readonly outerAPIService: OuterApiService,
   ) {}
 
+  buildMetadataDescription(metadata: any): string {
+    if (!metadata || typeof metadata !== 'object') {
+      return '';
+    }
+
+    const entries = Object.entries(metadata).filter(
+      ([, value]) => value !== undefined && value !== null && String(value).trim() !== '',
+    );
+
+    if (entries.length === 0) {
+      return '';
+    }
+
+    const description = entries
+      .map(([key, value]) => `${key} ${String(value)}`)
+      .join(', ');
+
+    return `Current context: ${description}`;
+  }
+
   buildCommandCatalog(role: string = 'Admin'): string {
     const catalog = RAG_CAPABILITY_ENTRIES
       .filter((entry) => entry.allowedRoles.includes(role))
@@ -55,11 +75,14 @@ export class RagPlannerService {
   ): Promise<RagCapabilityExecution[]> {
     try {
       const commandCatalog = this.buildCommandCatalog(params.userRole);
+      const metadataDescription = this.buildMetadataDescription(params.metadata);
+      const plannerPrompt = params.prompt;
 
       const plannerSystemPrompt = this.contextBuilderService.buildSystemPrompt({
         role: params.userRole,
         caller: 'RAG-admin',
         customSystemPrompt:
+          metadataDescription + '\n' +
           'You are a capability planner for a RAG pipeline. ' +
           'Return ONLY valid JSON with shape [{id, parameters}]. ' +
           'with parameters as a JSON object. ' +
@@ -69,7 +92,7 @@ export class RagPlannerService {
       });
 
       const outerAPIRequest: OuterApiRequest = {
-        prompt: params.prompt,
+        prompt: plannerPrompt,
         role: params.userRole,
         provider: params.provider ?? 'groq',
         temperature: 0.3,

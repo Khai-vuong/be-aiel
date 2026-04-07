@@ -39,6 +39,7 @@ export class RefactoredOrchestratorService {
    * MAIN AI PIPELINE
    */
   async processRequest(request: AiRequestDto, user: JwtPayload) {
+    const startTime = Date.now();
     this.logger.log('AI request received by refactored orchestrator');
 
     let conversationId = request.conversationId;
@@ -90,11 +91,15 @@ export class RefactoredOrchestratorService {
         usecase: response?.usecase,
         module: response?.module,
         uiTarget: response?.uiTarget,
+        processingTime: Date.now() - startTime,
       },
     });
 
     // Step 5: return business response as usual
-    return response;
+    return {
+      ...response,
+      processingTime: Date.now() - startTime,
+    };
   }
 
   async directChat(
@@ -188,8 +193,8 @@ export class RefactoredOrchestratorService {
     const routerSystemPrompt = [
       'You are a routing classifier for the backend AI orchestrator. Return exactly one string that best fits the following guidelines.',
       'Available modes:',
-      '*quiz_gen: if the user is asking for help generating quiz questions, structuring quizzes, or anything directly related to quiz creation.',
-      '*insight: analytics, reports, trends, recommendations, logs, enrollments, or answers that require internal platform data.',
+      'quiz_gen: if the user is asking for help generating quiz questions, structuring quizzes, or anything directly related to quiz creation.',
+      'insight: analytics, reports, trends, recommendations, logs, enrollments, or answers that require internal platform data.',
       'chat: Not quiz_gen or insight, just general AI chat.',
     ].join('\n');
 

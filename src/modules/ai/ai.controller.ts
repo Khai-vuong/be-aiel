@@ -30,6 +30,7 @@ import { SwaggerAiChat } from './swagger/ai.swagger';
 import { StudyAnalystAIService } from './services/study-analyst/study-analyst-ai.service';
 import { OuterApiProvider } from './services/outer-api/outer-api.service';
 import { QuizGenerationService } from './services/Quiz-gen/quizGeneration.service';
+import { RefactoredOrchestratorService } from './orchestrator/refactoredOrchestrator.service';
 
 /**
  * DTO dành riêng cho việc test Study Analyst trên Swagger
@@ -59,6 +60,7 @@ export class AiController {
     private readonly conversationService: ConversationService,
     private readonly quizGenerationService: QuizGenerationService,
     private readonly studyAnalystAIService: StudyAnalystAIService,
+    private readonly refaOrchestratorService: RefactoredOrchestratorService,
   ) {}
 
   /**
@@ -154,7 +156,7 @@ export class AiController {
   @Roles('any')
   @SwaggerAiChat()
   async chat(@Request() req, @Body() aiRequest: AiRequestDto) {
-    return this.orchestratorService.processRequest(aiRequest, req.user);
+    return this.refaOrchestratorService.processRequest(aiRequest, req.user);
   }
 
   @Post('chat/direct')
@@ -219,80 +221,4 @@ export class AiController {
   async testRag(@Request() req, @Body() body: { text: string }) {
     return this.orchestratorService.testRag(req, body);
   }
-
-  // @Put('conversations/:id/archive')
-  // @Roles('any')
-  // async archiveConversation(@Request() req, @Param('id') conversationId: string) {
-  //   return this.conversationService.archiveConversation(conversationId, req.user.uid);
-  // }
-
-
-
-  // @Post('study-analyst/report')
-  // @Roles('ADMIN', 'LECTURER')
-  // async generateReport(
-  //   @Request() req,
-  //   @Body()
-  //   body: {
-  //     prompt: string;
-  //     classId?: string;
-  //     courseId?: string;
-  //   },
-  // ) {
-  //   const aiRequest: AiRequestDto = {
-  //     text: body.prompt,
-  //     serviceType: 'STUDY_ANALYST',
-  //     metadata: {
-  //       classId: body.classId,
-  //       courseId: body.courseId,
-  //     },
-  //   };
-
-  //   return this.orchestratorService.processRequest(aiRequest, req.user);
-  // }
-
-//   @Post('study-analyst/report')
-//   @Roles('ADMIN', 'LECTURER')
-//   async generateReport(@Request() req, @Body() body: any) {
-//     const { prompt, classId } = body;
-
-//     return {
-//       role: req.user.role,
-//       prompt,
-//       classId,
-//       insight: `Class ${classId} has an average quiz score of 72%.
-// 2 students are at risk (score < 50%).
-// Completion rate is decreasing over the last 2 weeks.`,
-//     };
-//   }
-
-//   @Post('study-analyst/report')
-//   @Roles('ADMIN', 'LECTURER')
-//   async generateReport(@Request() req, @Body() body: any) {
-//     return this.orchestratorService.studyAnalystReport(req.user, body);
-//   }
-
-//   @Post('tutor/ask')
-//   @Roles('STUDENT')
-//   async askTutor(
-//     @Request() req,
-//     @Body() body: { message: string; courseId?: string },
-//   ) {
-//     // TODO: Implement tutor chat
-//     return { message: 'Tutor chat - to be implemented' };
-//   }
-
-//   @Post('teaching-assistant/generate-quiz')
-//   @Roles('LECTURER')
-//   async generateQuiz(@Request() req, @Body() params: any) {
-//     // TODO: Implement quiz generation
-//     return { message: 'Quiz generation - to be implemented' };
-//   }
-
-//   @Post('teaching-assistant/summarize-content')
-//   @Roles('LECTURER')
-//   async summarizeContent(@Request() req, @Body() params: any) {
-//     // TODO: Implement content summarization
-//     return { message: 'Content summarization - to be implemented' };
-//   }
 }
