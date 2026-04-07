@@ -397,7 +397,7 @@ Your Tasks:
 STRICT RULE: Respond ONLY with a valid JSON object matching this exact structure:
 {
   "misconceptions": [
-    { "question": "...", "wrongAnswerChosen": "...", "percentage": 0 }
+    { ".question": "..", "wrongAnswerChosen": "...", "percentage": 0 }
   ],
   "skillMatrix": [
     { "skillTag": "...", "masteryLevel": "Strong | Weak | Average" }
