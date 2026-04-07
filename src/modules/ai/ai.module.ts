@@ -20,6 +20,7 @@ import { OpenAIService } from './providers/openai.provider';
 import { GroqService } from './providers/groq.provider';
 
 import { PrismaService } from '../../prisma.service';
+import { RefactoredOrchestratorService } from './orchestrator/refactoredOrchestrator.service';
 
 @Module({
   controllers: [AiController],
@@ -29,6 +30,7 @@ import { PrismaService } from '../../prisma.service';
     OrchestratorService,
     IntentClassifierService,
     ContextBuilderService,
+    RefactoredOrchestratorService,
 
     // Study Analyst
     StudyAnalystAIService,

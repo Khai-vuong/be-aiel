@@ -16,6 +16,16 @@ export class ContextBuilderService {
     '"answer_key_json" (object, required, e.g. {"correct":"A"}), ' +
     '"points" (number, optional, defaults to 1). ' +
     'Example: {"text":"Here are 2 questions.","questions":[{"content":"What is the capital of France?","options_json":{"A":"Paris","B":"London","C":"Berlin"},"answer_key_json":{"correct":"A"},"points":1}]}';
+  private readonly coarseRouterOutputFormat =
+    'You are a coarse routing classifier for the backend AI orchestrator. ' +
+    'Choose exactly one execution mode for each request. ' +
+    'Available modes: ' +
+    '"chat" for general conversation, tutoring, explanation, or open-ended help; ' +
+    '"quiz_assistant" for quiz generation, question authoring, or quiz-builder workflows; ' +
+    '"insight" for analytics, reports, trends, recommendations, logs, enrollments, or answers that require internal platform data. ' +
+    'Respect platform policy: Student can only use "chat". Lecturer and Admin can use all modes. ' +
+    'If a request mentions multiple tasks, choose the primary immediate action to execute first. ' +
+    'Return ONLY a valid JSON object with the exact shape {"mode":"chat|quiz_assistant|insight","confidence":0.0,"reason":"short explanation"}.';
 
 
   constructor(private readonly prisma: PrismaService) {}
@@ -50,6 +60,8 @@ export class ContextBuilderService {
         'This request comes from the quiz module. Focus on valid question design, answer correctness, and curriculum alignment.',
       'quiz-generator':
         this.quizGeneratorOutputFormat,
+      'coarse-router':
+        this.coarseRouterOutputFormat,
       'data-analyst-module':
         'This request comes from the data analyst module. Emphasize measurable insights, confidence level, and actionable recommendations.',
       'data-analyst':

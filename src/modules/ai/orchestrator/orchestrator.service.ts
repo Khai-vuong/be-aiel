@@ -6,12 +6,12 @@ import { AiResponseDto } from '../dtos/ai-response.dto';
 import { JwtPayload } from 'src/modules/users/jwt.strategy';
 import { OuterApiService } from '../services/outer-api/outer-api.service';
 import { StudyAnalystAIService } from '../services/study-analyst/study-analyst-ai.service';
+import { QuizGenerationService } from '../services/Quiz-gen/quizGeneration.service';
 import { ConversationService } from '../services/conversation.service';
 import {
   SummarizationService,
   SummarizeOptions,
 } from '../services/summarization.service';
-import { RagPlannerService } from '../services/RAG/rag-planner.service';
 import { RagOrchestratorService } from '../services/RAG/rag-orchestrator.service';
 @Injectable()
 export class OrchestratorService {
@@ -22,9 +22,9 @@ export class OrchestratorService {
     private readonly prisma: PrismaService,
     private readonly outerApiService: OuterApiService,
     private readonly studyAnalystAIService: StudyAnalystAIService,
+    private readonly quizGenerationService: QuizGenerationService,
     private readonly conversationService: ConversationService,
     private readonly summarizationService: SummarizationService,
-    private readonly ragPlannerService: RagPlannerService,
     private readonly ragOrchestratorService: RagOrchestratorService,
   ) {}
 
@@ -34,7 +34,33 @@ export class OrchestratorService {
   async processRequest(request: AiRequestDto, user: JwtPayload) {
     this.logger.log('AI request received');
 
-    // 1. Phân loại ý định từ câu chat của người dùng
+    let conversationId = request.conversationId;
+
+    // Step 1: create a new conversation or continue the existing one
+    if (!conversationId) {
+      const titleRes = await this.summarizationService.summarize(request.text, {
+        minLength: 3,
+        maxLength: 7,
+      } as SummarizeOptions);
+      const conv = await this.conversationService.createConversation({
+        userId: user.uid,
+        title: titleRes.summary || 'New Chat',
+      });
+      conversationId = conv.acid;
+    }
+
+    await this.conversationService.createMessage({
+      conversationId,
+      role: 'user',
+      content: request.text,
+    });
+
+    const normalizedRequest: AiRequestDto = {
+      ...request,
+      conversationId,
+    };
+
+    // Step 2: classify intent
     const intent = await this.intentClassifier.classifyIntent(
       request.text,
       user.role,
@@ -42,21 +68,72 @@ export class OrchestratorService {
 
     this.logger.log(`Intent detected: ${intent}`);
 
-    // 2. Điều phối đến đúng AI Agent
+    let response: any;
+
+    // Step 3: route request to the right module
     switch (intent) {
       case 'data_analysis':
       case 'class_analysis':
-        // Gộp chung vào 1 hàm Sub-router để xử lý cả 4 nghiệp vụ phân tích
-        return this.handleClassAnalysis(request, user);
-
       case 'teaching_recommendation':
+        response = await this.handleClassAnalysis(normalizedRequest, user);
+        break;
+
       case 'quiz_creation':
-        // return this.handleQuizCreation(request, user); // (Ví dụ cho tương lai)
-        return this.handleGeneralChat(request, user);
+        response = await this.handleQuizCreation(normalizedRequest, user);
+        break;
+
+      case 'system_configuration':
+      case 'rag':
+      case 'rag_orchestrator':
+        response = await this.handleRagChat(normalizedRequest, user);
+        break;
 
       default:
-        return this.handleGeneralChat(request, user);
+        response = await this.handleGeneralChat(normalizedRequest, user);
+        break;
     }
+
+    // Step 4: persist assistant response to AI conversation
+    const assistantContent = this.extractAssistantContent(response);
+    await this.conversationService.createMessage({
+      conversationId,
+      role: 'assistant',
+      content: assistantContent,
+      modelName: this.extractModelName(response),
+      metadata: {
+        intent,
+        usecase: response?.usecase,
+      },
+    });
+
+    // Step 5: return business response as usual
+    return response;
+  }
+
+  private extractAssistantContent(response: any): string {
+    if (!response) return '';
+    if (typeof response?.text === 'string' && response.text.trim().length > 0) {
+      return response.text;
+    }
+    if (
+      typeof response?.response === 'string' &&
+      response.response.trim().length > 0
+    ) {
+      return response.response;
+    }
+
+    try {
+      return JSON.stringify(response);
+    } catch {
+      return String(response);
+    }
+  }
+
+  private extractModelName(response: any): string | undefined {
+    if (typeof response?.provider === 'string' && response.provider.length > 0) {
+      return response.provider;
+    }
+    return undefined;
   }
 
   /**
@@ -141,6 +218,38 @@ export class OrchestratorService {
       );
       return { usecase: 'CLASS_ANALYSIS', ...result };
     }
+  }
+
+  private async handleQuizCreation(request: AiRequestDto, user: JwtPayload) {
+    this.logger.log('Routing to Quiz Generation module...');
+    const result = await this.quizGenerationService.generateQuiz({
+      prompt: request.text,
+      role: user.role,
+      provider: request.provider as 'gemini' | 'groq' | 'openai' | undefined,
+      temperature: request.temperature,
+      customSystemPrompt: request.customSystemPrompt,
+    });
+
+    return {
+      usecase: 'QUIZ_CREATION',
+      text: result.text,
+      questions: result.questions,
+      provider: result.provider,
+      rawText: result.rawText,
+    };
+  }
+
+  private async handleRagChat(request: AiRequestDto, user: JwtPayload) {
+    this.logger.log('Routing to RAG Orchestrator module...');
+    const result = await this.ragOrchestratorService.chat({
+      aiRequest: request,
+      user,
+    });
+
+    return {
+      usecase: 'RAG_ORCHESTRATION',
+      ...result,
+    };
   }
 
   /**
