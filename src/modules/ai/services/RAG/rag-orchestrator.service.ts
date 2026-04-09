@@ -79,6 +79,8 @@ export class RagOrchestratorService{
 
       customSystemPrompt: systemPrompt,
       onlyUseSystemPrompt: true,
+
+      temperature: 0.7,
     });
 
     //step 5: response assembly and return
