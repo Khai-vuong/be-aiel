@@ -1,5 +1,4 @@
 import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
-import { parseJsonStrings } from 'src/common/utils/parseJSON';
 import { JwtPayload } from 'src/modules/users/jwt.strategy';
 import { AiRequestDto } from '../dtos/ai-request.dto';
 import { AiResponseDto } from '../dtos/ai-response.dto';
@@ -10,8 +9,11 @@ import {
   SummarizationService,
   SummarizeOptions,
 } from '../services/summarization.service';
-
-type ExecutionMode = 'chat' | 'quiz_assistant' | 'insight';
+import {
+  IntentClassifierService,
+  type ExecutionMode,
+} from './intent-classifier.service';
+import { LanguageDetectionService } from '../utils/language-detect.service';
 
 type RoutedResponse = {
   usecase: string;
@@ -33,12 +35,17 @@ export class RefactoredOrchestratorService {
     private readonly summarizationService: SummarizationService,
     private readonly outerApiService: OuterApiService,
     private readonly ragOrchestratorService: RagOrchestratorService,
+    private readonly intentClassifierService: IntentClassifierService,
+    private readonly languageDetectionService: LanguageDetectionService,
   ) {}
 
   /**
    * MAIN AI PIPELINE
    */
-  async processRequest(request: AiRequestDto, user: JwtPayload) {
+  async processRequest(
+    request: AiRequestDto,
+    user: JwtPayload,
+  ): Promise<AiResponseDto> {
     const startTime = Date.now();
     this.logger.log('AI request received by refactored orchestrator');
 
@@ -69,7 +76,10 @@ export class RefactoredOrchestratorService {
     };
 
     // Step 2: classify intent
-    const mode = await this.resolveExecutionMode(normalizedRequest, user);
+    const mode = await this.intentClassifierService.resolveExecutionMode(
+      normalizedRequest,
+      user,
+    );
     this.enforceFeatureAccess(mode, user); //Giống Guard 
 
     this.logger.log(`Execution mode resolved: ${mode}`);
@@ -81,7 +91,7 @@ export class RefactoredOrchestratorService {
 
     // Step 4: persist assistant response to AI conversation
     const assistantContent = this.extractAssistantContent(response);
-    await this.conversationService.createMessage({
+    const assistantMsg = await this.conversationService.createMessage({
       conversationId,
       role: 'assistant',
       content: assistantContent,
@@ -95,10 +105,20 @@ export class RefactoredOrchestratorService {
       },
     });
 
-    // Step 5: return business response as usual
+    // Step 5: return standardized response DTO
+    const provider = this.extractProvider(response, request.provider);
+    const modelName = this.extractModelName(response) || provider;
+
     return {
-      ...response,
-      processingTime: Date.now() - startTime,
+      success: true,
+      conversationId,
+      messageId: assistantMsg.amid,
+      text: assistantContent,
+      metadata: {
+        processingTime: Date.now() - startTime,
+        provider,
+        serviceType: this.resolveServiceType(mode),
+      },
     };
   }
 
@@ -182,49 +202,6 @@ export class RefactoredOrchestratorService {
     });
   }
 
-  private async resolveExecutionMode(
-    request: AiRequestDto,
-    user: JwtPayload,
-  ): Promise<ExecutionMode> {
-    if (user.role === 'Student') {
-      return 'chat';
-    }
-
-    const routerSystemPrompt = [
-      'You are a routing classifier for the backend AI orchestrator. Return exactly one string that best fits the following guidelines.',
-      'Available modes:',
-      'quiz_gen: if the user is asking for help generating quiz questions, structuring quizzes, or anything directly related to quiz creation.',
-      'insight: analytics, reports, trends, recommendations, logs, enrollments, or answers that require internal platform data.',
-      'chat: Not quiz_gen or insight, just general AI chat.',
-    ].join('\n');
-
-    try {
-      const result = await this.outerApiService.chat({
-        prompt: request.text,
-        role: user.role,
-        caller: 'coarse-router',
-        provider: (request.provider as 'gemini' | 'groq' | 'openai') || 'groq',
-        temperature: 0.1,
-        customSystemPrompt: routerSystemPrompt,
-        onlyUseSystemPrompt: true
-      });
-
-      switch (result?.text?.toLowerCase().trim()) {
-        case 'quiz_assistant':
-          return 'quiz_assistant';
-        case 'insight':
-          return 'insight';
-        case 'chat':
-        default:
-          return 'chat';
-      }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.warn(`Coarse routing failed, fallback to chat: ${message}`);
-      return 'chat';
-    }
-  }
-
   private enforceFeatureAccess(mode: ExecutionMode, user: JwtPayload): void {
     const role = this.normalizeRole(user.role);
 
@@ -291,6 +268,34 @@ export class RefactoredOrchestratorService {
     request: AiRequestDto,
     user: JwtPayload,
   ): Promise<RoutedResponse> {
+
+    /// User need to manually select class to create quiz
+    if (request.metadata?.sendFrom?.toLowerCase() === 'chatpage') {
+      if (this.languageDetectionService.detect(request.text) === 'vie') {
+        return {
+          usecase: 'QUIZ_ASSISTANT',
+          mode: 'quiz_assistant',
+          uiTarget: 'quiz-builder',
+          module: 'QuizGen',
+          text: 'Có vẻ bạn muốn tạo quiz. Bạn có thể vào Lớp học của tôi -> Lớp mà bạn muốn tạo quiz -> Quizzes -> Tạo bài thi mới. Tôi sẽ ở đó hỗ trợ bạn',
+          provider: 'openai',
+          attemptedProviders: 'openai',
+        };
+      }
+
+      else {
+        return {
+          usecase: 'QUIZ_ASSISTANT',
+          mode: 'quiz_assistant',
+          uiTarget: 'quiz-builder',
+          module: 'QuizGen',
+          text: 'You seem to want to create a quiz. You can go to My Classes -> The class you want to create the quiz for -> Quizzes -> Create new quiz. I will be there to assist you.',
+          provider: 'openai',
+          attemptedProviders: 'openai',
+        };
+      }
+    }
+
     const result = await this.outerApiService.chat({
       prompt: request.text,
       role: user.role,
@@ -355,10 +360,38 @@ export class RefactoredOrchestratorService {
   }
 
   private extractModelName(response: any): string | undefined {
+    if (
+      typeof response?.modelName === 'string' &&
+      response.modelName.trim().length > 0
+    ) {
+      return response.modelName;
+    }
     if (typeof response?.provider === 'string' && response.provider.length > 0) {
       return response.provider;
     }
     return undefined;
+  }
+
+  private extractProvider(
+    response: any,
+    fallback?: string,
+  ): string | undefined {
+    if (typeof response?.provider === 'string' && response.provider.length > 0) {
+      return response.provider;
+    }
+    return fallback;
+  }
+
+  private resolveServiceType(mode: ExecutionMode): 'Chat' | 'quizgen' | 'insight' {
+    switch (mode) {
+      case 'quiz_assistant':
+        return 'quizgen';
+      case 'insight':
+        return 'insight';
+      case 'chat':
+      default:
+        return 'Chat';
+    }
   }
 
   private normalizeRole(role?: string): string {

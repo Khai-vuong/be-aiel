@@ -1,0 +1,228 @@
+====AI API DOCUMENTATION
+
+Base URL: /ai
+Authentication: Required (JWT Token in Authorization header for protected routes)
+
+====1. POST /ai/chat
+====Description: Chat tong hop qua orchestrator (co routing mode chat/quiz_assistant/insight)
+Method: POST
+Role: any (authenticated users)
+Content-Type: application/json
+
+Request Body (AiRequestDto):
+{
+  "text": "Tao cho toi 5 cau hoi ve SQL",
+  "metadata": {
+    "classId": "L01",
+    "courseId": "C01"
+  },
+  "conversationId": "conv_123",
+  "context": {
+    "source": "web"
+  },
+  "provider": "groq",
+  "temperature": 0.7,
+  "customSystemPrompt": "Ban la tro ly hoc tap",
+  "serviceType": "STUDY_ANALYST"
+}
+
+AiRequestDto fields:
+  - text: string (required)
+  - metadata.classId: string (optional)
+  - metadata.courseId: string (optional)
+  - conversationId: string (optional, dung de tiep tuc hoi thoai)
+  - context: object (optional)
+  - provider: string (optional)
+  - temperature: number (optional)
+  - customSystemPrompt: string (optional)
+  - serviceType: enum (optional, test/future only)
+    + SYSTEM_CONTROL
+    + STUDY_ANALYST
+    + TUTOR
+    + TEACHING_ASSISTANT
+
+Response Body (AiResponseDto):
+{
+  "success": true,
+  "conversationId": "conv_123",
+  "messageId": "msg_456",
+  "text": "Day la cau tra loi cua AI",
+  "metadata": {
+    "serviceType": "Chat",
+    "provider": "groq",
+    "processingTime": 250,
+  }
+}
+
+AiResponseDto fields:
+  - conversationId: string (optional)
+  - conversationTitle: string (optional)
+  - messageId: string (optional)
+  - success: boolean (required)
+  - text: string (required)
+  - error.message: string (optional)
+  - error.code: string (optional)
+  - metadata.createdAt: string (optional)
+  - metadata.serviceType: string (optional)
+  - metadata.provider: string (optional)
+  - metadata.processingTime: number (optional)
+
+====2. POST /ai/chat/direct
+====Description: Chat truc tiep qua outer API (bo qua orchestration mode)
+Method: POST
+Role: any (authenticated users)
+Content-Type: application/json
+
+Request Body:
+  - Su dung AiRequestDto nhu /ai/chat
+
+Example Output:
+{
+  "success": true,
+  "conversationId": "conv_123",
+  "messageId": "msg_999",
+  "text": "Tra loi direct chat",
+  "metadata": {
+    "processingTime": 180
+  }
+}
+
+====3. GET /ai/conversations
+====Description: Lay danh sach conversation cua user hien tai
+Method: GET
+Role: any (authenticated users)
+Query Parameters:
+  - limit (optional, default 20)
+  - offset (optional, default 0)
+
+Example:
+  GET /ai/conversations?limit=20&offset=0
+
+Example Output:
+{
+  "conversations": [
+    {
+      "conversationId": "acid_clx123abc",
+      "title": "How to learn TypeScript?",
+      "status": "active",
+      "lastMessageAt": "2026-03-10T14:30:00Z",
+      "messageCount": 8,
+      "preview": "You: How to learn TypeScript?",
+      "metadata": null,
+      "createdAt": "2026-03-10T10:00:00Z",
+      "updatedAt": "2026-03-10T14:30:00Z"
+    }
+  ],
+  "total": 45,
+  "hasMore": true
+}
+
+====4. GET /ai/conversations/:id/messages
+====Description: Lay messages cua mot conversation (co phan trang)
+Method: GET
+Role: any (authenticated users)
+URL Parameters:
+  - id (required): string - Conversation ID
+Query Parameters:
+  - limit (optional, default 50)
+  - beforeMessageId (optional): string - Lay message truoc message id nay
+
+Example:
+  GET /ai/conversations/acid_clx123abc/messages?limit=50
+
+Example Output:
+{
+  "conversation": {
+    "conversationId": "acid_clx123abc",
+    "title": "How to learn TypeScript?",
+    "status": "active",
+    "metadata": null,
+    "createdAt": "2026-03-10T10:00:00Z",
+    "updatedAt": "2026-03-10T14:30:00Z"
+  },
+  "messages": [
+    {
+      "messageId": "amid_001xyz",
+      "conversationId": "acid_clx123abc",
+      "role": "user",
+      "content": "How to learn TypeScript?",
+      "contentJson": null,
+      "parentMessageId": null,
+      "promptTokens": null,
+      "completionTokens": null,
+      "totalTokens": null,
+      "modelName": null,
+      "metadata": null,
+      "createdAt": "2026-03-10T10:00:00Z",
+      "updatedAt": "2026-03-10T10:00:00Z"
+    }
+  ],
+  "totalMessages": 8,
+  "hasMore": true
+}
+
+====5. PUT /ai/conversations/:id/rename
+====Description: Doi ten conversation cua user hien tai
+Method: PUT
+Role: any (authenticated users)
+URL Parameters:
+  - id (required): string - Conversation ID
+Content-Type: application/json
+
+Request Body:
+{
+  "title": "TypeScript Learning Guide"
+}
+
+Example Output:
+{
+  "message": "Conversation renamed successfully"
+}
+
+====6. PUT /ai/conversations/:id/archive
+====Description: Archive conversation cua user hien tai
+Method: PUT
+Role: any (authenticated users)
+URL Parameters:
+  - id (required): string - Conversation ID
+Content-Type: application/json
+
+Request Body:
+{
+  "archived": true
+}
+
+Example Output:
+{
+  "message": "Conversation archived successfully"
+}
+
+====7. DELETE /ai/conversations/:id
+====Description: Xoa 1 conversation cua user hien tai
+Method: DELETE
+Role: any (authenticated users)
+URL Parameters:
+  - id (required): string - Conversation ID
+
+Example Output:
+{
+  "message": "Conversation deleted successfully"
+}
+
+====HOW TO GET conversationId
+====Option A: Lay truc tiep tu response cua /ai/chat hoac /ai/chat/direct
+  - conversationId duoc tra ve sau moi lan chat thanh cong.
+
+====Option B: Lay tu danh sach /ai/conversations
+  - Goi GET /ai/conversations de lay cac conversation id (acid).
+
+====AUTHENTICATION
+====JWT token phai duoc gui trong Authorization header
+Format: Authorization: Bearer <token>
+
+====NOTES
+====1. Neu khong gui conversationId trong request chat, he thong tu tao conversation moi.
+2. Neu gui conversationId, he thong tiep tuc hoi thoai cu.
+3. serviceType runtime thuong la: Chat, quizgen, insight.
+4. provider la nha cung cap AI duoc su dung de tao response.
+5. processingTime la thoi gian xu ly (ms).

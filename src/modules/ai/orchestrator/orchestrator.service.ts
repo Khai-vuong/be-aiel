@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { IntentClassifierService } from './intent-classifier.service';
+import { IntentClassifierService } from './intent-classifier-legacy.service';
 import { PrismaService } from '../../../prisma.service';
 import { AiRequestDto } from '../dtos/ai-request.dto';
 import { AiResponseDto } from '../dtos/ai-response.dto';
@@ -31,7 +31,11 @@ export class OrchestratorService {
   /**
    * MAIN AI PIPELINE
    */
-  async processRequest(request: AiRequestDto, user: JwtPayload) {
+  async processRequest(
+    request: AiRequestDto,
+    user: JwtPayload,
+  ): Promise<AiResponseDto> {
+    const startTime = Date.now();
     this.logger.log('AI request received');
 
     let conversationId = request.conversationId;
@@ -95,7 +99,7 @@ export class OrchestratorService {
 
     // Step 4: persist assistant response to AI conversation
     const assistantContent = this.extractAssistantContent(response);
-    await this.conversationService.createMessage({
+    const assistantMsg = await this.conversationService.createMessage({
       conversationId,
       role: 'assistant',
       content: assistantContent,
@@ -106,8 +110,21 @@ export class OrchestratorService {
       },
     });
 
-    // Step 5: return business response as usual
-    return response;
+    // Step 5: return standardized response DTO
+    const provider = this.extractProvider(response, request.provider);
+    const modelName = this.extractModelName(response) || provider;
+
+    return {
+      success: true,
+      conversationId,
+      messageId: assistantMsg.amid,
+      text: assistantContent,
+      metadata: {
+        processingTime: Date.now() - startTime,
+        provider,
+        serviceType: this.resolveServiceType(intent),
+      },
+    };
   }
 
   private extractAssistantContent(response: any): string {
@@ -130,10 +147,39 @@ export class OrchestratorService {
   }
 
   private extractModelName(response: any): string | undefined {
+    if (
+      typeof response?.modelName === 'string' &&
+      response.modelName.length > 0
+    ) {
+      return response.modelName;
+    }
     if (typeof response?.provider === 'string' && response.provider.length > 0) {
       return response.provider;
     }
     return undefined;
+  }
+
+  private extractProvider(
+    response: any,
+    fallback?: string,
+  ): string | undefined {
+    if (typeof response?.provider === 'string' && response.provider.length > 0) {
+      return response.provider;
+    }
+    return fallback;
+  }
+
+  private resolveServiceType(intent: string): 'Chat' | 'quizgen' | 'insight' {
+    switch (intent) {
+      case 'quiz_creation':
+        return 'quizgen';
+      case 'data_analysis':
+      case 'class_analysis':
+      case 'teaching_recommendation':
+        return 'insight';
+      default:
+        return 'Chat';
+    }
   }
 
   /**

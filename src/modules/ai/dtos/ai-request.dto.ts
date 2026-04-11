@@ -5,10 +5,7 @@ export class AiRequestDto {
   @IsString()
   text: string = '';
 
-  metadata?: {
-    classId?: string;
-    courseId?: string;
-  };
+  metadata?: any
 
   @IsOptional()
   @IsString()

@@ -10,6 +10,38 @@ import {
 } from "class-validator";
 import { Type } from "class-transformer";
 
+export class AiResponseDto {
+  @IsOptional()
+  @IsString()
+  conversationId?: string;
+
+  @IsOptional()
+  @IsString()
+  conversationTitle?: string;
+
+  @IsOptional()
+  @IsString()
+  messageId?: string;
+
+  @IsBoolean()
+  success: boolean;
+
+  @IsString()
+  text: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AiErrorDto)
+  error?: AiErrorDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => AiMetadataDto)
+  metadata?: AiMetadataDto;
+}
+
+
+
 // Nested DTO cho error
 export class AiErrorDto {
   @IsOptional()
@@ -40,52 +72,4 @@ export class AiMetadataDto {
   @Min(0)
   processingTime?: number;
 
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  promptTokens?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  completionTokens?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  totalTokens?: number;
-
-  @IsOptional()
-  @IsString()
-  modelName?: string;
-}
-
-export class AiResponseDto {
-  @IsOptional()
-  @IsString()
-  conversationId?: string;
-
-  @IsOptional()
-  @IsString()
-  conversationTitle?: string;
-
-  @IsOptional()
-  @IsString()
-  messageId?: string;
-
-  @IsBoolean()
-  success: boolean;
-
-  @IsString()
-  text: string;
-
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => AiErrorDto)
-  error?: AiErrorDto;
-
-  @IsOptional()
-  @ValidateNested()
-  @Type(() => AiMetadataDto)
-  metadata?: AiMetadataDto;
 }

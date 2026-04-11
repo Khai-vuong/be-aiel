@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AiController } from './ai.controller';
 import { OrchestratorService } from './orchestrator/orchestrator.service';
-import { IntentClassifierService } from './orchestrator/intent-classifier.service';
+import { IntentClassifierService } from './orchestrator/intent-classifier-legacy.service';
 import { ContextBuilderService } from './orchestrator/context-builder.service';
 import { StudyAnalystAIService } from './services/study-analyst/study-analyst-ai.service';
 import { PerformanceCalculatorService } from './services/study-analyst/performance-calculator.service';
@@ -21,6 +21,8 @@ import { GroqService } from './providers/groq.provider';
 
 import { PrismaService } from '../../prisma.service';
 import { RefactoredOrchestratorService } from './orchestrator/refactoredOrchestrator.service';
+import { IntentClassifierService as RefactoredIntentClassifierService } from './orchestrator/intent-classifier.service';
+import { LanguageDetectionService } from './utils/language-detect.service';
 
 @Module({
   controllers: [AiController],
@@ -29,6 +31,7 @@ import { RefactoredOrchestratorService } from './orchestrator/refactoredOrchestr
     // Orchestrator
     OrchestratorService,
     IntentClassifierService,
+    RefactoredIntentClassifierService,
     ContextBuilderService,
     RefactoredOrchestratorService,
 
@@ -50,6 +53,10 @@ import { RefactoredOrchestratorService } from './orchestrator/refactoredOrchestr
     GeminiProvider,
     OpenAIService,
     GroqService,
+
+
+    //utils
+    LanguageDetectionService,
   ],
   exports: [
     OrchestratorService,
