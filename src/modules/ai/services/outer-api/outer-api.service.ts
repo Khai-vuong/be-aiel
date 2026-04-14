@@ -20,6 +20,8 @@ export type OuterApiRequest = {
   userId?: string; // Required for conversation history fetch
   convLimit?: number;
   convOffset?: number;
+
+  metadata?: any;
 };
 
 export type OuterApiResponse = {

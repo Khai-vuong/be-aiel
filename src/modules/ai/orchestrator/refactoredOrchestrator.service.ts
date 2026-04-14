@@ -251,6 +251,7 @@ export class RefactoredOrchestratorService {
       customSystemPrompt: request.customSystemPrompt,
       conversationId: request.conversationId,
       userId: user.uid,
+      metadata: request.metadata,
     });
 
     return {
@@ -305,6 +306,7 @@ export class RefactoredOrchestratorService {
       customSystemPrompt: request.customSystemPrompt,
       conversationId: request.conversationId,
       userId: user.uid,
+      metadata: request.metadata,
     });
 
     return {

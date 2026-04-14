@@ -10,11 +10,6 @@ type QuestionSeed = {
 };
 
 const QUIZ_IDS = ['quiz001', 'quiz002', 'quiz003', 'quiz004', 'quiz005'] as const;
-const CLASS_001_STUDENTS = [
-  { username: 'student1', sid: 'student001' },
-  { username: 'student3', sid: 'student003' },
-  { username: 'student5', sid: 'student005' },
-] as const;
 
 type ParsedAnswerKey = { correct: string | string[] };
 
@@ -82,59 +77,17 @@ async function generateAnswersForAttempt(
   }
 }
 
-async function createBaseAttemptAndAnswers(prisma: PrismaClient): Promise<void> {
-  const baseAttemptId = 'attempt001';
-  await createIfMissing(
-    prisma.attempt.findUnique({ where: { atid: baseAttemptId }, select: { atid: true } }),
-    () =>
-      prisma.attempt.create({
-        data: {
-          atid: baseAttemptId,
-          score: 3,
-          max_score: 5,
-          percentage: 60,
-          status: 'graded',
-          attempt_number: 1,
-          quiz_id: 'quiz001',
-          student_id: 'student001',
-          submitted_at: new Date('2024-01-16T10:30:00Z'),
-        },
-      }),
-    `Attempt ${baseAttemptId}`,
-  );
+async function getClass001StudentIds(prisma: PrismaClient): Promise<string[]> {
+  const classRecord = await prisma.class.findUnique({
+    where: { clid: 'class001' },
+    select: { students: { select: { sid: true }, orderBy: { sid: 'asc' } } },
+  });
 
-  const baseAnswers = [
-    { ansid: 'answer001', question_id: 'question001', selected: 'B', is_correct: true, points_awarded: 1 },
-    { ansid: 'answer002', question_id: 'question002', selected: 'C', is_correct: false, points_awarded: 0 },
-    {
-      ansid: 'answer003',
-      question_id: 'question003',
-      selected: ['B', 'D'],
-      is_correct: true,
-      points_awarded: 1,
-    },
-    { ansid: 'answer004', question_id: 'question004', selected: 'A', is_correct: false, points_awarded: 0 },
-    { ansid: 'answer005', question_id: 'question005', selected: 'B', is_correct: true, points_awarded: 1 },
-  ];
-
-  for (const answer of baseAnswers) {
-    await createIfMissing(
-      prisma.answer.findUnique({ where: { ansid: answer.ansid }, select: { ansid: true } }),
-      () =>
-        prisma.answer.create({
-          data: {
-            ansid: answer.ansid,
-            answer_json: JSON.stringify({ selected: answer.selected }),
-            is_correct: answer.is_correct,
-            points_awarded: answer.points_awarded,
-            attempt_id: baseAttemptId,
-            question_id: answer.question_id,
-            student_id: 'student001',
-          },
-        }),
-      `Answer ${answer.ansid}`,
-    );
+  if (!classRecord) {
+    return [];
   }
+
+  return classRecord.students.map((student) => student.sid);
 }
 
 async function createGeneratedAttempts(prisma: PrismaClient): Promise<void> {
@@ -152,6 +105,30 @@ async function createGeneratedAttempts(prisma: PrismaClient): Promise<void> {
     },
   });
 
+  const studentIds = await getClass001StudentIds(prisma);
+  if (quizzes.length === 0 || studentIds.length === 0) {
+    return;
+  }
+
+  const existingAttempts = await prisma.attempt.findMany({
+    where: {
+      quiz_id: { in: quizzes.map((quiz) => quiz.qid) },
+      student_id: { in: studentIds },
+    },
+    select: { atid: true },
+  });
+
+  const existingAttemptIds = existingAttempts.map((attempt) => attempt.atid);
+  if (existingAttemptIds.length > 0) {
+    await prisma.answer.deleteMany({
+      where: { attempt_id: { in: existingAttemptIds } },
+    });
+
+    await prisma.attempt.deleteMany({
+      where: { atid: { in: existingAttemptIds } },
+    });
+  }
+
   const quizData = quizzes.map((quiz) => ({
     qid: quiz.qid,
     name: quiz.name,
@@ -163,46 +140,36 @@ async function createGeneratedAttempts(prisma: PrismaClient): Promise<void> {
     })),
   }));
 
-  let attemptCounter = 2;
+  let attemptCounter = 1;
 
-  for (const student of CLASS_001_STUDENTS) {
+  for (const studentId of studentIds) {
     for (const quiz of quizData) {
-      const startAttempt = student.sid === 'student001' && quiz.qid === 'quiz001' ? 2 : 1;
+      const percentage = getRandomScore();
+      const maxScore = quiz.questions.reduce((sum, question) => sum + question.points, 0);
+      const score = Number(((percentage / 100) * maxScore).toFixed(2));
+      const attemptId = `attempt_${quiz.qid}_${studentId}`;
 
-      for (let attemptNum = startAttempt; attemptNum <= 2; attemptNum++) {
-        const percentage = getRandomScore();
-        const score = (percentage / 100) * 5;
+      await prisma.attempt.create({
+        data: {
+          atid: attemptId,
+          score,
+          max_score: maxScore,
+          percentage,
+          status: 'graded',
+          attempt_number: 1,
+          quiz_id: quiz.qid,
+          student_id: studentId,
+          submitted_at: new Date(
+            `2024-03-${String(1 + (attemptCounter % 28)).padStart(2, '0')}T${String(
+              8 + (attemptCounter % 10),
+            ).padStart(2, '0')}:30:00Z`,
+          ),
+        },
+      });
 
-        const attemptId = `attempt${String(attemptCounter).padStart(3, '0')}`;
-        const createdAttempt = await createIfMissing(
-          prisma.attempt.findUnique({ where: { atid: attemptId }, select: { atid: true } }),
-          () =>
-            prisma.attempt.create({
-              data: {
-                atid: attemptId,
-                score,
-                max_score: 5,
-                percentage,
-                status: 'graded',
-                attempt_number: attemptNum,
-                quiz_id: quiz.qid,
-                student_id: student.sid,
-                submitted_at: new Date(
-                  `2024-01-${16 + (attemptCounter % 12)}T${10 + (attemptCounter % 10)}:30:00Z`,
-                ),
-              },
-            }),
-          `Attempt ${attemptId}`,
-        );
-
-        await generateAnswersForAttempt(prisma, attemptId, student.sid, quiz.questions, percentage);
-        if (createdAttempt) {
-          console.log(
-            `  Created ${attemptId} for ${student.username} on ${quiz.name} with score ${percentage}%`,
-          );
-        }
-        attemptCounter++;
-      }
+      await generateAnswersForAttempt(prisma, attemptId, studentId, quiz.questions, percentage);
+      console.log(`  Created ${attemptId} on ${quiz.name} with score ${percentage}%`);
+      attemptCounter++;
     }
   }
 }
@@ -583,6 +550,5 @@ export async function seedQuizzes(prisma: PrismaClient): Promise<void> {
     },
   ]);
 
-  await createBaseAttemptAndAnswers(prisma);
   await createGeneratedAttempts(prisma);
 }

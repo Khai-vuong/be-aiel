@@ -209,6 +209,9 @@ export async function seedAcademics(prisma: PrismaClient): Promise<void> {
   const class3Id = 'class003';
   const class4Id = 'class004';
   const class5Id = 'class005';
+  const class001StudentIds = Array.from({ length: 20 }, (_, index) =>
+    `student${String(index + 1).padStart(3, '0')}`,
+  );
 
   await createIfMissing(
     prisma.class.findUnique({ where: { clid: class1Id }, select: { clid: true } }),
@@ -223,12 +226,21 @@ export async function seedAcademics(prisma: PrismaClient): Promise<void> {
           course_id: course1Id,
           lecturer_id: 'lecturer001',
           students: {
-            connect: [{ sid: 'student001' }, { sid: 'student003' }, { sid: 'student005' }],
+            connect: class001StudentIds.map((sid) => ({ sid })),
           },
         },
       }),
     `Class ${class1Id}`,
   );
+
+  await prisma.class.update({
+    where: { clid: class1Id },
+    data: {
+      students: {
+        set: class001StudentIds.map((sid) => ({ sid })),
+      },
+    },
+  });
 
   await createIfMissing(
     prisma.class.findUnique({ where: { clid: class2Id }, select: { clid: true } }),
