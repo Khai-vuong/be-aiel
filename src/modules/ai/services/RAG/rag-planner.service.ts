@@ -59,8 +59,7 @@ export class RagPlannerService {
 
     const resolutionHints = hasClassId
       ? [
-          'When a classId is available in metadata and the user mentions a quiz name or file name instead of an ID, resolve it from the current class first.',
-          'Do not guess IDs from names; prefer lookup steps when the user provides human-readable names.',
+          `Here are the resolved names to ids of objects relate to classId=${metadata.classId}`,
         ].join(' ')
       : '';
 
@@ -125,18 +124,11 @@ export class RagPlannerService {
         customSystemPrompt:
           metadataDescription + '\n' +
           'You are a capability planner for a RAG pipeline. ' +
-          'Return ONLY valid JSON with shape [{id, parameters}]. ' +
+          'Return ONLY one valid JSON object with shape {id, parameters}. ' +
           'with parameters as a JSON object. ' +
+          'DO NOT answer the user question. Return exactly one capability call object only.'+
           'Select only from provided capability catalog.\n' +
-          '\n=== CRITICAL INSTRUCTIONS FOR QUIZ NAME RESOLUTION ===\n' +
-          '1. If user mentions a QUIZ NAME (human-readable text like "variable and data types", "Introduction to Programming"), ' +
-          'you MUST plan a class-quizzes step FIRST to get the quiz ID list.\n' +
-          '2. After retrieving quizzes, use the quiz ID (not the name) in class-overview, analyze-quiz-performance, or knowledge-gap.\n' +
-          '3. Correct multi-step sequence when quiz name detected:\n' +
-          '   [{id: "class-quizzes", parameters: {classId: "class001"}},\n' +
-          '    {id: "class-overview", parameters: {classId: "class001", quizId: "quiz123"}}]\n' +
-          '4. If quizId parameter looks like a real ID (not text), use it directly.\n' +
-          '5. DO NOT answer the user question, return a strict json array of capability calls ONLY',
+          commandCatalog ,
         onlyUseSystemPrompt: true,
       });
 
@@ -152,43 +144,39 @@ export class RagPlannerService {
       const response = await this.outerAPIService.chat(outerAPIRequest);
       const parsedResponse = parseJsonStrings(response.text);
 
-      if (!Array.isArray(parsedResponse)) {
+      const normalizedItem = Array.isArray(parsedResponse)
+        ? parsedResponse[0]
+        : parsedResponse;
+
+      if (!normalizedItem || typeof normalizedItem !== 'object') {
         return [];
       }
 
-      const normalized = parsedResponse
-        .map((item): RagCapabilityExecution | null => {
-          if (!item || typeof item !== 'object') {
-            return null;
-          }
+      const candidate = normalizedItem as {
+        id?: unknown;
+        capabilityId?: unknown;
+        parameters?: unknown;
+        resolvedParameters?: unknown;
+      };
 
-          const candidate = item as {
-            id?: unknown;
-            capabilityId?: unknown;
-            parameters?: unknown;
-            resolvedParameters?: unknown;
-          };
+      const capabilityId =
+        typeof candidate.capabilityId === 'string'
+          ? candidate.capabilityId
+          : typeof candidate.id === 'string'
+            ? candidate.id
+            : '';
 
-          const capabilityId =
-            typeof candidate.capabilityId === 'string'
-              ? candidate.capabilityId
-              : typeof candidate.id === 'string'
-                ? candidate.id
-                : '';
+      if (!capabilityId) {
+        return [];
+      }
 
-          if (!capabilityId) {
-            return null;
-          }
-
-          return {
-            capabilityId,
-            resolvedParameters:
-              candidate.resolvedParameters ?? candidate.parameters ?? {},
-          };
-        })
-        .filter((item): item is RagCapabilityExecution => item !== null);
-
-      return normalized;
+      return [
+        {
+          capabilityId,
+          resolvedParameters:
+            candidate.resolvedParameters ?? candidate.parameters ?? {},
+        },
+      ];
     } catch (error) {
       console.error('Error selecting capabilities from prompt:', error);
       throw error;

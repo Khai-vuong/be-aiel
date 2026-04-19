@@ -88,10 +88,9 @@ export class RagPlanExecuterService {
         'class-quizzes': (step) => this.executeClassQuizzes(step),
         'class-students': (step) => this.executeClassStudents(step),
         'class-lecturer': (step) => this.executeClassLecturer(step),
-        'query-student': (step) => this.executeQueryStudent(step),
+        'analyze-quiz-performance': (step) => this.executeAnalyseQuizPerformance(step),
         'teaching-recommendation': (step) => this.executeTeachingRecommendation(step),
         'knowledge-gap': (step) => this.executeKnowledgeGap(step),
-        // NOTE: resolve-quiz-id removed - using prompt engineering in planner instead
     };
 
     private toSafeNumber(value: unknown, fallback: number): number {
@@ -521,7 +520,7 @@ export class RagPlanExecuterService {
         return flattenJsonToTable(`class ${classId}: Lecturer`, rows);
     }
 
-    private async executeQueryStudent(step: RagCapabilityExecution): Promise<any> {
+    private async executeAnalyseQuizPerformance(step: RagCapabilityExecution): Promise<any> {
         const params = (step.resolvedParameters ?? {}) as QueryStudentParams;
         const classId = this.toRequiredString(params.classId, 'classId');
         const quizId = typeof params.quizId === 'string' ? params.quizId.trim() : '';
@@ -547,16 +546,16 @@ export class RagPlanExecuterService {
             where,
             select: {
                 percentage: true,
-                student: { select: { sid: true } },
+                student: { select: { sid: true, name: true } },
             },
         });
 
-        const studentMap: Record<string, { studentId: string; totalScore: number; totalAttempts: number }> = {};
+        const studentMap: Record<string, { studentName: string; totalScore: number; totalAttempts: number }> = {};
         for (const attempt of attempts) {
             const sid = attempt.student.sid;
             if (!studentMap[sid]) {
                 studentMap[sid] = {
-                    studentId: sid,
+                    studentName: attempt.student.name || sid,
                     totalScore: 0,
                     totalAttempts: 0,
                 };
@@ -568,7 +567,7 @@ export class RagPlanExecuterService {
 
         const studentAverages = Object.values(studentMap)
             .map((student) => ({
-                studentId: student.studentId,
+                studentName: student.studentName,
                 averageScore: Number((student.totalScore / student.totalAttempts).toFixed(2)),
                 totalAttempts: student.totalAttempts,
             }));
