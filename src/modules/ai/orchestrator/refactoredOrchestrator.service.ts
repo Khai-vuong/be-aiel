@@ -4,7 +4,8 @@ import { AiRequestDto } from '../dtos/ai-request.dto';
 import { AiResponseDto } from '../dtos/ai-response.dto';
 import { ConversationService } from '../services/conversation.service';
 import { OuterApiService } from '../services/outer-api/outer-api.service';
-import { RagOrchestratorService } from '../services/RAG/rag-orchestrator.service';
+// import { RagOrchestratorService } from '../services/RAG/rag-orchestrator.service';
+import { RagReactService } from '../services/RAG/rag_react';
 import {
   SummarizationService,
   SummarizeOptions,
@@ -34,7 +35,8 @@ export class RefactoredOrchestratorService {
     private readonly conversationService: ConversationService,
     private readonly summarizationService: SummarizationService,
     private readonly outerApiService: OuterApiService,
-    private readonly ragOrchestratorService: RagOrchestratorService,
+    // private readonly ragOrchestratorService: RagOrchestratorService,
+    private readonly ragReactService: RagReactService,
     private readonly intentClassifierService: IntentClassifierService,
     private readonly languageDetectionService: LanguageDetectionService,
   ) {}
@@ -196,7 +198,7 @@ export class RefactoredOrchestratorService {
       customSystemPrompt: req.body?.customSystemPrompt,
     };
 
-    return this.ragOrchestratorService.chat({
+    return this.ragReactService.chat({
       aiRequest,
       user: req.user,
     });
@@ -324,10 +326,16 @@ export class RefactoredOrchestratorService {
     request: AiRequestDto,
     user: JwtPayload,
   ): Promise<RoutedResponse> {
-    const result = await this.ragOrchestratorService.chat({
+    const result = await this.ragReactService.chat({
       aiRequest: request,
       user,
     });
+
+    // Old orchestrator path kept for reference during PoC validation.
+    // const result = await this.ragOrchestratorService.chat({
+    //   aiRequest: request,
+    //   user,
+    // });
 
     return {
       usecase: 'INSIGHT_RAG',

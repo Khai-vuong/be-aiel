@@ -8,6 +8,7 @@ import {
 
 import {parseJsonStrings} from 'src/common/utils/parseJSON';
 import { RAG_CAPABILITY_ENTRIES } from './capability-entries';
+import { RagPlanExecuterService } from './rag-plan-executer.service';
 
 export type RagCapabilityExecution = {
   capabilityId: string;
@@ -33,9 +34,10 @@ export class RagPlannerService {
   constructor(
     private readonly contextBuilderService: ContextBuilderService,
     private readonly outerAPIService: OuterApiService,
+    private readonly planExecuterService: RagPlanExecuterService,
   ) {}
 
-  buildMetadataDescription(metadata: any): string {
+  async buildMetadataDescription(metadata: any): Promise<string> {
     if (!metadata || typeof metadata !== 'object') {
       return '';
     }
@@ -52,7 +54,47 @@ export class RagPlannerService {
       .map(([key, value]) => `${key} ${String(value)}`)
       .join(', ');
 
-    return `Current context: ${description}`;
+    const hasClassId = Object.prototype.hasOwnProperty.call(metadata, 'classId')
+      && String((metadata as { classId?: unknown }).classId ?? '').trim() !== '';
+
+    const resolutionHints = hasClassId
+      ? [
+          'When a classId is available in metadata and the user mentions a quiz name or file name instead of an ID, resolve it from the current class first.',
+          'Do not guess IDs from names; prefer lookup steps when the user provides human-readable names.',
+        ].join(' ')
+      : '';
+
+    const classId = String((metadata as { classId?: unknown }).classId ?? '').trim();
+    let quizMappingContext = '';
+
+    if (classId) {
+      try {
+        const [quizEntry] = await this.planExecuterService.execute([
+          {
+            capabilityId: 'class-quizzes',
+            resolvedParameters: { classId },
+          },
+        ]);
+
+        if (quizEntry?.result) {
+          quizMappingContext = [
+            `Quiz mapping for class ${classId}:`,
+            String(quizEntry.result),
+          ].join('\n');
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        quizMappingContext = `Quiz mapping for class ${classId}: unavailable (${message})`;
+      }
+    }
+
+    return [
+      `Current context: ${description}`,
+      resolutionHints,
+      quizMappingContext,
+    ]
+      .filter((item) => item.trim().length > 0)
+      .join('\n');
   }
 
   buildCommandCatalog(role: string = 'Admin'): string {
@@ -75,9 +117,8 @@ export class RagPlannerService {
   ): Promise<RagCapabilityExecution[]> {
     try {
       const commandCatalog = this.buildCommandCatalog(params.userRole);
-      const metadataDescription = this.buildMetadataDescription(params.metadata);
+      const metadataDescription = await this.buildMetadataDescription(params.metadata);
       const plannerPrompt = params.prompt;
-
       const plannerSystemPrompt = this.contextBuilderService.buildSystemPrompt({
         role: params.userRole,
         caller: 'RAG-admin',
@@ -87,7 +128,15 @@ export class RagPlannerService {
           'Return ONLY valid JSON with shape [{id, parameters}]. ' +
           'with parameters as a JSON object. ' +
           'Select only from provided capability catalog.\n' +
-          commandCatalog,
+          '\n=== CRITICAL INSTRUCTIONS FOR QUIZ NAME RESOLUTION ===\n' +
+          '1. If user mentions a QUIZ NAME (human-readable text like "variable and data types", "Introduction to Programming"), ' +
+          'you MUST plan a class-quizzes step FIRST to get the quiz ID list.\n' +
+          '2. After retrieving quizzes, use the quiz ID (not the name) in class-overview, analyze-quiz-performance, or knowledge-gap.\n' +
+          '3. Correct multi-step sequence when quiz name detected:\n' +
+          '   [{id: "class-quizzes", parameters: {classId: "class001"}},\n' +
+          '    {id: "class-overview", parameters: {classId: "class001", quizId: "quiz123"}}]\n' +
+          '4. If quizId parameter looks like a real ID (not text), use it directly.\n' +
+          '5. DO NOT answer the user question, return a strict json array of capability calls ONLY',
         onlyUseSystemPrompt: true,
       });
 
@@ -95,7 +144,7 @@ export class RagPlannerService {
         prompt: plannerPrompt,
         role: params.userRole,
         provider: params.provider ?? 'groq',
-        temperature: 0.3,
+        temperature: 0.1,
         customSystemPrompt: plannerSystemPrompt,
         onlyUseSystemPrompt: true,
       };

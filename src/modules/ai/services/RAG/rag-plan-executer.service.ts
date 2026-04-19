@@ -6,6 +6,12 @@ import {
     flattenJsonToTable,
 } from "../../utils/rag-data-format.util";
 
+export type ExecutionContext = { 
+    capabilityId: string; 
+    result?: any; 
+    error?: string 
+;}
+
 type LogRetrieveParams = {
     limit?: number;
     offset?: number;
@@ -29,6 +35,22 @@ type EnrollmentRetrieveParams = {
 type ClassOverviewParams = {
     classId?: string;
     quizId?: string;
+};
+
+type ClassFilesParams = {
+    classId?: string;
+};
+
+type ClassQuizzesParams = {
+    classId?: string;
+};
+
+type ClassStudentsParams = {
+    classId?: string;
+};
+
+type ClassLecturerParams = {
+    classId?: string;
 };
 
 type QueryStudentParams = {
@@ -62,9 +84,14 @@ export class RagPlanExecuterService {
         'log-from-user': (step) => this.executeLogFromUser(step),
         'enrollments': (step) => this.executeEnrollments(step),
         'class-overview': (step) => this.executeClassOverview(step),
+        'class-files': (step) => this.executeClassFiles(step),
+        'class-quizzes': (step) => this.executeClassQuizzes(step),
+        'class-students': (step) => this.executeClassStudents(step),
+        'class-lecturer': (step) => this.executeClassLecturer(step),
         'query-student': (step) => this.executeQueryStudent(step),
         'teaching-recommendation': (step) => this.executeTeachingRecommendation(step),
         'knowledge-gap': (step) => this.executeKnowledgeGap(step),
+        // NOTE: resolve-quiz-id removed - using prompt engineering in planner instead
     };
 
     private toSafeNumber(value: unknown, fallback: number): number {
@@ -369,6 +396,131 @@ export class RagPlanExecuterService {
         ].join('\n');
     }
 
+    private async executeClassFiles(step: RagCapabilityExecution): Promise<any> {
+        const params = (step.resolvedParameters ?? {}) as ClassFilesParams;
+        const classId = this.toRequiredString(params.classId, 'classId');
+
+        const classRecord = await this.prisma.class.findUnique({
+            where: { clid: classId },
+            select: {
+                clid: true,
+                files: {
+                    select: {
+                        fid: true,
+                        filename: true,
+                        original_name: true,
+                    },
+                    orderBy: {
+                        created_at: 'desc',
+                    },
+                },
+            },
+        });
+
+        if (!classRecord) {
+            throw new Error(`Class not found: ${classId}`);
+        }
+
+        const rows = classRecord.files.map((file) => ({
+            fileId: file.fid,
+            fileName: file.original_name || file.filename,
+        }));
+
+        return flattenJsonToTable(`class ${classId}: Files`, rows);
+    }
+
+    private async executeClassQuizzes(step: RagCapabilityExecution): Promise<any> {
+        const params = (step.resolvedParameters ?? {}) as ClassQuizzesParams;
+        const classId = this.toRequiredString(params.classId, 'classId');
+
+        const classRecord = await this.prisma.class.findUnique({
+            where: { clid: classId },
+            select: {
+                clid: true,
+                quizzes: {
+                    select: {
+                        qid: true,
+                        name: true,
+                    },
+                    orderBy: {
+                        created_at: 'desc',
+                    },
+                },
+            },
+        });
+
+        if (!classRecord) {
+            throw new Error(`Class not found: ${classId}`);
+        }
+
+        const rows = classRecord.quizzes.map((quiz) => ({
+            quizId: quiz.qid,
+            quizName: quiz.name,
+        }));
+
+        return flattenJsonToTable(`class ${classId}: Quizzes`, rows);
+    }
+
+    private async executeClassStudents(step: RagCapabilityExecution): Promise<any> {
+        const params = (step.resolvedParameters ?? {}) as ClassStudentsParams;
+        const classId = this.toRequiredString(params.classId, 'classId');
+
+        const classRecord = await this.prisma.class.findUnique({
+            where: { clid: classId },
+            select: {
+                clid: true,
+                students: {
+                    select: {
+                        sid: true,
+                        name: true,
+                    },
+                    orderBy: {
+                        name: 'asc',
+                    },
+                },
+            },
+        });
+
+        if (!classRecord) {
+            throw new Error(`Class not found: ${classId}`);
+        }
+
+        const rows = classRecord.students.map((student) => ({
+            studentId: student.sid,
+            studentName: student.name,
+        }));
+
+        return flattenJsonToTable(`class ${classId}: Students`, rows);
+    }
+
+    private async executeClassLecturer(step: RagCapabilityExecution): Promise<any> {
+        const params = (step.resolvedParameters ?? {}) as ClassLecturerParams;
+        const classId = this.toRequiredString(params.classId, 'classId');
+
+        const classRecord = await this.prisma.class.findUnique({
+            where: { clid: classId },
+            select: {
+                clid: true,
+                lecturer: {
+                    select: {
+                        lid: true,
+                        name: true,
+                    },
+                },
+            },
+        });
+
+        if (!classRecord) {
+            throw new Error(`Class not found: ${classId}`);
+        }
+
+        const rows = classRecord.lecturer
+            ? [{ lecturerId: classRecord.lecturer.lid, lecturerName: classRecord.lecturer.name }]
+            : [];
+
+        return flattenJsonToTable(`class ${classId}: Lecturer`, rows);
+    }
+
     private async executeQueryStudent(step: RagCapabilityExecution): Promise<any> {
         const params = (step.resolvedParameters ?? {}) as QueryStudentParams;
         const classId = this.toRequiredString(params.classId, 'classId');
@@ -606,7 +758,9 @@ export class RagPlanExecuterService {
         ].join('\n');
     }
 
-    async execute(steps: RagCapabilityExecution[]): Promise<Array<{ capabilityId: string; result: any }>> {
+    async execute(
+        steps: RagCapabilityExecution[],
+    ): Promise<Array<ExecutionContext>> {
         return Promise.all(
             steps.map(async (step) => {
                 const capabilityId =
@@ -614,13 +768,32 @@ export class RagPlanExecuterService {
                     (step as unknown as { id?: string }).id ||
                     '';
 
+                //No need further validation
+                // if (!capabilityId) {
+                //     return {
+                //         capabilityId: 'undefined',
+                //         error: 'Missing capability ID',
+                //     };
+                // }
+
                 const handler = this.handlers[capabilityId];
                 if (!handler) {
-                    throw new Error(`Unknown capability ID: ${capabilityId || 'undefined'}`);
+                    return {
+                        capabilityId,
+                        error: `Unknown capability ID: ${capabilityId}`,
+                    };
                 }
 
-                const result = await handler(step);
-                return { capabilityId, result };
+                try {
+                    const result = await handler(step);
+                    return { capabilityId, result };
+                } catch (error) {
+                    const message = error instanceof Error ? error.message : String(error);
+                    return {
+                        capabilityId,
+                        error: message,
+                    };
+                }
             }),
         );
     }

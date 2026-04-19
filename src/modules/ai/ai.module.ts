@@ -13,6 +13,7 @@ import { OuterApiService } from './services/outer-api/outer-api.service';
 import { SummarizationService } from './services/summarization.service';
 import { QuizGenerationService } from './services/Quiz-gen/quizGeneration.service';
 import { RagOrchestratorService } from './services/RAG/rag-orchestrator.service';
+import { RagReactService } from './services/RAG/rag_react';
 import { RagPlannerService } from './services/RAG/rag-planner.service';
 import { RagPlanExecuterService } from './services/RAG/rag-plan-executer.service';
 import { GeminiProvider } from './providers/gemini.provider';
@@ -49,6 +50,7 @@ import { LanguageDetectionService } from './utils/language-detect.service';
     RagPlannerService,
     RagPlanExecuterService,
     RagOrchestratorService,
+    RagReactService,
     // Providers
     GeminiProvider,
     OpenAIService,
@@ -65,6 +67,8 @@ import { LanguageDetectionService } from './utils/language-detect.service';
     OuterApiService,
     QuizGenerationService,
     RagOrchestratorService,
+    RagReactService,
+    RagPlanExecuterService,
   ],
 })
 export class AiModule {}

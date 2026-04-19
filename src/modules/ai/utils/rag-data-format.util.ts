@@ -50,7 +50,7 @@ export function flattenJsonToTable(
     .map((row) => headerKeys.map((key) => toTableCell(row[key])).join('|'))
     .join('\n');
 
-  return body ? `[${safeTableName}]\n ${header} ${body}` : `[${safeTableName}]\n ${header}`;
+  return body ? `[${safeTableName}]\n ${header}\n ${body}` : `[${safeTableName}]\n ${header}`;
 }
 
 const maybeParseJsonString = (value: string): unknown => {

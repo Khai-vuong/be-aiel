@@ -11,6 +11,7 @@ import { RequestContextModule } from './common/context';
 import { LogsModule } from './modules/logs/logs.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AiModule } from './modules/ai/ai.module';
+import { EntryModule } from './modules/entry/entry.module';
 
 @Module({
   imports: [
@@ -22,7 +23,8 @@ import { AiModule } from './modules/ai/ai.module';
     QuizzesModule,
     AttemptsModule,
     NotificationsModule,
-    AiModule
+    AiModule,
+    EntryModule,
   ],
   controllers: [AppController],
   providers: [AppService],
