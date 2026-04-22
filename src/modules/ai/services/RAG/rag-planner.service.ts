@@ -136,6 +136,7 @@ export class RagPlannerService {
         prompt: plannerPrompt,
         role: params.userRole,
         provider: params.provider ?? 'groq',
+        caller: 'rag-planner',
         temperature: 0.1,
         customSystemPrompt: plannerSystemPrompt,
         onlyUseSystemPrompt: true,

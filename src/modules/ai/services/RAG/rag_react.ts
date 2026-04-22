@@ -40,7 +40,6 @@ export type RagReactOrchestratorRequest = {
 
 @Injectable()
 export class RagReactService {
-  private readonly logger = new Logger(RagReactService.name);
   private readonly capabilityMap = new Map<string, RagCapabilityEntry>(
     RAG_CAPABILITY_ENTRIES.map((entry) => [entry.id, entry]),
   );
@@ -89,8 +88,7 @@ export class RagReactService {
 
     // Step 2: ReAct loop (Plan -> Validate -> Act -> Reflect), max MAX_LOOP rounds
     for (let loop = 1; loop <= MAX_LOOP; loop += 1) {
-
-      this.logger.debug(`ReAct loop ${loop}`);
+      console.log(`RAG-ReAct loop ${loop}`);
 
       const plannerInput = this.buildPlannerInput({
         question: params.aiRequest.text,
@@ -298,8 +296,6 @@ export class RagReactService {
           typeof parsed?.nextPrompt === 'string' ? parsed.nextPrompt : '',
       };
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      this.logger.warn(`Reflection failed, stop loop early: ${message}`);
       return {
         needMore: false,
         reason: 'Reflection failed',

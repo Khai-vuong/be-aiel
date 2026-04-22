@@ -29,8 +29,6 @@ type RoutedResponse = {
 
 @Injectable()
 export class RefactoredOrchestratorService {
-  private readonly logger = new Logger(RefactoredOrchestratorService.name);
-
   constructor(
     private readonly conversationService: ConversationService,
     private readonly summarizationService: SummarizationService,
@@ -49,7 +47,6 @@ export class RefactoredOrchestratorService {
     user: JwtPayload,
   ): Promise<AiResponseDto> {
     const startTime = Date.now();
-    this.logger.log('AI request received by refactored orchestrator');
 
     let conversationId = request.conversationId;
 
@@ -83,8 +80,6 @@ export class RefactoredOrchestratorService {
       user,
     );
     this.enforceFeatureAccess(mode, user); //Giống Guard 
-
-    this.logger.log(`Execution mode resolved: ${mode}`);
 
     let response: RoutedResponse;
 

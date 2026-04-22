@@ -7,16 +7,12 @@ import { CreateMessageDto, CreateConversationDto, UpdateConversationDto, FindCon
 
 @Injectable()
 export class ConversationService {
-  private readonly logger = new Logger(ConversationService.name);
-
   constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Create a new AI conversation
    */
   async createConversation(dto: CreateConversationDto) {
-    this.logger.log(`Creating conversation for user ${dto.userId}`);
-
     const conversation = await this.prisma.aiConversation.create({
       data: {
         user_id: dto.userId,
@@ -222,16 +218,12 @@ export class ConversationService {
     await this.prisma.aiConversation.delete({
       where: { acid: conversationId },
     });
-
-    this.logger.log(`Deleted conversation ${conversationId}`);
   }
 
   /**
    * Create a new message in conversation
    */
   async createMessage(dto: CreateMessageDto) {
-    this.logger.log(`Creating message in conversation ${dto.conversationId}`);
-
     const message = await this.prisma.aiMessage.create({
       data: {
         conversation_id: dto.conversationId,

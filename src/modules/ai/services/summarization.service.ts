@@ -21,8 +21,6 @@ export interface SummarizeResult {
 
 @Injectable()
 export class SummarizationService {
-  private readonly logger = new Logger(SummarizationService.name);
-
   constructor(private readonly outerApiService: OuterApiService) {}
 
   /**
@@ -38,8 +36,6 @@ export class SummarizationService {
     const startTime = Date.now();
 
     try {
-      this.logger.log('Starting text summarization via outer API');
-
       // Validate input
       if (!text || text.trim().length === 0) {
         return {
@@ -70,10 +66,6 @@ export class SummarizationService {
       const summary = result.text.trim();
       const processingTime = Date.now() - startTime;
 
-      this.logger.log(
-        `Summarization completed via ${result.provider} in ${processingTime}ms`,
-      );
-
       return {
         success: true,
         summary,
@@ -84,7 +76,6 @@ export class SummarizationService {
       };
     } catch (error) {
       const processingTime = Date.now() - startTime;
-      this.logger.error('Summarization failed:', error);
 
       return {
         success: false,
