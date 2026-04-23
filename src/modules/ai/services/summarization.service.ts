@@ -60,7 +60,7 @@ export class SummarizationService {
         temperature: 0.3, // Lower temperature for more deterministic output
         customSystemPrompt: options?.customsystemPrompt ||
           'You are a professional text summarizer. Provide concise, accurate summaries.',
-        onlyUseSystemPrompt: options?.onlyUseSystemPrompt || false,
+        onlyUseSystemPrompt: true,
       });
 
       const summary = result.text.trim();
