@@ -35,27 +35,46 @@ export class GroqService implements OnModuleInit, iProvider {
     }
   }
 
+    /**
+   * 
+   * @param prompt 
+   * @param setting: Temperature?, conversation history?, system prompt? 
+   * @description
+   * The messages array sent to OpenAI will be constructed as follows:
+   * [
+   *   { role: 'system', content: systemPrompt }, // System prompt (if any)
+   *   { role: 'user', content: "what is the capital of France?" } // History messages (if any)
+   *   { role: 'assistant', content: "The capital of France is Paris." },
+   *   { role: 'user', content: "What is the largest city in France?" } // current prompt
+   * ]
+   * @returns
+   */
   async chat(
     prompt: string,
     setting?: AiChatSetting,
   ): Promise<string> {
-    // Setup and validation
     if (!this.apiKey) {
       throw new Error('Groq Error: GROQ_API_KEY is not configured.');
     }
 
-    const temperature = setting?.temperature ?? 0.7;
-    const systemPrompt =
-      setting?.systemPrompt ??
-      'You are a helpful assistant for an e-learning platform.';
+    const { temperature = 0.8, systemPrompt, history = [] } = setting ?? {};
 
     const messages: GroqMessage[] = [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: prompt },
+      /// System prompt luôn đứng đầu nếu có
+      ...(systemPrompt
+        ? [{ role: 'system' as const, content: systemPrompt }]
+        : []),
+
+      /// History (role "user" / "assistant" — history nếu có)
+      ...history.map((msg) => ({
+        role: msg.role.toLowerCase() as 'user' | 'assistant',
+        content: msg.content,
+      })),
+
+      /// Tin nhắn hiện tại
+      { role: 'user' as const, content: prompt },
     ];
 
-
-    // Fetching response from Groq API
     const response = await fetch(this.endpoint, {
       method: 'POST',
       headers: {
@@ -66,7 +85,7 @@ export class GroqService implements OnModuleInit, iProvider {
         model: this.model,
         messages,
         temperature,
-        // max_completion_tokens: this.maxCompletionTokens,
+        max_completion_tokens: this.maxCompletionTokens,
       }),
     });
 

@@ -24,20 +24,45 @@ export class GeminiProvider implements iProvider, OnModuleInit {
     this.ai = new GoogleGenerativeAI(this.apiKey);
   }
 
+  /**
+   * 
+   * @param prompt: Content to send
+   * @param setting: Temperature?, conversation history?, system prompt?
+   * @description
+   * Send content will look like this:
+   * [
+   *   { role: 'user', parts: [{ text: 'What is the capital of France?' }] }, //History messages (if any)
+   *   { role: 'model', parts: [{ text: 'The capital of France is Paris.' }] },
+   *   { role: 'user', parts: [{ text: 'What is the largest city in France?' }] } // current prompt
+   * ]
+   * @returns 
+   */
   async chat(prompt: string, setting?: AiChatSetting): Promise<string> {
     if (!this.apiKey || !this.ai) {
       throw new Error('Gemini Error: GEMINI_API_KEY is not configured.');
     }
 
-    const temperature = setting?.temperature ?? 0.7;
-    const systemPrompt =
-      setting?.systemPrompt ??
-      'You are a helpful assistant for an e-learning platform.';
+    const { temperature = 0.8, systemPrompt, history = [] } = setting ?? {};
+
 
     try {
       const model = this.ai.getGenerativeModel({ model: this.model });
+
+      // Build contents array with history if provided
+      const contents : Array<{ role: string; parts: Array<{ text: string }> }> 
+      = history.map((msg) => ({
+        role: msg.role === 'assistant' || msg.role === 'system' ? 'model' : 'user',
+        parts: [{ text: msg.content }]
+      }));
+
+      // Add current user prompt
+      contents.push({
+        role: 'user',
+        parts: [{ text: prompt }],
+      });
+
       const result = await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        contents,
         generationConfig: {
           temperature,
           maxOutputTokens: this.maxOutputTokens,
@@ -57,4 +82,6 @@ export class GeminiProvider implements iProvider, OnModuleInit {
       throw new Error(`Gemini Error: ${message}`);
     }
   }
+
+  
 }

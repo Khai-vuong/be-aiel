@@ -1,6 +1,12 @@
+export type HistoryMessage = {
+    role: string;
+    content: string;
+}
+
 export type AiChatSetting = {
     temperature?: number;
     systemPrompt?: string;
+    history?: HistoryMessage[];
 }
 
 export interface iProvider {
