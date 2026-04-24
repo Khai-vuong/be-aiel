@@ -2,11 +2,14 @@ import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nest
 import { PrismaService } from '../../../prisma.service';
 import { AiConversationStatus, AiMessageRole } from '@prisma/client';
 import { CreateMessageDto, CreateConversationDto, UpdateConversationDto, FindConversationsOptions, FindMessagesOptions } from '../dtos/ai-conversations.dto';
+import { HistoryMessage } from '../providers/iProvider.interface';
 
 
 
 @Injectable()
 export class ConversationService {
+  private readonly logger = new Logger(ConversationService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   /**
@@ -262,6 +265,55 @@ export class ConversationService {
     });
 
     return messages;
+  }
+
+  /**
+   * Get conversation history as HistoryMessage format for AI providers
+   * @param conversationId - The conversation ID
+   * @param userId - The user ID (for ownership verification)
+   * @param convLimit - Maximum number of messages to retrieve (default: 20)
+   * @param convOffset - Number of messages to skip from the end (default: 0)
+   * @returns Array of HistoryMessage objects
+   */
+  async getConversationHistory(
+    conversationId?: string,
+    userId?: string,
+    convLimit: number = 20,
+    convOffset: number = 0,
+  ): Promise<HistoryMessage[]> {
+    // Validate required parameters
+    if (!conversationId || !userId) {
+      return [];
+    }
+
+    try {
+      // Verify ownership
+      await this.findConversationById(conversationId, userId);
+
+      // Fetch messages with limit and offset
+      const messages = await this.prisma.aiMessage.findMany({
+        where: { conversation_id: conversationId },
+        orderBy: { created_at: 'asc' },
+        take: convLimit,
+        skip: convOffset,
+        select: {
+          role: true,
+          content: true,
+        },
+      });
+
+      // Transform to HistoryMessage format
+      return messages.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      }));
+    } catch (error) {
+      // Log error but return empty array to allow graceful degradation
+      this.logger.warn(
+        `Failed to fetch conversation history for ${conversationId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return [];
+    }
   }
 
   /**

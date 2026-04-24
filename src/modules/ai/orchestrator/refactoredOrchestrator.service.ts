@@ -6,6 +6,7 @@ import { ConversationService } from '../services/conversation.service';
 import { OuterApiService } from '../services/outer-api/outer-api.service';
 // import { RagOrchestratorService } from '../services/RAG/rag-orchestrator.service';
 import { RagReactService } from '../services/RAG/rag_react';
+import { ContextBuilderService } from './context-builder.service';
 import {
   SummarizationService,
   SummarizeOptions,
@@ -27,12 +28,18 @@ type RoutedResponse = {
   [key: string]: any;
 };
 
+type EnrichedAiRequest = AiRequestDto & {
+  history?: Array<{ role: string; content: string }>;
+  resolvedSystemPrompt?: string;
+};
+
 @Injectable()
 export class RefactoredOrchestratorService {
   constructor(
     private readonly conversationService: ConversationService,
     private readonly summarizationService: SummarizationService,
     private readonly outerApiService: OuterApiService,
+    private readonly contextBuilderService: ContextBuilderService,
     // private readonly ragOrchestratorService: RagOrchestratorService,
     private readonly ragReactService: RagReactService,
     private readonly intentClassifierService: IntentClassifierService,
@@ -69,7 +76,7 @@ export class RefactoredOrchestratorService {
       content: request.text,
     });
 
-    const normalizedRequest: AiRequestDto = {
+    const normalizedRequest: EnrichedAiRequest = {
       ...request,
       conversationId,
     };
@@ -80,6 +87,27 @@ export class RefactoredOrchestratorService {
       user,
     );
     this.enforceFeatureAccess(mode, user); //Giống Guard 
+
+    const caller = this.resolveCallerByMode(mode);
+    const history = await this.conversationService.getConversationHistory(
+      conversationId,
+      user.uid,
+      20,
+      0,
+    );
+    const sanitizedHistory = this.removeTrailingCurrentUserPrompt(
+      history,
+      request.text,
+    );
+    const systemInstruction = this.contextBuilderService.buildSystemPrompt({
+      role: user.role,
+      caller,
+      customSystemPrompt: request.customSystemPrompt,
+      onlyUseSystemPrompt: false,
+    });
+
+    normalizedRequest.history = sanitizedHistory;
+    normalizedRequest.resolvedSystemPrompt = systemInstruction;
 
     let response: RoutedResponse;
 
@@ -144,13 +172,29 @@ export class RefactoredOrchestratorService {
       content: request.text,
     });
 
-    const result = await this.outerApiService.chat({
-      prompt: request.text,
+    const history = await this.conversationService.getConversationHistory(
+      conversationId,
+      user.uid,
+      20,
+      0,
+    );
+    const sanitizedHistory = this.removeTrailingCurrentUserPrompt(
+      history,
+      request.text,
+    );
+    const systemInstruction = this.contextBuilderService.buildSystemPrompt({
       role: user.role,
       caller: 'direct',
+      customSystemPrompt: request.customSystemPrompt,
+      onlyUseSystemPrompt: false,
+    });
+
+    const result = await this.outerApiService.chat({
+      prompt: request.text,
+      caller: 'direct',
       provider: 'groq',
-      conversationId,
-      userId: user.uid,
+      instructionPrompt: systemInstruction,
+      history: sanitizedHistory,
     });
 
     const assistantMsg = await this.conversationService.createMessage({
@@ -220,7 +264,7 @@ export class RefactoredOrchestratorService {
   }
 
   private async dispatchByMode(
-    request: AiRequestDto,
+    request: EnrichedAiRequest,
     user: JwtPayload,
     mode: ExecutionMode,
   ): Promise<RoutedResponse> {
@@ -236,19 +280,17 @@ export class RefactoredOrchestratorService {
   }
 
   private async handleChat(
-    request: AiRequestDto,
+    request: EnrichedAiRequest,
     user: JwtPayload,
   ): Promise<RoutedResponse> {
     const result = await this.outerApiService.chat({
       prompt: request.text,
-      role: user.role,
       caller: 'general',
       provider: (request.provider as 'gemini' | 'groq' | 'openai') || 'groq',
       temperature: request.temperature,
-      customSystemPrompt: request.customSystemPrompt,
-      conversationId: request.conversationId,
-      userId: user.uid,
-      metadata: request.metadata,
+      instructionPrompt:
+        request.resolvedSystemPrompt ?? request.customSystemPrompt,
+      history: request.history ?? [],
     });
 
     return {
@@ -263,7 +305,7 @@ export class RefactoredOrchestratorService {
   }
 
   private async handleQuizAssistant(
-    request: AiRequestDto,
+    request: EnrichedAiRequest,
     user: JwtPayload,
   ): Promise<RoutedResponse> {
 
@@ -296,14 +338,12 @@ export class RefactoredOrchestratorService {
 
     const result = await this.outerApiService.chat({
       prompt: request.text,
-      role: user.role,
       caller: 'quiz-generator',
       provider: (request.provider as 'gemini' | 'groq' | 'openai') || 'groq',
       temperature: request.temperature,
-      customSystemPrompt: request.customSystemPrompt,
-      conversationId: request.conversationId,
-      userId: user.uid,
-      metadata: request.metadata,
+      instructionPrompt:
+        request.resolvedSystemPrompt ?? request.customSystemPrompt,
+      history: request.history ?? [],
     });
 
     return {
@@ -403,5 +443,36 @@ export class RefactoredOrchestratorService {
     return String(role ?? '')
       .trim()
       .toLowerCase();
+  }
+
+  private resolveCallerByMode(mode: ExecutionMode): string {
+    switch (mode) {
+      case 'quiz_assistant':
+        return 'quiz-generator';
+      case 'insight':
+        return 'data-analyst';
+      case 'chat':
+      default:
+        return 'general';
+    }
+  }
+
+  private removeTrailingCurrentUserPrompt(
+    history: Array<{ role: string; content: string }>,
+    currentPrompt: string,
+  ): Array<{ role: string; content: string }> {
+    if (history.length === 0) {
+      return history;
+    }
+
+    const last = history[history.length - 1];
+    if (
+      last.role === 'user' &&
+      last.content.trim() === String(currentPrompt).trim()
+    ) {
+      return history.slice(0, -1);
+    }
+
+    return history;
   }
 }

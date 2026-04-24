@@ -283,7 +283,7 @@ export class RagReactService {
         role: params.role,
         provider: params.provider,
         caller: 'rag-react-reflect',
-        customSystemPrompt: systemPrompt,
+        instructionPrompt: systemPrompt,
         onlyUseSystemPrompt: true,
         temperature: 0.1,
       });
@@ -352,7 +352,7 @@ export class RagReactService {
       caller: 'rag-react-composer',
       conversationId: params.conversationId,
       userId: params.userId,
-      customSystemPrompt: systemPrompt,
+      instructionPrompt: systemPrompt,
       onlyUseSystemPrompt: true,
       temperature: params.temperature ?? 0.4,
     });

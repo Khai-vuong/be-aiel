@@ -49,7 +49,7 @@ export class QuizGenerationService {
 					caller: 'quiz-generator',
 					provider,
 					temperature: input.temperature,
-					customSystemPrompt: input.customSystemPrompt,
+					instructionPrompt: input.customSystemPrompt,
 				});
 
 				const { text, questions } = this.parseAndValidateResponse(aiResult.text);

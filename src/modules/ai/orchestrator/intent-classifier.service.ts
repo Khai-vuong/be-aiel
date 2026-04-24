@@ -43,7 +43,7 @@ export class IntentClassifierService {
           caller: 'coarse-router',
           provider,
           temperature: 0,
-          customSystemPrompt: routerSystemPrompt,
+          instructionPrompt: routerSystemPrompt,
           onlyUseSystemPrompt: true,
         });
 

@@ -77,7 +77,7 @@ export class RagOrchestratorService{
       conversationId: params.aiRequest.conversationId,
       userId: params.user.uid,
 
-      customSystemPrompt: systemPrompt,
+      instructionPrompt: systemPrompt,
       onlyUseSystemPrompt: true,
 
       temperature: 0.7,

@@ -58,7 +58,7 @@ export class SummarizationService {
         caller: 'summarization',
         provider: options?.provider,
         temperature: 0.3, // Lower temperature for more deterministic output
-        customSystemPrompt: options?.customsystemPrompt ||
+        instructionPrompt: options?.customsystemPrompt ||
           'You are a professional text summarizer. Provide concise, accurate summaries.',
         onlyUseSystemPrompt: true,
       });
