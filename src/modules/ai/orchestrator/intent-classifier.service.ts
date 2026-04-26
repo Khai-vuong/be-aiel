@@ -23,14 +23,13 @@ export class IntentClassifierService {
       return 'chat';
     }
 
-    const routerSystemPrompt = [
+    const instructionPrompt = [
       'You are a routing classifier for the backend AI orchestrator. Return exactly one string that best fits the following guidelines.',
       'Available modes:',
       'quiz_assistant: if the user is asking for help generating quiz questions, structuring quizzes, or anything directly related to quiz creation.',
       'insight: analytics, reports, trends, recommendations, logs, enrollments, or answers that require internal platform data.',
       'chat: Not quiz_assistant or insight, just general AI chat.',
       'Return only one label: quiz_assistant, insight, or chat. Do not answer the user request.',
-      `User request: """${request.text}"""`,
     ].join('\n');
 
     const classifierProviders: OuterApiProvider[] = ['groq', 'openai', 'gemini'];
@@ -38,13 +37,11 @@ export class IntentClassifierService {
     for (const provider of classifierProviders) {
       try {
         const result = await this.outerApiService.chat({
-          prompt: "",
-          role: user.role,
+          prompt: request.text,
           caller: 'coarse-router',
           provider,
           temperature: 0,
-          instructionPrompt: routerSystemPrompt,
-          onlyUseSystemPrompt: true,
+          instructionPrompt,
         });
 
         const mode = this.parseExecutionMode(result?.text);

@@ -102,7 +102,7 @@ export class RefactoredOrchestratorService {
     const systemInstruction = this.contextBuilderService.buildSystemPrompt({
       role: user.role,
       caller,
-      customSystemPrompt: request.customSystemPrompt,
+      customSystemPrompt: request.instructionPrompt,
       onlyUseSystemPrompt: false,
     });
 
@@ -185,7 +185,7 @@ export class RefactoredOrchestratorService {
     const systemInstruction = this.contextBuilderService.buildSystemPrompt({
       role: user.role,
       caller: 'direct',
-      customSystemPrompt: request.customSystemPrompt,
+      customSystemPrompt: request.instructionPrompt,
       onlyUseSystemPrompt: false,
     });
 
@@ -234,7 +234,7 @@ export class RefactoredOrchestratorService {
       provider: req.body?.provider,
       conversationId: req.body?.conversationId,
       temperature: req.body?.temperature,
-      customSystemPrompt: req.body?.customSystemPrompt,
+      instructionPrompt: req.body?.customSystemPrompt,
     };
 
     return this.ragReactService.chat({
@@ -289,7 +289,7 @@ export class RefactoredOrchestratorService {
       provider: (request.provider as 'gemini' | 'groq' | 'openai') || 'groq',
       temperature: request.temperature,
       instructionPrompt:
-        request.resolvedSystemPrompt ?? request.customSystemPrompt,
+        request.resolvedSystemPrompt ?? request.instructionPrompt,
       history: request.history ?? [],
     });
 
@@ -342,7 +342,7 @@ export class RefactoredOrchestratorService {
       provider: (request.provider as 'gemini' | 'groq' | 'openai') || 'groq',
       temperature: request.temperature,
       instructionPrompt:
-        request.resolvedSystemPrompt ?? request.customSystemPrompt,
+        request.resolvedSystemPrompt ?? request.instructionPrompt,
       history: request.history ?? [],
     });
 

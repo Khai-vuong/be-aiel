@@ -12,10 +12,6 @@ export class AiRequestDto {
   conversationId?: string; // undefined for new conversations, provided for follow-ups
 
   @IsOptional()
-  @IsObject()
-  context?: Record<string, any>;
-
-  @IsOptional()
   @IsString()
   provider?: string;
 
@@ -25,10 +21,5 @@ export class AiRequestDto {
 
   @IsOptional()
   @IsString()
-  customSystemPrompt?: string;
-
-  //Will not be use in deployment. The orchestrator will determine the serviceType based on intent classification. This is for testing and future extensibility.
-  @IsOptional()
-  @IsEnum(['SYSTEM_CONTROL', 'STUDY_ANALYST', 'TUTOR', 'TEACHING_ASSISTANT'])
-  serviceType?: AIServiceType;
+  instructionPrompt?: string;
 }

@@ -71,14 +71,10 @@ export class RagOrchestratorService{
     //step 4: Actual LLM call with context retrived
     const llmResponse = await this.outerApiService.chat({
       prompt: params.aiRequest.text,
-      role: params.user.role,
       caller: 'rag-orchestrator',
       provider: params.aiRequest.provider as OuterApiProvider,
-      conversationId: params.aiRequest.conversationId,
-      userId: params.user.uid,
 
       instructionPrompt: systemPrompt,
-      onlyUseSystemPrompt: true,
 
       temperature: 0.7,
     });

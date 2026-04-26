@@ -273,7 +273,7 @@ export class OrchestratorService {
       role: user.role,
       provider: request.provider as 'gemini' | 'groq' | 'openai' | undefined,
       temperature: request.temperature,
-      customSystemPrompt: request.customSystemPrompt,
+      instructionPrompt: request.instructionPrompt,
     });
 
     return {
@@ -304,7 +304,6 @@ export class OrchestratorService {
   private async handleGeneralChat(request: AiRequestDto, user: JwtPayload) {
     const result = await this.outerApiService.chat({
       prompt: request.text,
-      role: user.role,
       caller: 'general',
       provider: 'groq',
     });
@@ -341,11 +340,8 @@ export class OrchestratorService {
 
     const result = await this.outerApiService.chat({
       prompt: request.text,
-      role: user.role,
       caller: 'direct',
       provider: 'groq',
-      conversationId,
-      userId: user.uid,
     });
 
     const assistantMsg = await this.conversationService.createMessage({
@@ -382,7 +378,7 @@ export class OrchestratorService {
       provider: req.body?.provider,
       conversationId: req.body?.conversationId,
       temperature: req.body?.temperature,
-      customSystemPrompt: req.body?.customSystemPrompt,
+      instructionPrompt: req.body?.customSystemPrompt,
     };
 
     return this.ragOrchestratorService.chat({

@@ -280,11 +280,9 @@ export class RagReactService {
     try {
       const decisionRaw = await this.outerApiService.chat({
         prompt: userPrompt,
-        role: params.role,
         provider: params.provider,
         caller: 'rag-react-reflect',
         instructionPrompt: systemPrompt,
-        onlyUseSystemPrompt: true,
         temperature: 0.1,
       });
 
@@ -347,13 +345,9 @@ export class RagReactService {
 
     const composed = await this.outerApiService.chat({
       prompt,
-      role: params.role,
       provider: params.provider,
       caller: 'rag-react-composer',
-      conversationId: params.conversationId,
-      userId: params.userId,
       instructionPrompt: systemPrompt,
-      onlyUseSystemPrompt: true,
       temperature: params.temperature ?? 0.4,
     });
 

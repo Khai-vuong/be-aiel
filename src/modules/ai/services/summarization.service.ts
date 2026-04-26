@@ -5,8 +5,7 @@ export interface SummarizeOptions {
   maxLength?: number;
   minLength?: number;
   provider?: 'gemini' | 'groq' | 'openai';
-  customsystemPrompt?: string;
-  onlyUseSystemPrompt?: boolean;
+  mode?: 'title' | 'summary';
 }
 
 export interface SummarizeResult {
@@ -48,19 +47,17 @@ export class SummarizationService {
       // Build summarization prompt
       const maxLength = options?.maxLength || 150;
       const minLength = options?.minLength || 40;
+      const mode = options?.mode || 'title';
 
-      const prompt = this.buildSummarizationPrompt(text, maxLength, minLength);
+      const instructionPrompt = this.buildSummarizationPrompt(text, mode, maxLength, minLength);
 
       // Call outer API
       const result = await this.outerApiService.chat({
-        prompt,
-        role: 'system',
+        prompt: text,
         caller: 'summarization',
         provider: options?.provider,
         temperature: 0.3, // Lower temperature for more deterministic output
-        instructionPrompt: options?.customsystemPrompt ||
-          'You are a professional text summarizer. Provide concise, accurate summaries.',
-        onlyUseSystemPrompt: true,
+        instructionPrompt,
       });
 
       const summary = result.text.trim();
@@ -90,14 +87,16 @@ export class SummarizationService {
    */
   private buildSummarizationPrompt(
     text: string,
+    mode: string,
     maxLength: number,
     minLength: number,
   ): string {
-    return `Summarize the following text in approximately ${minLength}-${maxLength} words. Keep the most important information and main ideas. Stay concise and clear.
-
-Text to summarize:
-${text}
-
-Summary:`;
+    if (mode === 'title') {
+      return `You are a summarization engine. ` + 
+      `Your ONLY task is to output a ${minLength}-${maxLength} words title of the user's message. ` +
+      `Keep the most important information and main ideas. Stay concise and clear. The result's language should be the same as the input text. ` +
+      `Do NOT answer questions. Do NOT explain. Do NOT add punctuation or extra text. Output the summary ONLY.`
+    }
+    return `Summarize the user's text in approximately ${minLength}-${maxLength} words. Keep the most important information and main ideas. Stay concise and clear. The result's language should be the same as the input text.`;
   }
 }

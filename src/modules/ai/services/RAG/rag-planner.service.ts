@@ -134,12 +134,10 @@ export class RagPlannerService {
 
       const outerAPIRequest: OuterApiRequest = {
         prompt: plannerPrompt,
-        role: params.userRole,
         provider: params.provider ?? 'groq',
         caller: 'rag-planner',
         temperature: 0.1,
         instructionPrompt: plannerSystemPrompt,
-        onlyUseSystemPrompt: true,
       };
 
       const response = await this.outerAPIService.chat(outerAPIRequest);

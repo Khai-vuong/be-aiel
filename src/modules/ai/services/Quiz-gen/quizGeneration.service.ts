@@ -9,7 +9,7 @@ export interface QuizGenerationInput {
 	role?: string;
 	provider?: OuterApiProvider;
 	temperature?: number;
-	customSystemPrompt?: string;
+	instructionPrompt?: string;
 }
 
 export interface GeneratedQuizQuestion {
@@ -45,11 +45,10 @@ export class QuizGenerationService {
 			try {
 				const aiResult = await this.outerApiService.chat({
 					prompt: input.prompt,
-					role: input.role ?? 'lecturer',
 					caller: 'quiz-generator',
 					provider,
 					temperature: input.temperature,
-					instructionPrompt: input.customSystemPrompt,
+					instructionPrompt: input.instructionPrompt,
 				});
 
 				const { text, questions } = this.parseAndValidateResponse(aiResult.text);

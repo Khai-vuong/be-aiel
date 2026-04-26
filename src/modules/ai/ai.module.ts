@@ -65,6 +65,8 @@ import { LanguageDetectionService } from './utils/language-detect.service';
     StudyAnalystAIService,
     ConversationService,
     OuterApiService,
+    SummarizationService,
+    RefactoredIntentClassifierService,
     QuizGenerationService,
     RagOrchestratorService,
     RagReactService,
