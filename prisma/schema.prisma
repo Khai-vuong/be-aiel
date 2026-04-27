@@ -27,12 +27,12 @@ model User {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  student       Student?
-  lecturer      Lecturer?
-  admin         Admin?
-  File          File[]
-  notifications Notification[]
-  logs          Log[]
+  student         Student?
+  lecturer        Lecturer?
+  admin           Admin?
+  File            File[]
+  notifications   Notification[]
+  logs            Log[]
   aiConversations AiConversation[]
   // aiMemories      AiMemory[]
 
@@ -290,9 +290,9 @@ enum AiConversationStatus {
 }
 
 enum AiMessageRole {
-  system
-  user
-  assistant
+  system //hidden system instructions/contexts
+  user //User messages
+  assistant //AI assistant messages
   tool
 }
 

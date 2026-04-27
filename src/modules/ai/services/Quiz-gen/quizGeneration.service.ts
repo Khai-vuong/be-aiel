@@ -29,7 +29,17 @@ export interface QuizGenerationResult {
 @Injectable()
 export class QuizGenerationService {
 	private readonly logger = new Logger(QuizGenerationService.name);
-	private readonly providerOrder: OuterApiProvider[] = ['gemini', 'groq', 'openai'];
+	private readonly defaultInstructionPrompt =
+		'Return ONLY a valid JSON object (no markdown, no code fences, no extra text). ' +
+		'The object must have exactly these fields: ' +
+		'"text" (string): your explanation or reasoning for the generated questions; ' +
+		'"questions" (array): the list of quiz questions. ' +
+		'Each question object must include: ' +
+		'"content" (string, required), ' +
+		'"options_json" (object, required for multiple-choice, e.g. {"A":"Paris","B":"London","C":"Berlin"}), ' +
+		'"answer_key_json" (object, required, e.g. {"correct":"A"}), ' +
+		'"points" (number, optional, defaults to 1). ' +
+		'Example: {"text":"Here are 2 questions.","questions":[{"content":"What is the capital of France?","options_json":{"A":"Paris","B":"London","C":"Berlin"},"answer_key_json":{"correct":"A"},"points":1}]}';
 
 	constructor(private readonly outerApiService: OuterApiService) {}
 
@@ -38,50 +48,26 @@ export class QuizGenerationService {
 			throw new BadRequestException('Prompt cannot be empty');
 		}
 
-		const providersToTry = this.buildProviderTryOrder(input.provider);
-		const errors: string[] = [];
+		const instructionPrompt =
+			input.instructionPrompt && input.instructionPrompt.trim().length > 0
+				? input.instructionPrompt
+				: this.defaultInstructionPrompt;
+		const aiResult = await this.outerApiService.chat({
+			prompt: input.prompt,
+			caller: 'quiz-generator',
+			provider: input.provider,
+			temperature: input.temperature,
+			instructionPrompt,
+		});
 
-		for (const provider of providersToTry) {
-			try {
-				const aiResult = await this.outerApiService.chat({
-					prompt: input.prompt,
-					caller: 'quiz-generator',
-					provider,
-					temperature: input.temperature,
-					instructionPrompt: input.instructionPrompt,
-				});
+		const { text, questions } = this.parseAndValidateResponse(aiResult.text);
 
-				const { text, questions } = this.parseAndValidateResponse(aiResult.text);
-
-				return {
-					text,
-					questions,
-					provider: aiResult.provider,
-					rawText: aiResult.text,
-				};
-			} catch (error) {
-				const message = error instanceof Error ? error.message : String(error);
-				errors.push(`${provider}: ${message}`);
-				this.logger.warn(
-					`Quiz generation failed with provider ${provider}. Trying next provider. Reason: ${message}`,
-				);
-			}
-		}
-
-		throw new BadRequestException(
-			`Quiz generation failed for all providers. Details: ${errors.join(' | ')}`,
-		);
-	}
-
-	private buildProviderTryOrder(preferredProvider?: OuterApiProvider): OuterApiProvider[] {
-		if (!preferredProvider) {
-			return [...this.providerOrder];
-		}
-
-		return [
-			preferredProvider,
-			...this.providerOrder.filter((provider) => provider !== preferredProvider),
-		];
+		return {
+			text,
+			questions,
+			provider: aiResult.provider,
+			rawText: aiResult.text,
+		};
 	}
 
 	private parseAndValidateResponse(rawText: string): { text: string; questions: GeneratedQuizQuestion[] } {

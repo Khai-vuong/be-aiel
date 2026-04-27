@@ -32,7 +32,6 @@ export class ContextBuilderService {
 
   buildSystemPrompt(params: {
     role: string;
-    caller?: string;
     customSystemPrompt?: string;
     onlyUseSystemPrompt?: boolean;
   }): string {
@@ -42,8 +41,6 @@ export class ContextBuilderService {
     }
     
     const normalizedRole = (params.role ?? 'user').toLowerCase().trim();
-    const normalizedCaller = (params.caller ?? 'general').toLowerCase().trim();
-
     const roleInstructionMap: Record<string, string> = {
       admin:
         'Treat this user as a platform administrator. Prioritize governance, reliability, risk control, and operational clarity.',
@@ -55,37 +52,13 @@ export class ContextBuilderService {
         'Adapt tone and depth to the user context while staying concise and accurate.',
     };
 
-    const callerInstructionMap: Record<string, string> = {
-      'quiz-module':
-        'This request comes from the quiz module. Focus on valid question design, answer correctness, and curriculum alignment.',
-      'quiz-generator':
-        this.quizGeneratorOutputFormat,
-      'coarse-router':
-        this.coarseRouterOutputFormat,
-      'data-analyst-module':
-        'This request comes from the data analyst module. Emphasize measurable insights, confidence level, and actionable recommendations.',
-      'data-analyst':
-        'This request comes from the data analyst module. Emphasize measurable insights, confidence level, and actionable recommendations.',
-      'study-analyst':
-        'This request comes from the study analyst module. Prioritize trend analysis, weaknesses, and practical improvement suggestions.',
-      'tutor':
-        'This request comes from the tutor module. Focus on explanation quality, conceptual clarity, and progressive guidance.',
-      'system-control':
-        'This request comes from system control. Prioritize safety, reliability, and incident-oriented recommendations.',
-      'direct':
-        'This request comes directly from the user. Adapt tone and depth to the user context while staying concise and accurate.',
-    };
-
     const roleInstruction =
       roleInstructionMap[normalizedRole] ?? "";
-    const callerInstruction =
-      callerInstructionMap[normalizedCaller] ?? "";
 
     const segments = [
       'You are an AI assistant for an e-learning platform.',
       'If requirements are ambiguous, state assumptions explicitly and avoid fabricating details.',
       roleInstruction,
-      callerInstruction,
     ];
 
     if (

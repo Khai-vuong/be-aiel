@@ -65,7 +65,7 @@ export class GeminiProvider implements iProvider, OnModuleInit {
         contents,
         generationConfig: {
           temperature,
-          maxOutputTokens: this.maxOutputTokens,
+          // maxOutputTokens: this.maxOutputTokens,
         },
         systemInstruction: systemPrompt,
       });

@@ -120,7 +120,6 @@ export class RagPlannerService {
       const plannerPrompt = params.prompt;
       const plannerSystemPrompt = this.contextBuilderService.buildSystemPrompt({
         role: params.userRole,
-        caller: 'RAG-admin',
         customSystemPrompt:
           metadataDescription + '\n' +
           'You are a capability planner for a RAG pipeline. ' +

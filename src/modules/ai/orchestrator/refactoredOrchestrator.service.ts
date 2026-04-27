@@ -70,25 +70,7 @@ export class RefactoredOrchestratorService {
       conversationId = conv.acid;
     }
 
-    await this.conversationService.createMessage({
-      conversationId,
-      role: 'user',
-      content: request.text,
-    });
-
-    const normalizedRequest: EnrichedAiRequest = {
-      ...request,
-      conversationId,
-    };
-
-    // Step 2: classify intent
-    const mode = await this.intentClassifierService.resolveExecutionMode(
-      normalizedRequest,
-      user,
-    );
-    this.enforceFeatureAccess(mode, user); //Giống Guard 
-
-    const caller = this.resolveCallerByMode(mode);
+    // Step 2: Fetch history (if have)
     const history = await this.conversationService.getConversationHistory(
       conversationId,
       user.uid,
@@ -99,20 +81,41 @@ export class RefactoredOrchestratorService {
       history,
       request.text,
     );
+
+    await this.conversationService.createMessage({
+      conversationId,
+      role: 'user',
+      content: request.text,
+    });
+
+    const requestWithConv: EnrichedAiRequest = {
+      ...request,
+      conversationId,
+    };
+
+    // Step 2: classify intent
+    const mode = await this.intentClassifierService.resolveExecutionMode(
+      requestWithConv,
+      user,
+    );
+    this.enforceFeatureAccess(mode, user); //Giống Guard 
+
+    const caller = this.resolveCallerByMode(mode);
+
+
     const systemInstruction = this.contextBuilderService.buildSystemPrompt({
       role: user.role,
-      caller,
       customSystemPrompt: request.instructionPrompt,
       onlyUseSystemPrompt: false,
     });
 
-    normalizedRequest.history = sanitizedHistory;
-    normalizedRequest.resolvedSystemPrompt = systemInstruction;
+    requestWithConv.history = sanitizedHistory;
+    requestWithConv.resolvedSystemPrompt = systemInstruction;
 
     let response: RoutedResponse;
 
     // Step 3: route request to the right module
-    response = await this.dispatchByMode(normalizedRequest, user, mode);
+    response = await this.dispatchByMode(requestWithConv, user, mode);
 
     // Step 4: persist assistant response to AI conversation
     const assistantContent = this.extractAssistantContent(response);
@@ -184,7 +187,6 @@ export class RefactoredOrchestratorService {
     );
     const systemInstruction = this.contextBuilderService.buildSystemPrompt({
       role: user.role,
-      caller: 'direct',
       customSystemPrompt: request.instructionPrompt,
       onlyUseSystemPrompt: false,
     });
@@ -309,8 +311,16 @@ export class RefactoredOrchestratorService {
     user: JwtPayload,
   ): Promise<RoutedResponse> {
 
-    /// User need to manually select class to create quiz
-    if (request.metadata?.sendFrom?.toLowerCase() === 'chatpage') {
+    /**
+     * Vào flow này thì mặc định là từ chatpage hoặc aichatsidebar.
+     * Ta chỉ cần đưa tin nhắn redirect họ qua trang createQuiz.
+     * 
+     * Nếu được gửi từ CreateQuiz, nó sẽ trực tiếp dùng QuizGenService mà không đi qua đây
+     */
+
+    const sendFrom = request.metadata?.sendFrom?.toLowerCase();
+
+    if (sendFrom === 'chatpage' || sendFrom === 'aichatsidebar') {
       if (this.languageDetectionService.detect(request.text) === 'vie') {
         return {
           usecase: 'QUIZ_ASSISTANT',
@@ -336,16 +346,30 @@ export class RefactoredOrchestratorService {
       }
     }
 
+    const instructionPrompt = 
+    'Return ONLY a valid JSON object (no markdown, no code fences, no extra text). ' +
+    'The object must have exactly these fields: ' +
+    '"text" (string): your explanation or reasoning for the generated questions; ' +
+    '"questions" (array): the list of quiz questions. ' +
+    'Each question object must include: ' +
+    '"content" (string, required), ' +
+    '"options_json" (object, required for multiple-choice, e.g. {"A":"Paris","B":"London","C":"Berlin"}), ' +
+    '"answer_key_json" (object, required, e.g. {"correct":"A"}), ' +
+    '"points" (number, optional, defaults to 1). ' +
+    'Example: {"text":"Here are 2 questions.","questions":[{"content":"What is the capital of France?","options_json":{"A":"Paris","B":"London","C":"Berlin"},"answer_key_json":{"correct":"A"},"points":1}]}';
+
     const result = await this.outerApiService.chat({
       prompt: request.text,
       caller: 'quiz-generator',
       provider: (request.provider as 'gemini' | 'groq' | 'openai') || 'groq',
       temperature: request.temperature,
-      instructionPrompt:
-        request.resolvedSystemPrompt ?? request.instructionPrompt,
+      instructionPrompt,
+        
       history: request.history ?? [],
     });
 
+
+    //Đây sẽ trả về kết quả để đưa lên UI. Đây là kết quả raw
     return {
       usecase: 'QUIZ_ASSISTANT',
       mode: 'quiz_assistant',

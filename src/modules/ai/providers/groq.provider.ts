@@ -65,9 +65,9 @@ export class GroqService implements OnModuleInit, iProvider {
         ? [{ role: 'system' as const, content: systemPrompt }]
         : []),
 
-      /// History (role "user" / "assistant" — history nếu có)
+      /// History (role "user" / "assistant" / "system" — history nếu có)
       ...history.map((msg) => ({
-        role: msg.role.toLowerCase() as 'user' | 'assistant',
+        role: msg.role.toLowerCase() as 'user' | 'assistant' | 'system',
         content: msg.content,
       })),
 
@@ -85,7 +85,7 @@ export class GroqService implements OnModuleInit, iProvider {
         model: this.model,
         messages,
         temperature,
-        max_completion_tokens: this.maxCompletionTokens,
+        // max_completion_tokens: this.maxCompletionTokens,
       }),
     });
 
