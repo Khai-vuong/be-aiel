@@ -52,7 +52,7 @@ export class RagPlannerService {
     }
 
     const description = entries
-      .map(([key, value]) => `${key} ${String(value)}`)
+      .map(([key, value]) => `${key}:${String(value)}`)
       .join(', ');
 
     const hasClassId = Object.prototype.hasOwnProperty.call(metadata, 'classId')
@@ -112,7 +112,7 @@ export class RagPlannerService {
     return `[${catalog}]`;
   }
 
-  async selectCapabilitiesFromPrompt(
+  async selectActionsFromPrompt(
     params: plannerInputDTO,
   ): Promise<RagCapabilityExecution[]> {
     try {

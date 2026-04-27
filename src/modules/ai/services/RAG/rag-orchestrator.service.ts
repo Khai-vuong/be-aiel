@@ -40,7 +40,7 @@ export class RagOrchestratorService{
   async chat(params: RagOrchestratorRequest) {
     //Step 1: planning phase
     // const a : plannerInputDTO;
-    const actionPlanList = await this.ragPlannerService.selectCapabilitiesFromPrompt({
+    const actionPlanList = await this.ragPlannerService.selectActionsFromPrompt({
       prompt: params.aiRequest.text,
       userRole: params.user.role,
       metadata: params.aiRequest.metadata,

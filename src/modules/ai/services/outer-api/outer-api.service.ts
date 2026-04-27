@@ -99,7 +99,7 @@ export class OuterApiService {
           ? text.substring(0, 200) + '...'
           : text;
         this.logger.log(`[${caller} - received] Success with ${provider} (${elapsed}ms)`);
-        this.logger.log(`  Response: ${text.length}`);
+        this.logger.log(`  Response: ${text}`);
 
         return {
           text,

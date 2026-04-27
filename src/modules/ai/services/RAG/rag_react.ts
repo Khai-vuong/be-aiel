@@ -98,8 +98,8 @@ export class RagReactService {
         validationErrors,
       });
 
-      // Step 2.1: plan capabilities from the current planner prompt
-      const actionPlanList = await this.ragPlannerService.selectCapabilitiesFromPrompt({
+      // Step 2.1: plan capabilities from the current planner promp
+      const actionPlanList = await this.ragPlannerService.selectActionsFromPrompt({
         prompt: plannerInput,
         userRole: params.user.role,
         metadata: params.aiRequest.metadata,

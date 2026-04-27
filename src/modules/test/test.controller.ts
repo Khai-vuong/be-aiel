@@ -64,6 +64,6 @@ export class TestController {
     @Roles('any')
     @Post('rag-planner/select-capabilities')
     async testSelectCapabilitiesFromPrompt(@Body() body: plannerInputDTO) {
-        return this.ragPlannerService.selectCapabilitiesFromPrompt(body);
+        return this.ragPlannerService.selectActionsFromPrompt(body);
     }
 }
