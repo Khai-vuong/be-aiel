@@ -27,6 +27,7 @@ export type plannerInputDTO = {
   userRole: string;
   metadata?: any;
   provider?: OuterApiProvider;
+  accumulateEvidence?: string;
 }
 
 @Injectable()
@@ -117,26 +118,27 @@ export class RagPlannerService {
     try {
       const commandCatalog = this.buildCommandCatalog(params.userRole);
       const metadataDescription = await this.buildMetadataDescription(params.metadata);
-      const plannerPrompt = params.prompt;
-      const plannerSystemPrompt = this.contextBuilderService.buildSystemPrompt({
-        role: params.userRole,
-        customSystemPrompt:
-          metadataDescription + '\n' +
+
+      const plannerPrompt = 
+      `current context: ${metadataDescription}\n` + 
+      `Accumulate evidence from the ReAct loops: ${params.accumulateEvidence ?? 'none'}\n` +
+      `User request: ${params.prompt}\n`;
+
+
+      const instructionPrompt = 
           'You are a capability planner for a RAG pipeline. ' +
           'Return ONLY one valid JSON object with shape {id, parameters}. ' +
           'with parameters as a JSON object. ' +
           'DO NOT answer the user question. Return exactly one capability call object only.'+
           'Select only from provided capability catalog.\n' +
-          commandCatalog ,
-        onlyUseSystemPrompt: true,
-      });
+          commandCatalog;
 
       const outerAPIRequest: OuterApiRequest = {
         prompt: plannerPrompt,
         provider: params.provider ?? 'groq',
         caller: 'rag-planner',
         temperature: 0.1,
-        instructionPrompt: plannerSystemPrompt,
+        instructionPrompt: instructionPrompt,
       };
 
       const response = await this.outerAPIService.chat(outerAPIRequest);

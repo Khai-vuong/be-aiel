@@ -5,6 +5,10 @@ import {
     SummarizeOptions,
 } from '../ai/services/summarization.service';
 import { IntentClassifierService } from '../ai/orchestrator/intent-classifier.service';
+import {
+    RagPlannerService,
+} from '../ai/services/RAG/rag-planner.service';
+import type { plannerInputDTO } from '../ai/services/RAG/rag-planner.service';
 import { AiRequestDto } from '../ai/dtos/ai-request.dto';
 import { JwtPayload } from '../users/jwt.strategy';
 import { Roles } from 'src/common/decorators/roles.decorator';
@@ -35,6 +39,7 @@ export class TestController {
         private readonly testService: TestService,
         private readonly summarizationService: SummarizationService,
         private readonly intentClassifierService: IntentClassifierService,
+        private readonly ragPlannerService: RagPlannerService,
     ) {}
 
     @Post('update')
@@ -54,5 +59,11 @@ export class TestController {
             body,
             req.user
         );
+    }
+
+    @Roles('any')
+    @Post('rag-planner/select-capabilities')
+    async testSelectCapabilitiesFromPrompt(@Body() body: plannerInputDTO) {
+        return this.ragPlannerService.selectCapabilitiesFromPrompt(body);
     }
 }

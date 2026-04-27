@@ -100,7 +100,7 @@ export class RefactoredOrchestratorService {
     );
     this.enforceFeatureAccess(mode, user); //Giống Guard 
 
-    const caller = this.resolveCallerByMode(mode);
+    // const caller = this.resolveCallerByMode(mode);
 
 
     const systemInstruction = this.contextBuilderService.buildSystemPrompt({

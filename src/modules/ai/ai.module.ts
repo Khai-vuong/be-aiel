@@ -71,6 +71,7 @@ import { LanguageDetectionService } from './utils/language-detect.service';
     RagOrchestratorService,
     RagReactService,
     RagPlanExecuterService,
+    RagPlannerService
   ],
 })
 export class AiModule {}

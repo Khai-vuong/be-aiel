@@ -5,7 +5,7 @@ import { PrismaService } from 'src/prisma.service';
 import { AiModule } from '../ai/ai.module';
 
 @Module({
-  imports: [AiModule],
+  imports: [AiModule,],
   controllers: [TestController],
   providers: [TestService, PrismaService]
 })
