@@ -70,6 +70,38 @@ type KnowledgeGapParams = {
     quizId?: string;
 };
 
+type StudentQuizHistoryParams = {
+    classId?: string;
+    studentId?: string;
+};
+
+type ClassEngagementParams = {
+    classId?: string;
+    days_inactive?: number;
+};
+
+type AtRiskStudentsParams = {
+    classId?: string;
+    score_threshold?: number;
+    inactive_days?: number;
+};
+
+type SubmissionSummaryParams = {
+    classId?: string;
+    quizId?: string;
+};
+
+type ClassAnnouncementsParams = {
+    classId?: string;
+    limit?: number;
+    offset?: number;
+};
+
+type MultiClassComparisonParams = {
+    classIds?: string | string[];
+    metric?: string;
+};
+
 @Injectable()
 export class RagPlanExecuterService {
     constructor(
@@ -91,6 +123,12 @@ export class RagPlanExecuterService {
         'analyze-quiz-performance': (step) => this.executeAnalyseQuizPerformance(step),
         'teaching-recommendation': (step) => this.executeTeachingRecommendation(step),
         'knowledge-gap': (step) => this.executeKnowledgeGap(step),
+        'student-quiz-history': (step) => this.executeStudentQuizHistory(step),
+        'class-engagement': (step) => this.executeClassEngagement(step),
+        'at-risk-students': (step) => this.executeAtRiskStudents(step),
+        'submission-summary': (step) => this.executeSubmissionSummary(step),
+        'class-announcements': (step) => this.executeClassAnnouncements(step),
+        'multi-class-comparison': (step) => this.executeMultiClassComparison(step),
     };
 
     private toSafeNumber(value: unknown, fallback: number): number {
@@ -107,6 +145,56 @@ export class RagPlanExecuterService {
             throw new Error(`Missing required parameter: ${fieldName}`);
         }
         return normalized;
+    }
+
+    private async getClassContext(classId: string) {
+        const classRecord = await this.prisma.class.findUnique({
+            where: { clid: classId },
+            select: {
+                clid: true,
+                name: true,
+                students: {
+                    select: {
+                        sid: true,
+                        name: true,
+                        user_id: true,
+                        user: {
+                            select: {
+                                uid: true,
+                                username: true,
+                                role: true,
+                            },
+                        },
+                    },
+                },
+                lecturer: {
+                    select: {
+                        lid: true,
+                        name: true,
+                        user: {
+                            select: {
+                                uid: true,
+                                username: true,
+                                role: true,
+                            },
+                        },
+                    },
+                },
+                quizzes: {
+                    select: {
+                        qid: true,
+                        name: true,
+                        available_until: true,
+                    },
+                },
+            },
+        });
+
+        if (!classRecord) {
+            throw new Error(`Class not found: ${classId}`);
+        }
+
+        return classRecord;
     }
 
     private async executeLogRetrieve(step: ExecutionAction): Promise<any> {
@@ -754,6 +842,735 @@ export class RagPlanExecuterService {
                 totalQuestions: rows.length,
             }),
             flattenJsonToTable('KnowledgeGapByQuestion', rows),
+        ].join('\n');
+    }
+
+    private async executeStudentQuizHistory(step: ExecutionAction): Promise<any> {
+        const params = (step.resolvedParameters ?? {}) as StudentQuizHistoryParams;
+        const classId = this.toRequiredString(params.classId, 'classId');
+        const studentId = this.toRequiredString(params.studentId, 'studentId');
+
+        const classRecord = await this.getClassContext(classId);
+        const studentInClass = classRecord.students.find((student) => student.sid === studentId);
+
+        if (!studentInClass) {
+            throw new Error(`Student not found in class: ${studentId}`);
+        }
+
+        const attempts = await this.prisma.attempt.findMany({
+            where: {
+                student_id: studentId,
+                quiz: {
+                    class_id: classId,
+                },
+            },
+            select: {
+                quiz_id: true,
+                percentage: true,
+                score: true,
+                status: true,
+                attempt_number: true,
+                submitted_at: true,
+                started_at: true,
+                quiz: {
+                    select: {
+                        qid: true,
+                        name: true,
+                    },
+                },
+            },
+            orderBy: [
+                { quiz_id: 'asc' },
+                { attempt_number: 'asc' },
+            ],
+        });
+
+        const historyMap = new Map<
+            string,
+            {
+                quizId: string;
+                quizName: string;
+                attemptScores: number[];
+                totalAttempts: number;
+                totalScore: number;
+                latestScore: number;
+                latestStatus: string;
+                latestAttemptNumber: number;
+                latestAttemptAt: Date | null;
+            }
+        >();
+
+        for (const attempt of attempts) {
+            const quizIdKey = attempt.quiz_id;
+            const scoreValue = attempt.percentage ?? attempt.score ?? 0;
+
+            if (!historyMap.has(quizIdKey)) {
+                historyMap.set(quizIdKey, {
+                    quizId: quizIdKey,
+                    quizName: attempt.quiz?.name || quizIdKey,
+                    attemptScores: [],
+                    totalAttempts: 0,
+                    totalScore: 0,
+                    latestScore: scoreValue,
+                    latestStatus: attempt.status,
+                    latestAttemptNumber: attempt.attempt_number,
+                    latestAttemptAt: attempt.submitted_at || attempt.started_at || null,
+                });
+            }
+
+            const entry = historyMap.get(quizIdKey)!;
+            entry.attemptScores.push(scoreValue);
+            entry.totalAttempts += 1;
+            entry.totalScore += scoreValue;
+
+            if (attempt.attempt_number >= entry.latestAttemptNumber) {
+                entry.latestScore = scoreValue;
+                entry.latestStatus = attempt.status;
+                entry.latestAttemptNumber = attempt.attempt_number;
+                entry.latestAttemptAt = attempt.submitted_at || attempt.started_at || null;
+            }
+        }
+
+        const rows = Array.from(historyMap.values())
+            .map((entry) => ({
+                quizId: entry.quizId,
+                quizName: entry.quizName,
+                attemptScores: entry.attemptScores.join(', '),
+                totalAttempts: entry.totalAttempts,
+                averageScore: Number((entry.totalScore / entry.totalAttempts).toFixed(2)),
+                latestScore: Number(entry.latestScore.toFixed(2)),
+                latestStatus: entry.latestStatus,
+                latestAttemptAt: entry.latestAttemptAt ? entry.latestAttemptAt.toISOString() : null,
+                latestPassStatus: entry.latestScore >= 50 ? 'Passed' : 'Not passed',
+            }))
+            .sort((a, b) => a.quizName.localeCompare(b.quizName));
+
+        return [
+            flattenJsonToTable('StudentQuizHistoryScope', {
+                classId,
+                studentId,
+                studentName: studentInClass.name,
+                totalQuizzes: rows.length,
+                totalAttempts: attempts.length,
+            }),
+            flattenJsonToTable('StudentQuizHistory', rows),
+        ].join('\n');
+    }
+
+    private async executeClassEngagement(step: ExecutionAction): Promise<any> {
+        const params = (step.resolvedParameters ?? {}) as ClassEngagementParams;
+        const classId = this.toRequiredString(params.classId, 'classId');
+        const daysInactive = params.days_inactive === undefined || params.days_inactive === null
+            ? null
+            : this.toSafeNumber(params.days_inactive, 14);
+
+        const classRecord = await this.getClassContext(classId);
+        const userIds = classRecord.students.map((student) => student.user_id);
+        const now = new Date();
+
+        const logs = userIds.length === 0
+            ? []
+            : await this.prisma.log.findMany({
+                where: {
+                    user_id: { in: userIds },
+                },
+                select: {
+                    user_id: true,
+                    action: true,
+                    created_at: true,
+                },
+                orderBy: {
+                    created_at: 'desc',
+                },
+            });
+
+        const metricsByUser = new Map<
+            string,
+            {
+                lastLoginAt: Date | null;
+                totalSessions: number;
+                weeklyActivityCount: number;
+                monthlyActivityCount: number;
+            }
+        >();
+
+        for (const userId of userIds) {
+            metricsByUser.set(userId, {
+                lastLoginAt: null,
+                totalSessions: 0,
+                weeklyActivityCount: 0,
+                monthlyActivityCount: 0,
+            });
+        }
+
+        for (const log of logs) {
+            const metric = metricsByUser.get(log.user_id);
+            if (!metric) {
+                continue;
+            }
+
+            const ageInMs = now.getTime() - log.created_at.getTime();
+            const ageInDays = ageInMs / (1000 * 60 * 60 * 24);
+
+            if (log.action === 'login') {
+                metric.totalSessions += 1;
+                if (!metric.lastLoginAt) {
+                    metric.lastLoginAt = log.created_at;
+                }
+            }
+
+            if (ageInDays <= 7) {
+                metric.weeklyActivityCount += 1;
+            }
+
+            if (ageInDays <= 30) {
+                metric.monthlyActivityCount += 1;
+            }
+        }
+
+        const rows = classRecord.students
+            .map((student) => {
+                const metric = metricsByUser.get(student.user_id) ?? {
+                    lastLoginAt: null,
+                    totalSessions: 0,
+                    weeklyActivityCount: 0,
+                    monthlyActivityCount: 0,
+                };
+
+                const daysSinceLastLogin = metric.lastLoginAt
+                    ? Math.floor((now.getTime() - metric.lastLoginAt.getTime()) / (1000 * 60 * 60 * 24))
+                    : null;
+
+                if (daysInactive !== null) {
+                    if (daysSinceLastLogin !== null && daysSinceLastLogin < daysInactive) {
+                        return null;
+                    }
+                }
+
+                return {
+                    studentId: student.sid,
+                    studentName: student.name,
+                    lastLoginAt: metric.lastLoginAt ? metric.lastLoginAt.toISOString() : null,
+                    daysSinceLastLogin,
+                    totalSessions: metric.totalSessions,
+                    weeklyActivityCount: metric.weeklyActivityCount,
+                    monthlyActivityCount: metric.monthlyActivityCount,
+                };
+            })
+            .filter((row): row is NonNullable<typeof row> => row !== null)
+            .sort((a, b) => {
+                const aValue = a.daysSinceLastLogin ?? Number.POSITIVE_INFINITY;
+                const bValue = b.daysSinceLastLogin ?? Number.POSITIVE_INFINITY;
+                return aValue - bValue;
+            });
+
+        return [
+            flattenJsonToTable('ClassEngagementScope', {
+                classId,
+                className: classRecord.name,
+                totalStudents: classRecord.students.length,
+                trackedStudents: rows.length,
+                daysInactive,
+            }),
+            flattenJsonToTable('ClassEngagement', rows),
+        ].join('\n');
+    }
+
+    private async executeAtRiskStudents(step: ExecutionAction): Promise<any> {
+        const params = (step.resolvedParameters ?? {}) as AtRiskStudentsParams;
+        const classId = this.toRequiredString(params.classId, 'classId');
+        const scoreThreshold = params.score_threshold === undefined || params.score_threshold === null
+            ? 50
+            : Number(params.score_threshold);
+        const inactiveDays = params.inactive_days === undefined || params.inactive_days === null
+            ? 14
+            : this.toSafeNumber(params.inactive_days, 14);
+
+        const classRecord = await this.getClassContext(classId);
+        const userIds = classRecord.students.map((student) => student.user_id);
+        const now = new Date();
+
+        const attempts = userIds.length === 0
+            ? []
+            : await this.prisma.attempt.findMany({
+                where: {
+                    student_id: { in: classRecord.students.map((student) => student.sid) },
+                    quiz: {
+                        class_id: classId,
+                    },
+                },
+                select: {
+                    student_id: true,
+                    quiz_id: true,
+                    percentage: true,
+                    score: true,
+                },
+            });
+
+        const loginLogs = userIds.length === 0
+            ? []
+            : await this.prisma.log.findMany({
+                where: {
+                    user_id: { in: userIds },
+                    action: 'login',
+                },
+                select: {
+                    user_id: true,
+                    created_at: true,
+                },
+                orderBy: {
+                    created_at: 'desc',
+                },
+            });
+
+        const latestLoginByUser = new Map<string, Date | null>();
+        for (const userId of userIds) {
+            latestLoginByUser.set(userId, null);
+        }
+        for (const log of loginLogs) {
+            if (!latestLoginByUser.get(log.user_id)) {
+                latestLoginByUser.set(log.user_id, log.created_at);
+            }
+        }
+
+        const studentMetrics = new Map<
+            string,
+            {
+                studentId: string;
+                studentName: string;
+                totalScore: number;
+                totalAttempts: number;
+                attemptedQuizzes: Set<string>;
+                lastLoginAt: Date | null;
+            }
+        >();
+
+        for (const student of classRecord.students) {
+            studentMetrics.set(student.sid, {
+                studentId: student.sid,
+                studentName: student.name,
+                totalScore: 0,
+                totalAttempts: 0,
+                attemptedQuizzes: new Set<string>(),
+                lastLoginAt: latestLoginByUser.get(student.user_id) ?? null,
+            });
+        }
+
+        for (const attempt of attempts) {
+            const metric = studentMetrics.get(attempt.student_id);
+            if (!metric) {
+                continue;
+            }
+
+            const scoreValue = attempt.percentage ?? attempt.score ?? 0;
+            metric.totalScore += scoreValue;
+            metric.totalAttempts += 1;
+            metric.attemptedQuizzes.add(attempt.quiz_id);
+        }
+
+        const rows = Array.from(studentMetrics.values())
+            .map((metric) => {
+                const averageQuizScore = metric.totalAttempts > 0
+                    ? metric.totalScore / metric.totalAttempts
+                    : 0;
+                const daysSinceLastLogin = metric.lastLoginAt
+                    ? Math.floor((now.getTime() - metric.lastLoginAt.getTime()) / (1000 * 60 * 60 * 24))
+                    : null;
+                const missingQuizCount = Math.max(classRecord.quizzes.length - metric.attemptedQuizzes.size, 0);
+                const scoreGap = Math.max(scoreThreshold - averageQuizScore, 0);
+                const scoreRisk = scoreThreshold > 0 ? (scoreGap / scoreThreshold) * 45 : 0;
+                const inactivityRisk = daysSinceLastLogin === null
+                    ? 20
+                    : daysSinceLastLogin > inactiveDays
+                        ? Math.min(35, ((daysSinceLastLogin - inactiveDays) / Math.max(inactiveDays, 1)) * 10 + 10)
+                        : 0;
+                const missingRisk = Math.min(25, missingQuizCount * 5);
+                const riskScore = Math.min(100, Number((scoreRisk + inactivityRisk + missingRisk).toFixed(2)));
+
+                return {
+                    studentId: metric.studentId,
+                    studentName: metric.studentName,
+                    averageQuizScore: Number(averageQuizScore.toFixed(2)),
+                    daysSinceLastLogin,
+                    missingQuizCount,
+                    totalAttempts: metric.totalAttempts,
+                    lastLoginAt: metric.lastLoginAt ? metric.lastLoginAt.toISOString() : null,
+                    riskScore,
+                    riskLevel: riskScore >= 70 ? 'high' : riskScore >= 40 ? 'medium' : 'low',
+                };
+            })
+            .sort((a, b) => b.riskScore - a.riskScore);
+
+        return [
+            flattenJsonToTable('AtRiskStudentsScope', {
+                classId,
+                className: classRecord.name,
+                scoreThreshold,
+                inactiveDays,
+                totalStudents: classRecord.students.length,
+            }),
+            flattenJsonToTable('AtRiskStudents', rows),
+        ].join('\n');
+    }
+
+    private async executeSubmissionSummary(step: ExecutionAction): Promise<any> {
+        const params = (step.resolvedParameters ?? {}) as SubmissionSummaryParams;
+        const classId = this.toRequiredString(params.classId, 'classId');
+        const quizId = typeof params.quizId === 'string' ? params.quizId.trim() : '';
+
+        const classRecord = await this.getClassContext(classId);
+        const quizzesInScope = quizId
+            ? classRecord.quizzes.filter((quiz) => quiz.qid === quizId)
+            : classRecord.quizzes;
+
+        const attempts = await this.prisma.attempt.findMany({
+            where: {
+                quiz: {
+                    class_id: classId,
+                },
+                ...(quizId ? { quiz_id: quizId } : {}),
+            },
+            select: {
+                student_id: true,
+                quiz_id: true,
+                attempt_number: true,
+                status: true,
+                submitted_at: true,
+                quiz: {
+                    select: {
+                        qid: true,
+                        name: true,
+                        available_until: true,
+                    },
+                },
+            },
+            orderBy: [
+                { quiz_id: 'asc' },
+                { student_id: 'asc' },
+                { attempt_number: 'desc' },
+            ],
+        });
+
+        const latestAttemptByStudentQuiz = new Map<
+            string,
+            {
+                studentId: string;
+                quizId: string;
+                quizName: string;
+                status: string;
+                submittedAt: Date | null;
+                availableUntil: Date | null;
+            }
+        >();
+
+        for (const attempt of attempts) {
+            const key = `${attempt.quiz_id}:${attempt.student_id}`;
+            if (latestAttemptByStudentQuiz.has(key)) {
+                continue;
+            }
+
+            latestAttemptByStudentQuiz.set(key, {
+                studentId: attempt.student_id,
+                quizId: attempt.quiz_id,
+                quizName: attempt.quiz?.name || attempt.quiz_id,
+                status: attempt.status,
+                submittedAt: attempt.submitted_at ?? null,
+                availableUntil: attempt.quiz?.available_until ?? null,
+            });
+        }
+
+        const rows = quizzesInScope
+            .map((quiz) => {
+                const quizLatestAttempts = Array.from(latestAttemptByStudentQuiz.values()).filter(
+                    (attempt) => attempt.quizId === quiz.qid,
+                );
+                const submittedStudents = quizLatestAttempts.filter(
+                    (attempt) => attempt.status === 'submitted' || attempt.status === 'graded' || attempt.submittedAt !== null,
+                );
+                const lateCount = quizLatestAttempts.filter(
+                    (attempt) => attempt.submittedAt !== null && attempt.availableUntil !== null && attempt.submittedAt > attempt.availableUntil,
+                ).length;
+                const submittedCount = submittedStudents.length;
+                const missingCount = Math.max(classRecord.students.length - submittedCount, 0);
+
+                return {
+                    quizId: quiz.qid,
+                    quizName: quiz.name,
+                    totalStudents: classRecord.students.length,
+                    submittedCount,
+                    missingCount,
+                    lateCount,
+                    completionRate: classRecord.students.length > 0
+                        ? `${((submittedCount / classRecord.students.length) * 100).toFixed(1)}%`
+                        : '0.0%',
+                };
+            })
+            .sort((a, b) => a.quizName.localeCompare(b.quizName));
+
+        return [
+            flattenJsonToTable('SubmissionSummaryScope', {
+                classId,
+                quizId: quizId || null,
+                totalStudents: classRecord.students.length,
+                totalQuizzes: quizzesInScope.length,
+            }),
+            flattenJsonToTable('SubmissionSummary', rows),
+        ].join('\n');
+    }
+
+    private async executeClassAnnouncements(step: ExecutionAction): Promise<any> {
+        const params = (step.resolvedParameters ?? {}) as ClassAnnouncementsParams;
+        const classId = this.toRequiredString(params.classId, 'classId');
+        const limit = Math.min(this.toSafeNumber(params.limit, 50), 200);
+        const offset = this.toSafeNumber(params.offset, 0);
+
+        const notifications = await this.prisma.notification.findMany({
+            where: {
+                related_type: 'Class',
+                related_id: classId,
+            },
+            select: {
+                nid: true,
+                title: true,
+                message: true,
+                type: true,
+                is_read: true,
+                related_type: true,
+                related_id: true,
+                created_at: true,
+            },
+            orderBy: {
+                created_at: 'desc',
+            },
+        });
+
+        const announceLogs = await this.prisma.log.findMany({
+            where: {
+                action: 'notify_class',
+                resource_type: 'Class',
+                resource_id: classId,
+            },
+            select: {
+                user: {
+                    select: {
+                        uid: true,
+                        username: true,
+                        role: true,
+                    },
+                },
+                created_at: true,
+            },
+            orderBy: {
+                created_at: 'desc',
+            },
+            take: 1,
+        });
+
+        const sender = announceLogs[0]?.user ?? null;
+        const groupedAnnouncements = new Map<
+            string,
+            {
+                title: string;
+                message: string;
+                type: string;
+                relatedType: string | null;
+                relatedId: string | null;
+                sentAt: Date;
+                lastSentAt: Date;
+                recipientCount: number;
+                readReceiptCount: number;
+            }
+        >();
+
+        for (const notification of notifications) {
+            const key = [
+                notification.title,
+                notification.message,
+                notification.type,
+                notification.related_type || '',
+                notification.related_id || '',
+            ].join('||');
+
+            if (!groupedAnnouncements.has(key)) {
+                groupedAnnouncements.set(key, {
+                    title: notification.title,
+                    message: notification.message,
+                    type: notification.type,
+                    relatedType: notification.related_type,
+                    relatedId: notification.related_id,
+                    sentAt: notification.created_at,
+                    lastSentAt: notification.created_at,
+                    recipientCount: 0,
+                    readReceiptCount: 0,
+                });
+            }
+
+            const entry = groupedAnnouncements.get(key)!;
+            entry.recipientCount += 1;
+            if (notification.is_read) {
+                entry.readReceiptCount += 1;
+            }
+            if (notification.created_at < entry.sentAt) {
+                entry.sentAt = notification.created_at;
+            }
+            if (notification.created_at > entry.lastSentAt) {
+                entry.lastSentAt = notification.created_at;
+            }
+        }
+
+        const rows = Array.from(groupedAnnouncements.values())
+            .map((announcement) => ({
+                title: announcement.title,
+                message: announcement.message,
+                notificationType: announcement.type,
+                relatedType: announcement.relatedType,
+                relatedId: announcement.relatedId,
+                senderUid: sender?.uid ?? null,
+                senderName: sender?.username ?? null,
+                sentAt: announcement.sentAt.toISOString(),
+                lastSentAt: announcement.lastSentAt.toISOString(),
+                recipientCount: announcement.recipientCount,
+                readReceiptCount: announcement.readReceiptCount,
+            }))
+            .sort((a, b) => b.sentAt.localeCompare(a.sentAt))
+            .slice(offset, offset + limit);
+
+        return [
+            flattenJsonToTable('ClassAnnouncementsScope', {
+                classId,
+                totalNotifications: notifications.length,
+                totalAnnouncements: groupedAnnouncements.size,
+                senderUid: sender?.uid ?? null,
+            }),
+            flattenJsonToTable('ClassAnnouncements', rows),
+        ].join('\n');
+    }
+
+    private async executeMultiClassComparison(step: ExecutionAction): Promise<any> {
+        const params = (step.resolvedParameters ?? {}) as MultiClassComparisonParams;
+        const classIdsRaw = params.classIds ?? [];
+        const classIds = Array.isArray(classIdsRaw)
+            ? classIdsRaw.map((value) => String(value).trim()).filter(Boolean)
+            : String(classIdsRaw)
+                .split(',')
+                .map((value) => value.trim())
+                .filter(Boolean);
+        const metric = typeof params.metric === 'string' ? params.metric.trim().toLowerCase() : 'score';
+
+        if (classIds.length === 0) {
+            throw new Error('Missing required parameter: classIds');
+        }
+
+        const rows = [] as Array<{
+            classId: string;
+            className: string;
+            totalStudents: number;
+            totalQuizzes: number;
+            averageScore: number;
+            passRate: number;
+            quizCompletionRate: number;
+            engagementScore: number;
+        }>;
+
+        for (const classId of classIds) {
+            const classRecord = await this.getClassContext(classId);
+            const userIds = classRecord.students.map((student) => student.user_id);
+
+            const attempts = await this.prisma.attempt.findMany({
+                where: {
+                    student_id: {
+                        in: classRecord.students.map((student) => student.sid),
+                    },
+                    quiz: {
+                        class_id: classId,
+                    },
+                },
+                select: {
+                    student_id: true,
+                    quiz_id: true,
+                    percentage: true,
+                    score: true,
+                    status: true,
+                    attempt_number: true,
+                    submitted_at: true,
+                    quiz: {
+                        select: {
+                            qid: true,
+                            available_until: true,
+                        },
+                    },
+                },
+            });
+
+            const loginLogs = userIds.length === 0
+                ? []
+                : await this.prisma.log.findMany({
+                    where: {
+                        user_id: { in: userIds },
+                        action: 'login',
+                    },
+                    select: {
+                        user_id: true,
+                        created_at: true,
+                    },
+                });
+
+            const totalScore = attempts.reduce((sum, attempt) => sum + (attempt.percentage ?? attempt.score ?? 0), 0);
+            const averageScore = attempts.length > 0 ? totalScore / attempts.length : 0;
+            const passRate = attempts.length > 0
+                ? (attempts.filter((attempt) => (attempt.percentage ?? attempt.score ?? 0) >= 50).length / attempts.length) * 100
+                : 0;
+
+            const latestAttemptByStudentQuiz = new Set<string>();
+            for (const attempt of attempts.sort((a, b) => {
+                if (a.quiz_id === b.quiz_id) {
+                    return b.attempt_number - a.attempt_number;
+                }
+                return a.quiz_id.localeCompare(b.quiz_id);
+            })) {
+                const key = `${attempt.quiz_id}:${attempt.student_id}`;
+                if (!latestAttemptByStudentQuiz.has(key)) {
+                    latestAttemptByStudentQuiz.add(key);
+                }
+            }
+
+            const quizCompletionRate = classRecord.students.length > 0 && classRecord.quizzes.length > 0
+                ? (latestAttemptByStudentQuiz.size / (classRecord.students.length * classRecord.quizzes.length)) * 100
+                : 0;
+
+            const engagementScore = classRecord.students.length > 0
+                ? loginLogs.length / classRecord.students.length
+                : 0;
+
+            rows.push({
+                classId,
+                className: classRecord.name,
+                totalStudents: classRecord.students.length,
+                totalQuizzes: classRecord.quizzes.length,
+                averageScore: Number(averageScore.toFixed(2)),
+                passRate: Number(passRate.toFixed(1)),
+                quizCompletionRate: Number(quizCompletionRate.toFixed(1)),
+                engagementScore: Number(engagementScore.toFixed(2)),
+            });
+        }
+
+        const sortField = metric === 'pass_rate'
+            ? 'passRate'
+            : metric === 'completion'
+                ? 'quizCompletionRate'
+                : metric === 'engagement'
+                    ? 'engagementScore'
+                    : 'averageScore';
+
+        rows.sort((a, b) => (b as any)[sortField] - (a as any)[sortField]);
+
+        return [
+            flattenJsonToTable('MultiClassComparisonScope', {
+                classIds: classIds.join(', '),
+                metric,
+                totalClasses: rows.length,
+            }),
+            flattenJsonToTable('MultiClassComparison', rows),
         ].join('\n');
     }
 
