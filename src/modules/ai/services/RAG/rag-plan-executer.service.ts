@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import {RagCapabilityExecution} from "./rag-planner.service";
+import {ExecutionAction} from "./rag-planner.service";
 import { PrismaService } from "src/prisma.service";
 import {
     flattenJsonToCsvTable,
@@ -78,7 +78,7 @@ export class RagPlanExecuterService {
 
     private readonly handlers: Record<
         string,
-        (step: RagCapabilityExecution) => Promise<any>
+        (step: ExecutionAction) => Promise<any>
     > = {
         'log-retrive': (step) => this.executeLogRetrieve(step),
         'log-from-user': (step) => this.executeLogFromUser(step),
@@ -109,7 +109,7 @@ export class RagPlanExecuterService {
         return normalized;
     }
 
-    private async executeLogRetrieve(step: RagCapabilityExecution): Promise<any> {
+    private async executeLogRetrieve(step: ExecutionAction): Promise<any> {
         const params = (step.resolvedParameters ?? {}) as LogRetrieveParams;
         const limit = Math.min(this.toSafeNumber(params.limit, 100), 500);
         const offset = this.toSafeNumber(params.offset, 0);
@@ -149,7 +149,7 @@ export class RagPlanExecuterService {
         return flattenJsonToTable('Logs', fetchLogs) + '\n' + flattenJsonToTable('Users', userData);
     }
 
-    private async executeLogFromUser(step: RagCapabilityExecution): Promise<any> {
+    private async executeLogFromUser(step: ExecutionAction): Promise<any> {
         const params = (step.resolvedParameters ?? {}) as LogFromUserParams;
         const userId = typeof params.userId === 'string' ? params.userId.trim() : '';
         const limit = Math.min(this.toSafeNumber(params.limit, 100), 500);
@@ -190,7 +190,7 @@ export class RagPlanExecuterService {
         return flattenJsonToTable('User', user!) + '\n' + flattenJsonToTable('Logs', logs);
     }
 
-    private async executeEnrollments(step: RagCapabilityExecution): Promise<any> {
+    private async executeEnrollments(step: ExecutionAction): Promise<any> {
         const params = (step.resolvedParameters ?? {}) as EnrollmentRetrieveParams;
         const status = typeof params.status === 'string' ? params.status.trim() : '';
         const startRangeRaw = typeof params.start_range === 'string' ? params.start_range.trim() : '';
@@ -259,7 +259,7 @@ export class RagPlanExecuterService {
         return flattenJsonToCsvTable('Enrollments', fetchEnrollments);
     }
 
-    private async executeClassOverview(step: RagCapabilityExecution): Promise<any> {
+    private async executeClassOverview(step: ExecutionAction): Promise<any> {
         const params = (step.resolvedParameters ?? {}) as ClassOverviewParams;
         const classId = this.toRequiredString(params.classId, 'classId');
         const quizId = typeof params.quizId === 'string' ? params.quizId.trim() : '';
@@ -395,7 +395,7 @@ export class RagPlanExecuterService {
         ].join('\n');
     }
 
-    private async executeClassFiles(step: RagCapabilityExecution): Promise<any> {
+    private async executeClassFiles(step: ExecutionAction): Promise<any> {
         const params = (step.resolvedParameters ?? {}) as ClassFilesParams;
         const classId = this.toRequiredString(params.classId, 'classId');
 
@@ -428,7 +428,7 @@ export class RagPlanExecuterService {
         return flattenJsonToTable(`class ${classId}: Files`, rows);
     }
 
-    private async executeClassQuizzes(step: RagCapabilityExecution): Promise<any> {
+    private async executeClassQuizzes(step: ExecutionAction): Promise<any> {
         const params = (step.resolvedParameters ?? {}) as ClassQuizzesParams;
         const classId = this.toRequiredString(params.classId, 'classId');
 
@@ -460,7 +460,7 @@ export class RagPlanExecuterService {
         return flattenJsonToTable(`class ${classId}: Quizzes`, rows);
     }
 
-    private async executeClassStudents(step: RagCapabilityExecution): Promise<any> {
+    private async executeClassStudents(step: ExecutionAction): Promise<any> {
         const params = (step.resolvedParameters ?? {}) as ClassStudentsParams;
         const classId = this.toRequiredString(params.classId, 'classId');
 
@@ -492,7 +492,7 @@ export class RagPlanExecuterService {
         return flattenJsonToTable(`class ${classId}: Students`, rows);
     }
 
-    private async executeClassLecturer(step: RagCapabilityExecution): Promise<any> {
+    private async executeClassLecturer(step: ExecutionAction): Promise<any> {
         const params = (step.resolvedParameters ?? {}) as ClassLecturerParams;
         const classId = this.toRequiredString(params.classId, 'classId');
 
@@ -520,7 +520,7 @@ export class RagPlanExecuterService {
         return flattenJsonToTable(`class ${classId}: Lecturer`, rows);
     }
 
-    private async executeAnalyseQuizPerformance(step: RagCapabilityExecution): Promise<any> {
+    private async executeAnalyseQuizPerformance(step: ExecutionAction): Promise<any> {
         const params = (step.resolvedParameters ?? {}) as QueryStudentParams;
         const classId = this.toRequiredString(params.classId, 'classId');
         const quizId = typeof params.quizId === 'string' ? params.quizId.trim() : '';
@@ -612,7 +612,7 @@ export class RagPlanExecuterService {
         ].join('\n');
     }
 
-    private async executeTeachingRecommendation(step: RagCapabilityExecution): Promise<any> {
+    private async executeTeachingRecommendation(step: ExecutionAction): Promise<any> {
         const params = (step.resolvedParameters ?? {}) as TeachingRecommendationParams;
         const classId = this.toRequiredString(params.classId, 'classId');
 
@@ -651,7 +651,7 @@ export class RagPlanExecuterService {
         ].join('\n');
     }
 
-    private async executeKnowledgeGap(step: RagCapabilityExecution): Promise<any> {
+    private async executeKnowledgeGap(step: ExecutionAction): Promise<any> {
         const params = (step.resolvedParameters ?? {}) as KnowledgeGapParams;
         const classId = this.toRequiredString(params.classId, 'classId');
         const quizId = typeof params.quizId === 'string' ? params.quizId.trim() : '';
@@ -758,7 +758,7 @@ export class RagPlanExecuterService {
     }
 
     async execute(
-        steps: RagCapabilityExecution[],
+        steps: ExecutionAction[],
     ): Promise<Array<ExecutionContext>> {
         return Promise.all(
             steps.map(async (step) => {

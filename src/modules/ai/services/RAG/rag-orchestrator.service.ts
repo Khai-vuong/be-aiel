@@ -40,12 +40,14 @@ export class RagOrchestratorService{
   async chat(params: RagOrchestratorRequest) {
     //Step 1: planning phase
     // const a : plannerInputDTO;
-    const actionPlanList = await this.ragPlannerService.selectActionsFromPrompt({
+    const plannerResponse = await this.ragPlannerService.selectActionsFromPrompt({
       prompt: params.aiRequest.text,
       userRole: params.user.role,
       metadata: params.aiRequest.metadata,
       provider: params.aiRequest.provider! as OuterApiProvider,
     });
+
+    const actionPlanList = plannerResponse.actions;
 
 
     //Step 2: context retrieval phase
@@ -53,7 +55,9 @@ export class RagOrchestratorService{
     //     capabilityId: string;
     //     result: any;
     // }[]
-    const contextualData = await this.planExecuterService.execute(actionPlanList);
+    const contextualData = plannerResponse.doneReasoning || actionPlanList.length === 0
+      ? []
+      : await this.planExecuterService.execute(actionPlanList);
 
     //Step 3: prompt composition phase
     // const contextString = JSON.stringify(contextualData, null, 2); //không dùng json stringify, format bên execute luôn
@@ -85,7 +89,7 @@ export class RagOrchestratorService{
       response: llmResponse.text,
       provider: llmResponse.provider,
       systemPrompt: llmResponse.systemPrompt,
-      capabilityPlan: actionPlanList,
+      capabilityPlan: plannerResponse,
       contextualData,
       customSystemPrompt: systemPrompt,
 

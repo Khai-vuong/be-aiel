@@ -6,7 +6,7 @@ import {
   OuterApiService,
 } from '../outer-api/outer-api.service';
 import {
-  RagCapabilityExecution,
+  ExecutionAction,
   RagPlannerService,
 } from './rag-planner.service';
 import { RagPlanExecuterService, type ExecutionContext } from './rag-plan-executer.service';
@@ -15,18 +15,11 @@ import {
   RagCapabilityEntry,
   RAG_CAPABILITY_REQUIRED_PARAMS_BY_ID,
 } from './capability-entries';
-import { parseJsonStrings } from 'src/common/utils/parseJSON';
 
 const MAX_LOOP = 3;
 
-type ReflectDecision = {
-  needMore: boolean;
-  reason?: string;
-  nextPrompt?: string;
-};
-
 type ValidationResult = {
-  validSteps: RagCapabilityExecution[];
+  validSteps: ExecutionAction[];
   rejected: Array<{
     capabilityId: string;
     reason: string;
@@ -50,117 +43,87 @@ export class RagReactService {
     private readonly planExecuterService: RagPlanExecuterService,
   ) {}
 
-  private buildPlannerInput(params: {
-    question: string;
-    plannerPrompt: string;
-    loop: number;
-    contexts: ExecutionContext[];
-    validationErrors: string[];
-  }): string {
-    const contextText = params.contexts
-      .slice(-8)
-      .map((ctx, index) => {
-        const label = `#${index + 1} capability=${ctx.capabilityId}`;
-        const body = ctx.error
-          ? `ERROR: ${ctx.error}`
-          : String(ctx.result ?? '').slice(0, 500);
-        return `${label}\n${body}`;
-      })
-      .join('\n\n');
+  private buildAccumulatedEvidence(contexts: ExecutionContext[]): string {
+    if (contexts.length === 0) {
+      return 'none';
+    }
 
-    return [
-      `Original question:\n${params.question}`,
-      `Current planner focus:\n${params.plannerPrompt}`,
-      `Current loop: ${params.loop}/${MAX_LOOP}`,
-      `Validation errors so far:\n${params.validationErrors.join('\n') || 'none'}`,
-      `Accumulated evidence from previous loops:\n${contextText || 'none'}`,
-    ].join('\n\n');
+    return contexts
+      .map((ctx, index) => {
+        const header = `#${index + 1} [${ctx.capabilityId}]`;
+        const body = ctx.error ? `ERROR: ${ctx.error}` : String(ctx.result ?? '');
+        return `${header}\n${body}`;
+      })
+      .join('\n');
   }
 
-  // PoC: process flow adapted from rag-orchestrator and upgraded with ReAct loop.
+  // PoC: process flow with simplified ReAct loop
+  // Step 1: initialize - Step 2: plan+validate - Step 3: execute+accumulate - Loop control
   async chat(params: RagReactOrchestratorRequest) {
-    // Step 1: initialize ReAct runtime state from rag-orchestrator input
+    // Step 1: Initialize ReAct runtime state
     const provider = (params.aiRequest.provider as OuterApiProvider) || 'groq';
-    let plannerPrompt = params.aiRequest.text;
     const usedCapabilityIds = new Set<string>();
     const validationErrors: string[] = [];
     const overallContexts: ExecutionContext[] = [];
+    let accumulateEvidence = 'none';
 
-    // Step 2: ReAct loop (Plan -> Validate -> Act -> Reflect), max MAX_LOOP rounds
+    // ReAct loop: Plan -> Validate -> Act, max MAX_LOOP iterations
     for (let loop = 1; loop <= MAX_LOOP; loop += 1) {
-      console.log(`RAG-ReAct loop ${loop}`);
+      console.log(`[RAG-ReAct] Loop ${loop}/${MAX_LOOP}`);
 
-      const plannerInput = this.buildPlannerInput({
-        question: params.aiRequest.text,
-        plannerPrompt,
-        loop,
-        contexts: overallContexts,
-        validationErrors,
-      });
-
-      // Step 2.1: plan capabilities from the current planner promp
-      const actionPlanList = await this.ragPlannerService.selectActionsFromPrompt({
-        prompt: plannerInput,
+      // Step 2: Plan (Planner decides next action based on accumulated evidence)
+      const plannerResponse = await this.ragPlannerService.selectActionsFromPrompt({
+        prompt: params.aiRequest.text,
         userRole: params.user.role,
         metadata: params.aiRequest.metadata,
         provider,
+        accumulateEvidence,
       });
 
-      // Step 2.2: validate capability IDs, role access, and required parameters
-      const validateStepsData = this.validateCapabilities(actionPlanList);
+      // If planner determines reasoning is complete, exit loop and compose answer
+      if (plannerResponse.doneReasoning) {
+        console.log('[RAG-ReAct] Planner indicated reasoning is complete');
+        break;
+      }
+
+      // Step 2.5: Validate planned actions before execution
+      const validateStepsData = this.validateCapabilities(plannerResponse.actions);
       validateStepsData.rejected.forEach((item) => {
-        validationErrors.push(`${item.capabilityId}: ${item.reason}`);
+        validationErrors.push(`[Loop ${loop}] ${item.capabilityId}: ${item.reason}`);
       });
 
-      // Step 2.3: keep only newly planned capabilities that are not executed yet (put in function)
+      // Keep only newly planned capabilities not yet executed
       const validSteps = validateStepsData.validSteps.filter(
         (step) => !usedCapabilityIds.has(step.capabilityId),
       );
 
       validSteps.forEach((step) => usedCapabilityIds.add(step.capabilityId));
 
-      // Step 2.4: execute capabilities with isolation so one failure does not break all
-
-      const contexts = validSteps.length > 0
-        ? await this.planExecuterService.execute(validSteps)
-        : [];
-
-      overallContexts.push(...contexts);
-
-      // Manually checked here, continue after lunch
-
-      // Step 2.5: reflect on gathered evidence to decide whether another round is needed
-      const reflectDecision = await this.reflectOnEvidence({
-        question: params.aiRequest.text,
-        loop,
-        contexts: overallContexts,
-        validationErrors,
-        provider,
-        role: params.user.role,
-      });
-
-      if (!reflectDecision.needMore) {
+      if (validSteps.length === 0) {
+        console.log('[RAG-ReAct] No valid steps to execute');
         break;
       }
 
-      plannerPrompt = reflectDecision.nextPrompt?.trim().length
-        ? reflectDecision.nextPrompt
-        : `${params.aiRequest.text}\n\nMissing information: ${reflectDecision.reason || 'Need more evidence'}`;
+      // Step 3: Execute actions and accumulate evidence
+      console.log(`[RAG-ReAct] Executing ${validSteps.length} action(s): ${validSteps.map((s) => s.capabilityId).join(', ')}`);
+      const contexts = await this.planExecuterService.execute(validSteps);
+      overallContexts.push(...contexts);
+
+      // Rebuild accumulated evidence string for next planner iteration
+      accumulateEvidence = this.buildAccumulatedEvidence(overallContexts);
+      console.log(`[RAG-ReAct] Accumulated ${overallContexts.length} evidence block(s)`);
     }
 
-    // Step 3: compose final answer from validated execution evidence
+    // Step 4: Compose final answer from validated execution evidence
     const composed = await this.composeAnswer({
-      question: params.aiRequest.text,
-      role: params.user.role,
+      userQuestion: params.aiRequest.text,
       provider,
       contexts: overallContexts,
       validationErrors,
-      conversationId: params.aiRequest.conversationId,
-      userId: params.user.uid,
       temperature: params.aiRequest.temperature,
     });
 
-    // Step 4: assemble rag-orchestrator style response payload
+    // Return response with execution metadata
     return {
       userPrompt: params.aiRequest.text,
       response: composed.text,
@@ -182,9 +145,9 @@ export class RagReactService {
    * - rejected: rejected steps with a human-readable reason for audit/debug.
    */
   private validateCapabilities(
-    steps: RagCapabilityExecution[],
+    steps: ExecutionAction[],
   ): ValidationResult {
-    const validSteps: RagCapabilityExecution[] = [];
+    const validSteps: ExecutionAction[] = [];
     const rejected: Array<{ capabilityId: string; reason: string }> = [];
 
     for (const step of steps) {
@@ -227,81 +190,6 @@ export class RagReactService {
   }
 
   /**
-   * Reflection phase that decides whether the ReAct loop should continue.
-   * Purpose:
-   * - Evaluate if current evidence is sufficient to answer reliably.
-   * - Produce a focused nextPrompt when more evidence is needed.
-   * Output (ReflectDecision):
-   * - needMore: true if another loop is required.
-   * - reason: why evidence is insufficient or why loop stops.
-   * - nextPrompt: refined planner prompt for the next iteration.
-   */
-  private async reflectOnEvidence(params: {
-    question: string;
-    loop: number;
-    contexts: ExecutionContext[];
-    validationErrors: string[];
-    provider: OuterApiProvider;
-    role: string;
-  }): Promise<ReflectDecision> {
-    if (params.loop >= MAX_LOOP) {
-      return {
-        needMore: false,
-        reason: 'Reached MAX_LOOP',
-      };
-    }
-
-    const evidenceText = params.contexts
-      .map((ctx, index) => {
-        if (ctx.error) {
-          return `#${index + 1} capability=${ctx.capabilityId}\nERROR: ${ctx.error}`;
-        }
-
-        return `#${index + 1} capability=${ctx.capabilityId}\n${String(ctx.result)}`;
-      })
-      .join('\n\n');
-
-    const systemPrompt = [
-      'You are a reflection step in a ReAct RAG pipeline.',
-      'Decide if current evidence is enough to answer the question reliably.',
-      'Respond ONLY valid JSON with schema:',
-      '{"needMore": boolean, "reason": string, "nextPrompt": string}',
-      'Set needMore=true only when missing critical evidence.',
-      'nextPrompt should be an improved planner prompt focused on missing evidence.',
-      `Current loop: ${params.loop}/${MAX_LOOP}`,
-    ].join('\n');
-
-    const userPrompt = [
-      `Question:\n${params.question}`,
-      `ValidationErrors:\n${params.validationErrors.join('\n') || 'none'}`,
-      `Evidence:\n${evidenceText || 'no evidence yet'}`,
-    ].join('\n\n');
-
-    try {
-      const decisionRaw = await this.outerApiService.chat({
-        prompt: userPrompt,
-        provider: params.provider,
-        caller: 'rag-react-reflect',
-        instructionPrompt: systemPrompt,
-        temperature: 0.1,
-      });
-
-      const parsed = parseJsonStrings(decisionRaw.text) as Partial<ReflectDecision>;
-      return {
-        needMore: Boolean(parsed?.needMore),
-        reason: typeof parsed?.reason === 'string' ? parsed.reason : '',
-        nextPrompt:
-          typeof parsed?.nextPrompt === 'string' ? parsed.nextPrompt : '',
-      };
-    } catch (error) {
-      return {
-        needMore: false,
-        reason: 'Reflection failed',
-      };
-    }
-  }
-
-  /**
    * Final answer composer layer.
    * Purpose:
    * - Merge validated evidence + validation issues into a final grounded answer.
@@ -312,13 +200,10 @@ export class RagReactService {
    *   + provider: actual LLM provider that generated the response.
    */
   private async composeAnswer(params: {
-    question: string;
-    role: string;
+    userQuestion: string;
     provider: OuterApiProvider;
     contexts: ExecutionContext[];
     validationErrors: string[];
-    conversationId?: string;
-    userId?: string;
     temperature?: number;
   }): Promise<{ text: string; provider: string }> {
     const evidence = params.contexts
@@ -329,26 +214,28 @@ export class RagReactService {
       })
       .join('\n\n');
 
-    const systemPrompt = [
+    const instructionPrompt = [
       'You are the Answer Composer layer in a ReAct pipeline.',
       'Use evidence blocks as primary truth source.',
       'If evidence is missing or contains execution errors, explicitly state limitations.',
       'Do not invent data not present in evidence.',
       'Provide concise, actionable answer for educator/admin context.',
+      'DO NOT mention about the evidence blocks in the answer',
+      `the answer's language should be the same as user question's language`,
     ].join('\n');
 
     const prompt = [
-      `User question:\n${params.question}`,
+      `User question:\n${params.userQuestion}`,
       `Validation issues:\n${params.validationErrors.join('\n') || 'none'}`,
       `Evidence blocks:\n${evidence || 'none'}`,
-    ].join('\n\n');
+    ].join('\n');
 
     const composed = await this.outerApiService.chat({
       prompt,
       provider: params.provider,
       caller: 'rag-react-composer',
-      instructionPrompt: systemPrompt,
-      temperature: params.temperature ?? 0.4,
+      instructionPrompt: instructionPrompt,
+      temperature: params.temperature ?? 0.8,
     });
 
     return {
