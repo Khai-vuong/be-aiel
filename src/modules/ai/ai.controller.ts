@@ -30,7 +30,6 @@ import { SwaggerAiChat } from './swagger/ai.swagger';
 import { StudyAnalystAIService } from './services/study-analyst/study-analyst-ai.service';
 import { OuterApiProvider } from './services/outer-api/outer-api.service';
 import { QuizGenerationService } from './services/Quiz-gen/quizGeneration.service';
-import { RefactoredOrchestratorService } from './orchestrator/refactoredOrchestrator.service';
 import { title } from 'node:process';
 
 /**
@@ -61,14 +60,13 @@ export class AiController {
     private readonly conversationService: ConversationService,
     private readonly quizGenerationService: QuizGenerationService,
     private readonly studyAnalystAIService: StudyAnalystAIService,
-    private readonly refaOrchestratorService: RefactoredOrchestratorService,
   ) {}
 
   @Post('chat')
   @Roles('any')
   @SwaggerAiChat()
   async chat(@Request() req, @Body() aiRequest: AiRequestDto) {
-    return this.refaOrchestratorService.processRequest(aiRequest, req.user);
+    return this.orchestratorService.processRequest(aiRequest, req.user);
   }
 
   //Testing quan trọng: Chat trực tiếp bỏ qua orchestrator để test API của các provider bên ngoài (Gemini, Groq, OpenAI)

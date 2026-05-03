@@ -12,7 +12,6 @@ import { ConversationService } from './services/conversation.service';
 import { OuterApiService } from './services/outer-api/outer-api.service';
 import { SummarizationService } from './services/summarization.service';
 import { QuizGenerationService } from './services/Quiz-gen/quizGeneration.service';
-import { RagOrchestratorService } from './services/RAG/rag-orchestrator.service';
 import { RagReactService } from './services/RAG/rag_react';
 import { RagPlannerService } from './services/RAG/rag-planner.service';
 import { RagPlanExecuterService } from './services/RAG/rag-plan-executer.service';
@@ -21,7 +20,6 @@ import { OpenAIService } from './providers/openai.provider';
 import { GroqService } from './providers/groq.provider';
 
 import { PrismaService } from '../../prisma.service';
-import { RefactoredOrchestratorService } from './orchestrator/refactoredOrchestrator.service';
 import { IntentClassifierService as RefactoredIntentClassifierService } from './orchestrator/intent-classifier.service';
 import { LanguageDetectionService } from './utils/language-detect.service';
 
@@ -34,7 +32,6 @@ import { LanguageDetectionService } from './utils/language-detect.service';
     IntentClassifierService,
     RefactoredIntentClassifierService,
     ContextBuilderService,
-    RefactoredOrchestratorService,
 
     // Study Analyst
     StudyAnalystAIService,
@@ -49,7 +46,6 @@ import { LanguageDetectionService } from './utils/language-detect.service';
     QuizGenerationService,
     RagPlannerService,
     RagPlanExecuterService,
-    RagOrchestratorService,
     RagReactService,
     // Providers
     GeminiProvider,
@@ -68,7 +64,6 @@ import { LanguageDetectionService } from './utils/language-detect.service';
     SummarizationService,
     RefactoredIntentClassifierService,
     QuizGenerationService,
-    RagOrchestratorService,
     RagReactService,
     RagPlanExecuterService,
     RagPlannerService

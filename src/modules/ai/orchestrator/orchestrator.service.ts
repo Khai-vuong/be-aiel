@@ -1,31 +1,49 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { IntentClassifierService } from './intent-classifier-legacy.service';
-import { PrismaService } from '../../../prisma.service';
+import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
+import { JwtPayload } from 'src/modules/users/jwt.strategy';
 import { AiRequestDto } from '../dtos/ai-request.dto';
 import { AiResponseDto } from '../dtos/ai-response.dto';
-import { JwtPayload } from 'src/modules/users/jwt.strategy';
-import { OuterApiService } from '../services/outer-api/outer-api.service';
-import { StudyAnalystAIService } from '../services/study-analyst/study-analyst-ai.service';
-import { QuizGenerationService } from '../services/Quiz-gen/quizGeneration.service';
 import { ConversationService } from '../services/conversation.service';
+import { OuterApiService } from '../services/outer-api/outer-api.service';
+// import { RagOrchestratorService } from '../services/RAG/rag-orchestrator.service';
+import { RagReactService } from '../services/RAG/rag_react';
+import { ContextBuilderService } from './context-builder.service';
 import {
   SummarizationService,
   SummarizeOptions,
 } from '../services/summarization.service';
-import { RagOrchestratorService } from '../services/RAG/rag-orchestrator.service';
+import {
+  IntentClassifierService,
+  type ExecutionMode,
+} from './intent-classifier.service';
+import { LanguageDetectionService } from '../utils/language-detect.service';
+
+type RoutedResponse = {
+  usecase: string;
+  mode: ExecutionMode;
+  uiTarget?: string;
+  module?: string;
+  text?: string;
+  response?: string;
+  provider?: string;
+  [key: string]: any;
+};
+
+type EnrichedAiRequest = AiRequestDto & {
+  history?: Array<{ role: string; content: string }>;
+  resolvedSystemPrompt?: string;
+};
+
 @Injectable()
 export class OrchestratorService {
-  private readonly logger = new Logger(OrchestratorService.name);
-
   constructor(
-    private readonly intentClassifier: IntentClassifierService,
-    private readonly prisma: PrismaService,
-    private readonly outerApiService: OuterApiService,
-    private readonly studyAnalystAIService: StudyAnalystAIService,
-    private readonly quizGenerationService: QuizGenerationService,
     private readonly conversationService: ConversationService,
     private readonly summarizationService: SummarizationService,
-    private readonly ragOrchestratorService: RagOrchestratorService,
+    private readonly outerApiService: OuterApiService,
+    private readonly contextBuilderService: ContextBuilderService,
+    // private readonly ragOrchestratorService: RagOrchestratorService,
+    private readonly ragReactService: RagReactService,
+    private readonly intentClassifierService: IntentClassifierService,
+    private readonly languageDetectionService: LanguageDetectionService,
   ) {}
 
   /**
@@ -36,7 +54,6 @@ export class OrchestratorService {
     user: JwtPayload,
   ): Promise<AiResponseDto> {
     const startTime = Date.now();
-    this.logger.log('AI request received');
 
     let conversationId = request.conversationId;
 
@@ -53,49 +70,52 @@ export class OrchestratorService {
       conversationId = conv.acid;
     }
 
+    // Step 2: Fetch history (if have)
+    const history = await this.conversationService.getConversationHistory(
+      conversationId,
+      user.uid,
+      20,
+      0,
+    );
+    const sanitizedHistory = this.removeTrailingCurrentUserPrompt(
+      history,
+      request.text,
+    );
+
     await this.conversationService.createMessage({
       conversationId,
       role: 'user',
       content: request.text,
     });
 
-    const normalizedRequest: AiRequestDto = {
+    const requestWithConv: EnrichedAiRequest = {
       ...request,
       conversationId,
     };
 
     // Step 2: classify intent
-    const intent = await this.intentClassifier.classifyIntent(
-      request.text,
-      user.role,
+    const mode = await this.intentClassifierService.resolveExecutionMode(
+      requestWithConv,
+      user,
     );
+    this.enforceFeatureAccess(mode, user); //Giống Guard 
 
-    this.logger.log(`Intent detected: ${intent}`);
+    // const caller = this.resolveCallerByMode(mode);
 
-    let response: any;
+
+    const systemInstruction = this.contextBuilderService.buildSystemPrompt({
+      role: user.role,
+      customSystemPrompt: request.instructionPrompt,
+      onlyUseSystemPrompt: false,
+    });
+
+    requestWithConv.history = sanitizedHistory;
+    requestWithConv.resolvedSystemPrompt = systemInstruction;
+
+    let response: RoutedResponse;
 
     // Step 3: route request to the right module
-    switch (intent) {
-      case 'data_analysis':
-      case 'class_analysis':
-      case 'teaching_recommendation':
-        response = await this.handleClassAnalysis(normalizedRequest, user);
-        break;
-
-      case 'quiz_creation':
-        response = await this.handleQuizCreation(normalizedRequest, user);
-        break;
-
-      case 'system_configuration':
-      case 'rag':
-      case 'rag_orchestrator':
-        response = await this.handleRagChat(normalizedRequest, user);
-        break;
-
-      default:
-        response = await this.handleGeneralChat(normalizedRequest, user);
-        break;
-    }
+    response = await this.dispatchByMode(requestWithConv, user, mode);
 
     // Step 4: persist assistant response to AI conversation
     const assistantContent = this.extractAssistantContent(response);
@@ -105,8 +125,11 @@ export class OrchestratorService {
       content: assistantContent,
       modelName: this.extractModelName(response),
       metadata: {
-        intent,
+        mode,
         usecase: response?.usecase,
+        module: response?.module,
+        uiTarget: response?.uiTarget,
+        processingTime: Date.now() - startTime,
       },
     });
 
@@ -122,197 +145,11 @@ export class OrchestratorService {
       metadata: {
         processingTime: Date.now() - startTime,
         provider,
-        serviceType: this.resolveServiceType(intent),
+        serviceType: this.resolveServiceType(mode),
       },
     };
   }
 
-  private extractAssistantContent(response: any): string {
-    if (!response) return '';
-    if (typeof response?.text === 'string' && response.text.trim().length > 0) {
-      return response.text;
-    }
-    if (
-      typeof response?.response === 'string' &&
-      response.response.trim().length > 0
-    ) {
-      return response.response;
-    }
-
-    try {
-      return JSON.stringify(response);
-    } catch {
-      return String(response);
-    }
-  }
-
-  private extractModelName(response: any): string | undefined {
-    if (
-      typeof response?.modelName === 'string' &&
-      response.modelName.length > 0
-    ) {
-      return response.modelName;
-    }
-    if (typeof response?.provider === 'string' && response.provider.length > 0) {
-      return response.provider;
-    }
-    return undefined;
-  }
-
-  private extractProvider(
-    response: any,
-    fallback?: string,
-  ): string | undefined {
-    if (typeof response?.provider === 'string' && response.provider.length > 0) {
-      return response.provider;
-    }
-    return fallback;
-  }
-
-  private resolveServiceType(intent: string): 'Chat' | 'quizgen' | 'insight' {
-    switch (intent) {
-      case 'quiz_creation':
-        return 'quizgen';
-      case 'data_analysis':
-      case 'class_analysis':
-      case 'teaching_recommendation':
-        return 'insight';
-      default:
-        return 'Chat';
-    }
-  }
-
-  /**
-   * USE CASE: DATA ANALYSIS DOMAIN
-   * Trưởng phòng phân tích (Sub-router) chia việc cho 4 chuyên gia: Risk, Trend, Knowledge Gap, Overview
-   */
-  private async handleClassAnalysis(request: AiRequestDto, user: JwtPayload) {
-    this.logger.log('Routing to Study Analyst AI Domain...');
-    const classId = request.metadata?.classId || 'default-class';
-
-    const promptLower = (request.text || '').toLowerCase();
-    const originalPrompt =
-      request.text || 'Provide an overview of class performance.';
-
-    // 1. CHUYÊN GIA RISK (Tìm học sinh giỏi/yếu)
-    if (
-      promptLower.includes('risk') ||
-      promptLower.includes('bottom') ||
-      promptLower.includes('top') ||
-      promptLower.includes('struggling') ||
-      promptLower.includes('weak') ||
-      promptLower.includes('alarming')
-    ) {
-      this.logger.log('--> Sub-intent detected: STUDENT RISK');
-      const result = await this.studyAnalystAIService.detectStudentRisk(
-        classId,
-        originalPrompt,
-        user.uid,
-        user.role,
-      );
-      return { usecase: 'STUDENT_RISK', ...result };
-    }
-
-    // 2. CHUYÊN GIA TREND (Phân tích xu hướng)
-    else if (
-      promptLower.includes('trend') ||
-      promptLower.includes('recommend') ||
-      promptLower.includes('month') ||
-      promptLower.includes('strategy') ||
-      promptLower.includes('completion') ||
-      promptLower.includes('advice')
-    ) {
-      this.logger.log('--> Sub-intent detected: TEACHING RECOMMENDATIONS');
-      const result =
-        await this.studyAnalystAIService.generateTeachingRecommendations(
-          classId,
-          originalPrompt,
-          user.uid,
-          user.role,
-        );
-      return { usecase: 'TEACHING_RECOMMENDATIONS', ...result };
-    }
-
-    // 3. CHUYÊN GIA KNOWLEDGE GAP (Phân tích lỗ hổng kiến thức) - MỚI THÊM
-    else if (
-      promptLower.includes('gap') ||
-      promptLower.includes('skill') ||
-      promptLower.includes('misconception') ||
-      promptLower.includes('weakness') ||
-      promptLower.includes('topic') ||
-      promptLower.includes('blind spot') ||
-      promptLower.includes('lỗ hổng')
-    ) {
-      this.logger.log('--> Sub-intent detected: KNOWLEDGE GAP ANALYSIS');
-      const result = await this.studyAnalystAIService.analyzeKnowledgeGaps(
-        classId,
-        originalPrompt,
-        user.uid,
-        user.role,
-      );
-      return { usecase: 'KNOWLEDGE_GAP', ...result };
-    }
-
-    // 4. CHUYÊN GIA OVERVIEW (Tổng quan - Mặc định)
-    else {
-      this.logger.log('--> Sub-intent detected: CLASS OVERVIEW');
-      const result = await this.studyAnalystAIService.analyzeClass(
-        classId,
-        originalPrompt,
-        user.uid,
-        user.role,
-      );
-      return { usecase: 'CLASS_ANALYSIS', ...result };
-    }
-  }
-
-  private async handleQuizCreation(request: AiRequestDto, user: JwtPayload) {
-    this.logger.log('Routing to Quiz Generation module...');
-    const result = await this.quizGenerationService.generateQuiz({
-      prompt: request.text,
-      role: user.role,
-      provider: request.provider as 'gemini' | 'groq' | 'openai' | undefined,
-      temperature: request.temperature,
-      instructionPrompt: request.instructionPrompt,
-    });
-
-    return {
-      usecase: 'QUIZ_CREATION',
-      text: result.text,
-      questions: result.questions,
-      provider: result.provider,
-      rawText: result.rawText,
-    };
-  }
-
-  private async handleRagChat(request: AiRequestDto, user: JwtPayload) {
-    this.logger.log('Routing to RAG Orchestrator module...');
-    const result = await this.ragOrchestratorService.chat({
-      aiRequest: request,
-      user,
-    });
-
-    return {
-      usecase: 'RAG_ORCHESTRATION',
-      ...result,
-    };
-  }
-
-  /**
-   * USE CASE: GENERAL AI CHAT
-   */
-  private async handleGeneralChat(request: AiRequestDto, user: JwtPayload) {
-    const result = await this.outerApiService.chat({
-      prompt: request.text,
-      caller: 'general',
-      provider: 'groq',
-    });
-    return { usecase: 'GENERAL_CHAT', text: result.text };
-  }
-
-  /**
-   * CONVERSATION & DIRECT CHAT
-   */
   async directChat(
     request: AiRequestDto,
     user: JwtPayload,
@@ -332,16 +169,34 @@ export class OrchestratorService {
       conversationId = conv.acid;
     }
 
-    const userMsg = await this.conversationService.createMessage({
+    await this.conversationService.createMessage({
       conversationId,
       role: 'user',
       content: request.text,
+    });
+
+    const history = await this.conversationService.getConversationHistory(
+      conversationId,
+      user.uid,
+      20,
+      0,
+    );
+    const sanitizedHistory = this.removeTrailingCurrentUserPrompt(
+      history,
+      request.text,
+    );
+    const systemInstruction = this.contextBuilderService.buildSystemPrompt({
+      role: user.role,
+      customSystemPrompt: request.instructionPrompt,
+      onlyUseSystemPrompt: false,
     });
 
     const result = await this.outerApiService.chat({
       prompt: request.text,
       caller: 'direct',
       provider: 'groq',
+      instructionPrompt: systemInstruction,
+      history: sanitizedHistory,
     });
 
     const assistantMsg = await this.conversationService.createMessage({
@@ -349,6 +204,9 @@ export class OrchestratorService {
       role: 'assistant',
       content: result.text,
       modelName: result.provider,
+      metadata: {
+        mode: 'chat',
+      },
     });
 
     return {
@@ -381,9 +239,264 @@ export class OrchestratorService {
       instructionPrompt: req.body?.customSystemPrompt,
     };
 
-    return this.ragOrchestratorService.chat({
+    return this.ragReactService.chat({
       aiRequest,
       user: req.user,
     });
+  }
+
+  private enforceFeatureAccess(mode: ExecutionMode, user: JwtPayload): void {
+    const role = this.normalizeRole(user.role);
+
+    if (mode === 'chat') {
+      return;
+    }
+
+    if (role === 'student') {
+      throw new ForbiddenException(
+        'Students can only access the general AI chat mode.',
+      );
+    }
+
+    if (role !== 'lecturer' && role !== 'admin') {
+      throw new ForbiddenException(
+        `Role "${user.role}" is not allowed to access ${mode}.`,
+      );
+    }
+  }
+
+  private async dispatchByMode(
+    request: EnrichedAiRequest,
+    user: JwtPayload,
+    mode: ExecutionMode,
+  ): Promise<RoutedResponse> {
+    switch (mode) {
+      case 'quiz_assistant':
+        return this.handleQuizAssistant(request, user);
+      case 'insight':
+        return this.handleInsight(request, user);
+      case 'chat':
+      default:
+        return this.handleChat(request, user);
+    }
+  }
+
+  private async handleChat(
+    request: EnrichedAiRequest,
+    user: JwtPayload,
+  ): Promise<RoutedResponse> {
+    const result = await this.outerApiService.chat({
+      prompt: request.text,
+      caller: 'general',
+      provider: (request.provider as 'gemini' | 'groq' | 'openai') || 'groq',
+      temperature: request.temperature,
+      instructionPrompt:
+        request.resolvedSystemPrompt ?? request.instructionPrompt,
+      history: request.history ?? [],
+    });
+
+    return {
+      usecase: 'GENERAL_CHAT',
+      mode: 'chat',
+      uiTarget: 'chat',
+      module: 'OuterAPI',
+      text: result.text,
+      provider: result.provider,
+      attemptedProviders: result.attemptedProviders,
+    };
+  }
+
+  private async handleQuizAssistant(
+    request: EnrichedAiRequest,
+    user: JwtPayload,
+  ): Promise<RoutedResponse> {
+
+    /**
+     * Vào flow này thì mặc định là từ chatpage hoặc aichatsidebar.
+     * Ta chỉ cần đưa tin nhắn redirect họ qua trang createQuiz.
+     * 
+     * Nếu được gửi từ CreateQuiz, nó sẽ trực tiếp dùng QuizGenService mà không đi qua đây
+     */
+
+    const sendFrom = request.metadata?.sendFrom?.toLowerCase();
+
+    if (sendFrom === 'chatpage' || sendFrom === 'aichatsidebar') {
+      if (this.languageDetectionService.detect(request.text) === 'vie') {
+        return {
+          usecase: 'QUIZ_ASSISTANT',
+          mode: 'quiz_assistant',
+          uiTarget: 'quiz-builder',
+          module: 'QuizGen',
+          text: 'Có vẻ bạn muốn tạo quiz. Bạn có thể vào Lớp học của tôi -> Lớp mà bạn muốn tạo quiz -> Quizzes -> Tạo bài thi mới. Tôi sẽ ở đó hỗ trợ bạn',
+          provider: 'openai',
+          attemptedProviders: 'openai',
+        };
+      }
+
+      else {
+        return {
+          usecase: 'QUIZ_ASSISTANT',
+          mode: 'quiz_assistant',
+          uiTarget: 'quiz-builder',
+          module: 'QuizGen',
+          text: 'You seem to want to create a quiz. You can go to My Classes -> The class you want to create the quiz for -> Quizzes -> Create new quiz. I will be there to assist you.',
+          provider: 'openai',
+          attemptedProviders: 'openai',
+        };
+      }
+    }
+
+    const instructionPrompt = 
+    'Return ONLY a valid JSON object (no markdown, no code fences, no extra text). ' +
+    'The object must have exactly these fields: ' +
+    '"text" (string): your explanation or reasoning for the generated questions; ' +
+    '"questions" (array): the list of quiz questions. ' +
+    'Each question object must include: ' +
+    '"content" (string, required), ' +
+    '"options_json" (object, required for multiple-choice, e.g. {"A":"Paris","B":"London","C":"Berlin"}), ' +
+    '"answer_key_json" (object, required, e.g. {"correct":"A"}), ' +
+    '"points" (number, optional, defaults to 1). ' +
+    'Example: {"text":"Here are 2 questions.","questions":[{"content":"What is the capital of France?","options_json":{"A":"Paris","B":"London","C":"Berlin"},"answer_key_json":{"correct":"A"},"points":1}]}';
+
+    const result = await this.outerApiService.chat({
+      prompt: request.text,
+      caller: 'quiz-generator',
+      provider: (request.provider as 'gemini' | 'groq' | 'openai') || 'groq',
+      temperature: request.temperature,
+      instructionPrompt,
+        
+      history: request.history ?? [],
+    });
+
+
+    //Đây sẽ trả về kết quả để đưa lên UI. Đây là kết quả raw
+    return {
+      usecase: 'QUIZ_ASSISTANT',
+      mode: 'quiz_assistant',
+      uiTarget: 'quiz-builder',
+      module: 'QuizGen',
+      text: result.text,
+      provider: result.provider,
+      attemptedProviders: result.attemptedProviders,
+    };
+  }
+
+  private async handleInsight(
+    request: AiRequestDto,
+    user: JwtPayload,
+  ): Promise<RoutedResponse> {
+    const result = await this.ragReactService.chat({
+      aiRequest: request,
+      user,
+    });
+
+    // Old orchestrator path kept for reference during PoC validation.
+    // const result = await this.ragOrchestratorService.chat({
+    //   aiRequest: request,
+    //   user,
+    // });
+
+    return {
+      usecase: 'INSIGHT_RAG',
+      mode: 'insight',
+      uiTarget: 'insight',
+      module: 'InsightRAG',
+      ...result,
+      text:
+        typeof result?.response === 'string'
+          ? result.response
+          : this.extractAssistantContent(result),
+    };
+  }
+
+  private extractAssistantContent(response: any): string {
+    if (!response) return '';
+    if (typeof response?.text === 'string' && response.text.trim().length > 0) {
+      return response.text;
+    }
+    if (
+      typeof response?.response === 'string' &&
+      response.response.trim().length > 0
+    ) {
+      return response.response;
+    }
+
+    try {
+      return JSON.stringify(response);
+    } catch {
+      return String(response);
+    }
+  }
+
+  private extractModelName(response: any): string | undefined {
+    if (
+      typeof response?.modelName === 'string' &&
+      response.modelName.trim().length > 0
+    ) {
+      return response.modelName;
+    }
+    if (typeof response?.provider === 'string' && response.provider.length > 0) {
+      return response.provider;
+    }
+    return undefined;
+  }
+
+  private extractProvider(
+    response: any,
+    fallback?: string,
+  ): string | undefined {
+    if (typeof response?.provider === 'string' && response.provider.length > 0) {
+      return response.provider;
+    }
+    return fallback;
+  }
+
+  private resolveServiceType(mode: ExecutionMode): 'Chat' | 'quizgen' | 'insight' {
+    switch (mode) {
+      case 'quiz_assistant':
+        return 'quizgen';
+      case 'insight':
+        return 'insight';
+      case 'chat':
+      default:
+        return 'Chat';
+    }
+  }
+
+  private normalizeRole(role?: string): string {
+    return String(role ?? '')
+      .trim()
+      .toLowerCase();
+  }
+
+  private resolveCallerByMode(mode: ExecutionMode): string {
+    switch (mode) {
+      case 'quiz_assistant':
+        return 'quiz-generator';
+      case 'insight':
+        return 'data-analyst';
+      case 'chat':
+      default:
+        return 'general';
+    }
+  }
+
+  private removeTrailingCurrentUserPrompt(
+    history: Array<{ role: string; content: string }>,
+    currentPrompt: string,
+  ): Array<{ role: string; content: string }> {
+    if (history.length === 0) {
+      return history;
+    }
+
+    const last = history[history.length - 1];
+    if (
+      last.role === 'user' &&
+      last.content.trim() === String(currentPrompt).trim()
+    ) {
+      return history.slice(0, -1);
+    }
+
+    return history;
   }
 }
