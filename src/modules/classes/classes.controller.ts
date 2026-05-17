@@ -122,6 +122,8 @@ export class ClassesController {
         // Check environment to determine storage method
         const isProduction = process.env.NODE_ENV?.toLowerCase() === 'production';
 
+        console.log(`Uploading file for class ${clid} by user ${req.user.uid}, to ${isProduction ? 'S3' : 'local storage'}`);
+
         return isProduction
         ? this.classesService.uploadToS3(req.user, clid, file)
         : this.classesService.uploadToLocal(req.user, clid, file);
@@ -139,8 +141,12 @@ export class ClassesController {
         // Check environment to determine storage method
         const isProduction = process.env.NODE_ENV?.toLowerCase() === 'production';
 
+        console.log(`Downloading file for class ${clid}, from ${isProduction ? 'S3' : 'local storage'}`);
+
+
         if (isProduction) {
-            return this.classesService.downloadFromS3(fid);
+            const result = await this.classesService.downloadFromS3(fid);
+            return res.json(result);
         }
         else {
             const {file, filePath} = await this.classesService.downloadFromLocal(fid);

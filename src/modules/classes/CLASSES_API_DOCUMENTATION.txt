@@ -223,39 +223,87 @@ Example Output:
 }
 
 
-====7. POST /classes/:classId/upload
+====7. POST /classes/upload/:clid
 ====Description: Upload file cho lop hoc
 Method: POST
-Role: Lecturer, Admin
+Role: Lecturer
+Authorization: Required (JWT Token)
+Guard: InChargeGuard
 URL Parameters:
-  - classId (required): string - Class ID
+  - clid (required): string - Class ID
 Content-Type: multipart/form-data
 
 Request Body:
   - file: File (multipart upload)
 
-Example Output:
+Storage behavior:
+  - Local mode: file duoc luu vao thu muc ./uploads
+  - Ten file local duoc tao theo format: <originalname>-<timestamp><extension>
+  - Production mode: file duoc upload len S3 bucket
+
+Example Output (Production / S3):
 {
   "fid": "file001",
-  "original_name": "lecture01.pdf",
-  "file_name": "file001_lecture01.pdf",
-  "file_path": "uploads/class001/file001_lecture01.pdf",
-  "file_size": 1024000,
-  "file_type": "application/pdf",
-  "uploaded_at": "2026-02-26T10:00:00Z",
-  "class_id": "class001"
+  "filename": "lecture01.pdf",
+  "original_name": "Chapter 1 Notes.pdf",
+  "url": "https://bucket.s3.region.amazonaws.com/class-files/class001/1710000000000-Chapter%201%20Notes.pdf",
+  "size": 1024576,
+  "mime_type": "application/pdf",
+  "file_type": "document",
+  "is_public": true,
+  "class": {
+    "clid": "class001"
+  },
+  "uploader": {
+    "uid": "user001"
+  }
+}
+
+Example Output (Local):
+{
+  "clid": "class001",
+  "name": "CS101 - L1",
+  "files": [
+    {
+      "fid": "file001",
+      "filename": "lecture01-1710000000000.pdf",
+      "url": "uploads/lecture01-1710000000000.pdf",
+      "size": 1024576,
+      "mime_type": "application/pdf",
+      "file_type": "document",
+      "is_public": false
+    }
+  ]
 }
 
 
-====8. GET /classes/:classId/files/:fileId/download
+====8. GET /classes/download/:clid/:fid
 ====Description: Tai file tu lop hoc
 Method: GET
-Role: any (authenticated users)
+Role: Student, Lecturer, Admin
+Authorization: Required (JWT Token)
 URL Parameters:
-  - classId (required): string - Class ID
-  - fileId (required): string - File ID
+  - clid (required): string - Class ID
+  - fid (required): string - File ID
 
-Example Output:
+Response behavior:
+  - Local mode: API tra ve file download truc tiep bang res.download()
+  - Production mode: API tra ve JSON chua thong tin file va downloadUrl da ky
+
+Example Output (Production / S3):
+{
+  "file": {
+    "fid": "file001",
+    "filename": "lecture-notes.pdf",
+    "original_name": "Chapter 1 Notes.pdf",
+    "size": 1024576,
+    "mime_type": "application/pdf",
+    "file_type": "document"
+  },
+  "downloadUrl": "https://bucket.s3.region.amazonaws.com/class-files/class001/file.pdf?X-Amz-Algorithm=...&X-Amz-Expires=3600"
+}
+
+Example Output (Local):
 Binary file download with appropriate Content-Type header
 
 
@@ -279,14 +327,16 @@ Binary file download with appropriate Content-Type header
    - Gan students vao classes qua many-to-many relationship
    - Cap nhat enrollment status thanh "Completed"
 
-4. Upload file ho tro cac dinh dang: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, TXT
+4. Upload file ho tro cac dinh dang: PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, TXT, image, video
 
 5. File duoc luu trong thu muc uploads/[classId]/
 
-6. Lecturer va Admin co the upload files
+6. Lecturer co the upload files, va chi upload vao class minh dang phu trach
 
-7. Students chi co the download files tu classes ma minh tham gia
+7. Download file hien tai duoc controller cho phep cho Student, Lecturer, Admin co token hop le
 
-8. Schedule_json nen dung format JSON hop le
+8. Khi chay production, download file tra ve JSON co downloadUrl da ky thay vi stream file truc tiep
+
+9. Schedule_json nen dung format JSON hop le
 
 ====

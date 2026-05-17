@@ -385,13 +385,18 @@ export class ClassesService {
             throw new BadRequestException('File content not available');
         }
 
+        // Encode filename properly for Content-Disposition header (RFC 5987)
+        // This handles special characters, Vietnamese characters, spaces, etc.
+        const encodedFilename = encodeURIComponent(file.originalname)
+            .replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+
         // Upload file to S3
         const uploadCommand = new PutObjectCommand({
             Bucket: process.env.AWS_S3_BUCKET || 'tkedu',
             Key: fileName,
             Body: fileContent,
             ContentType: file.mimetype,
-            ContentDisposition: `attachment; filename="${file.originalname}"`,
+            ContentDisposition: `attachment; filename*=UTF-8''${encodedFilename}`,
         });
 
         try {
@@ -495,11 +500,15 @@ export class ClassesService {
 
         const [, bucket, , key] = urlParts;
         
+        // Encode filename properly for Content-Disposition header (RFC 5987)
+        const encodedFilename = encodeURIComponent(file.original_name || file.filename)
+            .replace(/[!'()*]/g, c => '%' + c.charCodeAt(0).toString(16).toUpperCase());
+
         // Generate signed URL
         const command = new GetObjectCommand({
             Bucket: bucket,
             Key: decodeURIComponent(key),
-            ResponseContentDisposition: `attachment; filename="${file.original_name}"`,
+            ResponseContentDisposition: `attachment; filename*=UTF-8''${encodedFilename}`,
             ResponseContentType: file.mime_type || 'application/octet-stream',
         });
 
@@ -508,7 +517,14 @@ export class ClassesService {
             const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 30});
             
             return {
-                file,
+                file: {
+                    fid: file.fid,
+                    filename: file.filename,
+                    original_name: file.original_name,
+                    size: file.size,
+                    mime_type: file.mime_type,
+                    file_type: file.file_type,
+                },
                 downloadUrl: signedUrl,
             };
         } catch (error : any) {
