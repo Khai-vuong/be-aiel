@@ -7,10 +7,28 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   // Enable CORS
-  app.enableCors({
-    origin: process.env.CORS_ORIGIN?.split(',') || '*',
-    credentials: true,
-  });
+  // NOTE: Browsers reject `Access-Control-Allow-Origin: *` when `credentials: true`.
+  // For a temporary "allow all" dev mode, reflect the request origin instead.
+  const corsAllowAll = String(process.env.CORS_ALLOW_ALL).toLowerCase() === 'true';
+  const corsOrigins = process.env.CORS_ORIGIN
+    ?.split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+  app.enableCors(
+    corsAllowAll
+      ? {
+          origin: true,
+          credentials: true,
+          methods: '*',
+          allowedHeaders: '*',
+          exposedHeaders: '*',
+        }
+      : {
+          origin: corsOrigins?.length ? corsOrigins : true,
+          credentials: true,
+        },
+  );
 
   // Swagger Configuration
   const config = new DocumentBuilder()
