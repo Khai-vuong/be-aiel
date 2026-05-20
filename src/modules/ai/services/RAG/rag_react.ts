@@ -226,6 +226,8 @@ export class RagReactService {
       'Try your best to resolve ids to its corresponding names, for those that us used for composing answer',
     ].join('\n');
 
+    
+
     const prompt = [
       `User question:\n${params.userQuestion}`,
       `Validation issues:\n${params.validationErrors.join('\n') || 'none'}`,

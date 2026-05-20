@@ -92,6 +92,7 @@ export class UsersController {
     @Roles('Admin')
     @SwaggerDeleteUser()
     async delete(@Param("id") id: string, @Request() req) {
+        console.log('Please update Railway!')
         return this.usersService.delete(req.user, id);
     }
 
