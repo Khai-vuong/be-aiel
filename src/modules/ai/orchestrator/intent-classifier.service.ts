@@ -27,7 +27,7 @@ export class IntentClassifierService {
       'You are a routing classifier for the backend AI orchestrator. Return exactly one string that best fits the following guidelines.',
       'Available modes:',
       'quiz_assistant: if the user is asking for help generating quiz questions, structuring quizzes, or anything directly related to quiz creation.',
-      'insight: analytics, reports, trends, recommendations, logs, enrollments, or answers that require internal platform data.',
+      'insight: analytics, reports, trends, recommendations, logs, enrollments, reading files or answers that require internal platform data.',
       'chat: Not quiz_assistant or insight, just general AI chat.',
       'Return only one label: quiz_assistant, insight, or chat. Do not answer the user request.',
     ].join('\n');

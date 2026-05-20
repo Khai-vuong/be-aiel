@@ -1,6 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
+import axios from 'axios';
 import { JwtPayload } from 'src/modules/users/jwt.strategy';
 import { AiRequestDto } from '../../dtos/ai-request.dto';
+import { GeminiProvider } from '../../providers/gemini.provider';
+import { AiChatSetting } from '../../providers/iProvider.interface';
 import {
   OuterApiProvider,
   OuterApiService,
@@ -41,6 +44,7 @@ export class RagReactService {
     private readonly outerApiService: OuterApiService,
     private readonly ragPlannerService: RagPlannerService,
     private readonly planExecuterService: RagPlanExecuterService,
+    private readonly geminiProvider: GeminiProvider,
   ) {}
 
   private buildAccumulatedEvidence(contexts: ExecutionContext[]): string {
@@ -214,6 +218,118 @@ export class RagReactService {
       })
       .join('\n\n');
 
+    // Detect if file metadata is present in contexts
+    const fileContext = this.extractFileContext(params.contexts);
+
+    // If file is present, force use Gemini provider
+    if (fileContext) {
+      return this.composeWithGemini({
+        userQuestion: params.userQuestion,
+        evidence,
+        fileContext,
+        validationErrors: params.validationErrors,
+        temperature: params.temperature ?? 0.8,
+      });
+    }
+
+    // Otherwise use regular provider
+    return this.composeWithRegularProvider({
+      userQuestion: params.userQuestion,
+      provider: params.provider,
+      evidence,
+      validationErrors: params.validationErrors,
+      temperature: params.temperature ?? 0.8,
+    });
+  }
+
+  private extractFileContext(contexts: ExecutionContext[]): {
+    url: string;
+    mime_type: string;
+    filename: string;
+  } | null {
+    const fileContext = contexts.find((ctx) => ctx.capabilityId === 'get-file');
+    if (!fileContext || fileContext.error || !fileContext.result) {
+      return null;
+    }
+
+    try {
+      const result = String(fileContext.result);
+      const jsonMatch = result.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        return null;
+      }
+
+      const fileData = JSON.parse(jsonMatch[0]);
+      return {
+        url: fileData.url,
+        mime_type: fileData.mime_type,
+        filename: fileData.filename,
+      };
+    } catch (error) {
+      return null;
+    }
+  }
+
+  private async downloadFile(url: string): Promise<Buffer> {
+    try {
+      const response = await axios.get(url, { responseType: 'arraybuffer' });
+      return Buffer.from(response.data);
+    } catch (error) {
+      throw new Error(`Failed to download file from URL: ${error}`);
+    }
+  }
+
+  private async composeWithGemini(params: {
+    userQuestion: string;
+    evidence: string;
+    fileContext: { url: string; mime_type: string; filename: string };
+    validationErrors: string[];
+    temperature: number;
+  }): Promise<{ text: string; provider: string }> {
+    await this.downloadFile(params.fileContext.url);
+
+    const instructionPrompt = [
+      'You are the Answer Composer layer in a ReAct pipeline with file reading capability.',
+      'You have access to file content through the attached document.',
+      'Use evidence blocks and file content as primary truth sources.',
+      'If evidence is missing or contains execution errors, explicitly state limitations.',
+      'Do not invent data not present in evidence or file content.',
+      'Provide concise, actionable answer for educator/admin context.',
+      'DO NOT mention about the evidence blocks in the answer',
+      `the answer's language should be the same as user question's language`,
+    ].join('\n');
+
+    const prompt = [
+      `User question:\n${params.userQuestion}`,
+      `Validation issues:\n${params.validationErrors.join('\n') || 'none'}`,
+      `Evidence blocks:\n${params.evidence || 'none'}`,
+    ].join('\n');
+
+    const aiChatSetting: AiChatSetting = {
+      temperature: params.temperature,
+      systemPrompt: instructionPrompt,
+      fileContext: {
+        url: params.fileContext.url,
+        mime_type: params.fileContext.mime_type,
+        filename: params.fileContext.filename,
+      },
+    };
+
+    const composed = await this.geminiProvider.chat(prompt, aiChatSetting);
+
+    return {
+      text: composed,
+      provider: 'gemini',
+    };
+  }
+
+  private async composeWithRegularProvider(params: {
+    userQuestion: string;
+    provider: OuterApiProvider;
+    evidence: string;
+    validationErrors: string[];
+    temperature: number;
+  }): Promise<{ text: string; provider: string }> {
     const instructionPrompt = [
       'You are the Answer Composer layer in a ReAct pipeline.',
       'Use evidence blocks as primary truth source.',
@@ -227,7 +343,7 @@ export class RagReactService {
     const prompt = [
       `User question:\n${params.userQuestion}`,
       `Validation issues:\n${params.validationErrors.join('\n') || 'none'}`,
-      `Evidence blocks:\n${evidence || 'none'}`,
+      `Evidence blocks:\n${params.evidence || 'none'}`,
     ].join('\n');
 
     const composed = await this.outerApiService.chat({
@@ -235,7 +351,7 @@ export class RagReactService {
       provider: params.provider,
       caller: 'rag-react-composer',
       instructionPrompt: instructionPrompt,
-      temperature: params.temperature ?? 0.8,
+      temperature: params.temperature,
     });
 
     return {

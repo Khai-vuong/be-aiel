@@ -34,8 +34,9 @@ export class GeminiProvider implements iProvider, OnModuleInit {
       const response = await axios.get(url, { responseType: 'arraybuffer' });
       return Buffer.from(response.data);
     } catch (error) {
-      this.logger.error(`Không thể tải file từ URL: ${url}`, error);
-      throw new Error(`Lỗi tải file tài liệu: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Không thể tải file từ URL: ${url}`, errorMessage);
+      throw new Error(`Lỗi tải file tài liệu: ${errorMessage}`);
     }
   }
 
@@ -90,7 +91,7 @@ export class GeminiProvider implements iProvider, OnModuleInit {
           mime_type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation'   // pptx
         ) {
           // For DOCX / PPTX: Extract text and add to prompt
-          const extractedText = await officeParser.parseOfficeAsync(fileBuffer);
+          const extractedText = await officeParser.parseOffice(fileBuffer);
           currentUserParts.push({
             text: `[Nội dung từ file tài liệu bài học: ${filename}]\n${extractedText}\n[Hết nội dung file]\n\n`,
           });

@@ -41,6 +41,10 @@ type ClassFilesParams = {
     classId?: string;
 };
 
+type GetFileParams = {
+    fileId?: string;
+};
+
 type ClassQuizzesParams = {
     classId?: string;
 };
@@ -117,6 +121,7 @@ export class RagPlanExecuterService {
         'enrollments': (step) => this.executeEnrollments(step),
         'class-overview': (step) => this.executeClassOverview(step),
         'class-files': (step) => this.executeClassFiles(step),
+        'get-file': (step) => this.executeGetFile(step),
         'class-quizzes': (step) => this.executeClassQuizzes(step),
         'class-students': (step) => this.executeClassStudents(step),
         'class-lecturer': (step) => this.executeClassLecturer(step),
@@ -514,6 +519,41 @@ export class RagPlanExecuterService {
         }));
 
         return flattenJsonToTable(`class ${classId}: Files`, rows);
+    }
+
+    private async executeGetFile(step: ExecutionAction): Promise<any> {
+        const params = (step.resolvedParameters ?? {}) as GetFileParams;
+        const fileId = this.toRequiredString(params.fileId, 'fileId');
+
+        const file = await this.prisma.file.findUnique({
+            where: { fid: fileId },
+            select: {
+                fid: true,
+                filename: true,
+                original_name: true,
+                url: true,
+                mime_type: true,
+                size: true,
+                file_type: true,
+                created_at: true,
+            },
+        });
+
+        if (!file) {
+            throw new Error(`File not found: ${fileId}`);
+        }
+
+        const fileMetadata = {
+            fid: file.fid,
+            filename: file.original_name || file.filename,
+            url: file.url,
+            mime_type: file.mime_type,
+            size: file.size,
+            file_type: file.file_type,
+            created_at: file.created_at,
+        };
+
+        return flattenJsonToTable(`File Metadata: ${file.original_name || file.filename}`, [fileMetadata]);
     }
 
     private async executeClassQuizzes(step: ExecutionAction): Promise<any> {
