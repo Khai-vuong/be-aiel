@@ -149,10 +149,62 @@ export const analyticsEntries: RagCapabilityEntry[] = [
   },
 ];
 
+export const detailsEntries: RagCapabilityEntry[] = [
+  {
+    id: 'file-details',
+    description:
+      'Retrieve detailed information about a specific file including name, size, type, and metadata.',
+    allowedRoles: ['Admin', 'Lecturer'],
+    parameters: 'fileId: string',
+    required: ['fileId'],
+  },
+  {
+    id: 'quiz-details',
+    description:
+      'Retrieve detailed information about a specific quiz including name, description, available_until, total questions, and creation date.',
+    allowedRoles: ['Admin', 'Lecturer'],
+    parameters: 'quizId: string',
+    required: ['quizId'],
+  },
+  {
+    id: 'quiz-questions',
+    description:
+      'Retrieve all questions in a specific quiz with question IDs, content, points, and answer key.',
+    allowedRoles: ['Admin', 'Lecturer'],
+    parameters: 'quizId: string',
+    required: ['quizId'],
+  },
+  {
+    id: 'question-details',
+    description:
+      'Retrieve detailed information about a specific question including content, options, correct answer, and points.',
+    allowedRoles: ['Admin', 'Lecturer'],
+    parameters: 'questionId: string',
+    required: ['questionId'],
+  },
+  {
+    id: 'attempt-details',
+    description:
+      'Retrieve detailed information about a specific attempt including student name, quiz name, score, percentage, status, and submission time.',
+    allowedRoles: ['Admin', 'Lecturer'],
+    parameters: 'attemptId: string',
+    required: ['attemptId'],
+  },
+  {
+    id: 'attempt-answers',
+    description:
+      'Retrieve all answers submitted in a specific attempt including question content, student answer, correct answer, and whether it was correct.',
+    allowedRoles: ['Admin', 'Lecturer'],
+    parameters: 'attemptId: string',
+    required: ['attemptId'],
+  },
+];
+
 export const RAG_CAPABILITY_ENTRIES: RagCapabilityEntry[] = [
   ...logEntries,
   ...coursesEntries,
   ...analyticsEntries,
+  ...detailsEntries,
 ];
 
 export const RAG_CAPABILITY_REQUIRED_PARAMS_BY_ID: Record<string, string[]> =

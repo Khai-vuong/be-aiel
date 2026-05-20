@@ -102,6 +102,30 @@ type MultiClassComparisonParams = {
     metric?: string;
 };
 
+type FileDetailsParams = {
+    fileId?: string;
+};
+
+type QuizDetailsParams = {
+    quizId?: string;
+};
+
+type QuizQuestionsParams = {
+    quizId?: string;
+};
+
+type QuestionDetailsParams = {
+    questionId?: string;
+};
+
+type AttemptDetailsParams = {
+    attemptId?: string;
+};
+
+type AttemptAnswersParams = {
+    attemptId?: string;
+};
+
 @Injectable()
 export class RagPlanExecuterService {
     constructor(
@@ -129,6 +153,12 @@ export class RagPlanExecuterService {
         'submission-summary': (step) => this.executeSubmissionSummary(step),
         'class-announcements': (step) => this.executeClassAnnouncements(step),
         'multi-class-comparison': (step) => this.executeMultiClassComparison(step),
+        'file-details': (step) => this.executeFileDetails(step),
+        'quiz-details': (step) => this.executeQuizDetails(step),
+        'quiz-questions': (step) => this.executeQuizQuestions(step),
+        'question-details': (step) => this.executeQuestionDetails(step),
+        'attempt-details': (step) => this.executeAttemptDetails(step),
+        'attempt-answers': (step) => this.executeAttemptAnswers(step),
     };
 
     private toSafeNumber(value: unknown, fallback: number): number {
@@ -1572,6 +1602,227 @@ export class RagPlanExecuterService {
             }),
             flattenJsonToTable('MultiClassComparison', rows),
         ].join('\n');
+    }
+
+    private async executeFileDetails(step: ExecutionAction): Promise<any> {
+        const params = (step.resolvedParameters ?? {}) as FileDetailsParams;
+        const fileId = this.toRequiredString(params.fileId, 'fileId');
+
+        const file = await this.prisma.file.findUnique({
+            where: { fid: fileId },
+            select: {
+                fid: true,
+                filename: true,
+                original_name: true,
+                url: true,
+                size: true,
+                mime_type: true,
+                file_type: true,
+                is_public: true,
+                created_at: true,
+                updated_at: true,
+                class_id: true,
+                uploader_id: true,
+            },
+        });
+
+        if (!file) throw new Error(`File ${fileId} not found`);
+
+        const classRecord = file.class_id 
+            ? await this.prisma.class.findUnique({ where: { clid: file.class_id }, select: { name: true } })
+            : null;
+        const uploader = file.uploader_id
+            ? await this.prisma.user.findUnique({ where: { uid: file.uploader_id }, select: { username: true } })
+            : null;
+
+        return flattenJsonToTable('File Details', {
+            fileId: file.fid,
+            fileName: file.original_name || file.filename,
+            size: file.size ? `${(file.size / 1024).toFixed(2)} KB` : 'N/A',
+            mimeType: file.mime_type,
+            fileType: file.file_type,
+            isPublic: file.is_public,
+            class: classRecord?.name || 'N/A',
+            uploadedBy: uploader?.username || 'N/A',
+            uploadedAt: file.created_at?.toISOString(),
+            updatedAt: file.updated_at?.toISOString(),
+        });
+    }
+
+    private async executeQuizDetails(step: ExecutionAction): Promise<any> {
+        const params = (step.resolvedParameters ?? {}) as QuizDetailsParams;
+        const quizId = this.toRequiredString(params.quizId, 'quizId');
+
+        const quiz = await this.prisma.quiz.findUnique({
+            where: { qid: quizId },
+            include: {
+                class: { select: { clid: true, name: true } },
+                creator: { select: { lid: true, name: true } },
+                _count: { select: { questions: true, attempts: true } },
+            },
+        });
+
+        if (!quiz) throw new Error(`Quiz ${quizId} not found`);
+
+        return flattenJsonToTable('Quiz Details', {
+            quizId: quiz.qid,
+            quizName: quiz.name,
+            description: quiz.description || 'N/A',
+            totalQuestions: quiz._count.questions,
+            totalAttempts: quiz._count.attempts,
+            availableUntil: quiz.available_until?.toISOString() || 'No deadline',
+            status: quiz.status,
+            class: quiz.class?.name || 'N/A',
+            createdBy: quiz.creator?.name || 'N/A',
+            createdAt: quiz.created_at?.toISOString(),
+        });
+    }
+
+    private async executeQuizQuestions(step: ExecutionAction): Promise<any> {
+        const params = (step.resolvedParameters ?? {}) as QuizQuestionsParams;
+        const quizId = this.toRequiredString(params.quizId, 'quizId');
+
+        const questions = await this.prisma.question.findMany({
+            where: { quiz_id: quizId },
+            select: {
+                ques_id: true,
+                content: true,
+                points: true,
+                options_json: true,
+                answer_key_json: true,
+            },
+            orderBy: { created_at: 'asc' },
+        });
+
+        if (!questions.length) throw new Error(`No questions found for quiz ${quizId}`);
+
+        const rows = questions.map((q) => ({
+            questionId: q.ques_id,
+            content: q.content.substring(0, 80) + (q.content.length > 80 ? '...' : ''),
+            points: q.points,
+            options: Object.keys(JSON.parse(q.options_json as string)).join(', '),
+            correctAnswer: JSON.stringify(JSON.parse(q.answer_key_json as string).correct),
+        }));
+
+        return flattenJsonToTable(`Quiz ${quizId}: Questions`, rows);
+    }
+
+    private async executeQuestionDetails(step: ExecutionAction): Promise<any> {
+        const params = (step.resolvedParameters ?? {}) as QuestionDetailsParams;
+        const questionId = this.toRequiredString(params.questionId, 'questionId');
+
+        const question = await this.prisma.question.findUnique({
+            where: { ques_id: questionId },
+            select: {
+                ques_id: true,
+                content: true,
+                points: true,
+                options_json: true,
+                answer_key_json: true,
+                created_at: true,
+                quiz: { select: { qid: true, name: true } },
+            },
+        });
+
+        if (!question) throw new Error(`Question ${questionId} not found`);
+
+        const options = JSON.parse(question.options_json as string);
+        const answerKey = JSON.parse(question.answer_key_json as string);
+
+        return [
+            flattenJsonToTable('Question Details', {
+                questionId: question.ques_id,
+                content: question.content,
+                points: question.points,
+                quiz: question.quiz?.name || 'N/A',
+                quizId: question.quiz?.qid || 'N/A',
+                createdAt: question.created_at?.toISOString(),
+            }),
+            flattenJsonToTable('Options', Object.entries(options).map(([key, value]) => ({
+                option: key,
+                text: value,
+                isCorrect: Array.isArray(answerKey.correct) 
+                    ? answerKey.correct.includes(key) 
+                    : answerKey.correct === key,
+            }))),
+        ].join('\n');
+    }
+
+    private async executeAttemptDetails(step: ExecutionAction): Promise<any> {
+        const params = (step.resolvedParameters ?? {}) as AttemptDetailsParams;
+        const attemptId = this.toRequiredString(params.attemptId, 'attemptId');
+
+        const attempt = await this.prisma.attempt.findUnique({
+            where: { atid: attemptId },
+            include: {
+                student: { select: { sid: true, name: true } },
+                quiz: { select: { qid: true, name: true, class_id: true } },
+                _count: { select: { answers: true } },
+            },
+        });
+
+        if (!attempt) throw new Error(`Attempt ${attemptId} not found`);
+
+        const classRecord = attempt.quiz?.class_id
+            ? await this.prisma.class.findUnique({ where: { clid: attempt.quiz.class_id }, select: { name: true } })
+            : null;
+
+        const maxScore = attempt.score && attempt.percentage && attempt.percentage > 0
+            ? Math.ceil(attempt.score / (attempt.percentage / 100))
+            : 0;
+
+        return flattenJsonToTable('Attempt Details', {
+            attemptId: attempt.atid,
+            studentName: attempt.student?.name || 'N/A',
+            studentId: attempt.student?.sid || 'N/A',
+            quizName: attempt.quiz?.name || 'N/A',
+            quizId: attempt.quiz?.qid || 'N/A',
+            class: classRecord?.name || 'N/A',
+            score: attempt.score ? `${attempt.score} / ${maxScore}` : 'N/A',
+            percentage: attempt.percentage ? `${attempt.percentage}%` : 'N/A',
+            status: attempt.status,
+            attemptNumber: attempt.attempt_number,
+            totalAnswers: attempt._count.answers,
+            startedAt: attempt.started_at?.toISOString() || 'N/A',
+            submittedAt: attempt.submitted_at?.toISOString() || 'Not submitted',
+        });
+    }
+
+    private async executeAttemptAnswers(step: ExecutionAction): Promise<any> {
+        const params = (step.resolvedParameters ?? {}) as AttemptAnswersParams;
+        const attemptId = this.toRequiredString(params.attemptId, 'attemptId');
+
+        const answers = await this.prisma.answer.findMany({
+            where: { attempt_id: attemptId },
+            include: {
+                question: {
+                    select: {
+                        ques_id: true,
+                        content: true,
+                        answer_key_json: true,
+                        points: true,
+                    },
+                },
+            },
+            orderBy: { created_at: 'asc' },
+        });
+
+        if (!answers.length) throw new Error(`No answers found for attempt ${attemptId}`);
+
+        const rows = answers.map((a) => {
+            const correctAnswer = JSON.parse(a.question.answer_key_json as string).correct;
+            const studentAnswer = JSON.parse(a.answer_json as string);
+            return {
+                questionId: a.question.ques_id,
+                question: a.question.content.substring(0, 60) + (a.question.content.length > 60 ? '...' : ''),
+                studentAnswer: studentAnswer || 'N/A',
+                correctAnswer: Array.isArray(correctAnswer) ? correctAnswer.join(', ') : correctAnswer,
+                isCorrect: a.is_correct ? '✓' : '✗',
+                points: a.is_correct ? a.question.points : 0,
+            };
+        });
+
+        return flattenJsonToTable(`Attempt ${attemptId}: Answers`, rows);
     }
 
     async execute(

@@ -328,11 +328,11 @@ export async function seedAcademics(prisma: PrismaClient): Promise<void> {
   );
 
   await createIfMissing(
-    prisma.file.findUnique({ where: { fid: 'file001' }, select: { fid: true } }),
+    prisma.file.findUnique({ where: { fid: 'fabcd' }, select: { fid: true } }),
     () =>
       prisma.file.create({
         data: {
-          fid: 'file001',
+          fid: 'fabcd',
           filename: 'CS101_Syllabus.pdf',
           url: '/files/cs101_syllabus.pdf',
           size: 1024.5,
@@ -343,15 +343,15 @@ export async function seedAcademics(prisma: PrismaClient): Promise<void> {
           uploader_id: 'user002',
         },
       }),
-    'File file001',
+    'File fabcd',
   );
 
   await createIfMissing(
-    prisma.file.findUnique({ where: { fid: 'file002' }, select: { fid: true } }),
+    prisma.file.findUnique({ where: { fid: 'fbcde' }, select: { fid: true } }),
     () =>
       prisma.file.create({
         data: {
-          fid: 'file002',
+          fid: 'fbcde',
           filename: 'Python_Basics_Lecture1.pptx',
           url: '/files/python_basics_lecture1.pptx',
           size: 2048.75,
@@ -362,7 +362,7 @@ export async function seedAcademics(prisma: PrismaClient): Promise<void> {
           uploader_id: 'user002',
         },
       }),
-    'File file002',
+    'File fbcde',
   );
 
   // Keep explicit references used in activity seed.

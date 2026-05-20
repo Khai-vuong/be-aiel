@@ -9,7 +9,18 @@ type QuestionSeed = {
   points: number;
 };
 
-const QUIZ_IDS = ['quiz001', 'quiz002', 'quiz003', 'quiz004', 'quiz005'] as const;
+function generateNewId(prefix: string, index: number): string {
+  const letters = 'abcdefghijklmnopqrstuvwxyz';
+  let result = '';
+  let num = index;
+  for (let i = 0; i < 4; i++) {
+    result = letters[num % 26] + result;
+    num = Math.floor(num / 26);
+  }
+  return prefix + result;
+}
+
+const QUIZ_IDS = ['qabcd', 'qbcde', 'qcdef', 'qdefg', 'qefgh'] as const;
 
 type ParsedAnswerKey = { correct: string | string[] };
 
@@ -43,10 +54,15 @@ async function generateAnswersForAttempt(
 
   for (let index = 0; index < questions.length; index++) {
     const question = questions[index];
-    const isCorrect = index < correctCount;
+    let isCorrect = index < correctCount;
 
     let selectedAnswer: string | string[];
-    if (Array.isArray(question.answerKey.correct)) {
+    
+    // Special case: qeaam (question013) always selects 'D' (wrong answer 'return')
+    if (question.ques_id === 'qeaam') {
+      selectedAnswer = 'D';
+      isCorrect = false;
+    } else if (Array.isArray(question.answerKey.correct)) {
       selectedAnswer = isCorrect ? question.answerKey.correct : [Object.keys(question.options)[0]];
     } else if (isCorrect) {
       selectedAnswer = question.answerKey.correct;
@@ -140,14 +156,14 @@ async function createGeneratedAttempts(prisma: PrismaClient): Promise<void> {
     })),
   }));
 
-  let attemptCounter = 1;
+  let attemptCounter = 0;
 
   for (const studentId of studentIds) {
     for (const quiz of quizData) {
       const percentage = getRandomScore();
       const maxScore = quiz.questions.reduce((sum, question) => sum + question.points, 0);
       const score = Number(((percentage / 100) * maxScore).toFixed(2));
-      const attemptId = `attempt_${quiz.qid}_${studentId}`;
+      const attemptId = generateNewId('a', attemptCounter);
 
       await prisma.attempt.create({
         data: {
@@ -199,11 +215,11 @@ async function createQuestions(
 }
 
 export async function seedQuizzes(prisma: PrismaClient): Promise<void> {
-  const quiz1Id = 'quiz001';
-  const quiz2Id = 'quiz002';
-  const quiz3Id = 'quiz003';
-  const quiz4Id = 'quiz004';
-  const quiz5Id = 'quiz005';
+  const quiz1Id = 'qabcd';
+  const quiz2Id = 'qbcde';
+  const quiz3Id = 'qcdef';
+  const quiz4Id = 'qdefg';
+  const quiz5Id = 'qefgh';
 
   await createIfMissing(
     prisma.quiz.findUnique({ where: { qid: quiz1Id }, select: { qid: true } }),
@@ -302,14 +318,14 @@ export async function seedQuizzes(prisma: PrismaClient): Promise<void> {
 
   await createQuestions(prisma, quiz1Id, [
     {
-      ques_id: 'question001',
+      ques_id: 'qeaaa',
       content: 'What is the correct way to declare a variable in Python?',
       options: { A: 'var x = 10', B: 'x = 10', C: 'int x = 10', D: 'declare x = 10' },
       answerKey: { correct: 'B' },
       points: 1,
     },
     {
-      ques_id: 'question002',
+      ques_id: 'qeaab',
       content: "What is the output of the following code: print(type(3.14))?",
       options: {
         A: "<class 'int'>",
@@ -321,21 +337,21 @@ export async function seedQuizzes(prisma: PrismaClient): Promise<void> {
       points: 1,
     },
     {
-      ques_id: 'question003',
+      ques_id: 'qeaac',
       content: 'Which of the following are valid Python variable names?',
       options: { A: '1variable', B: '_variable123', C: 'my-variable', D: 'MyVariable' },
       answerKey: { correct: ['B', 'D'] },
       points: 1,
     },
     {
-      ques_id: 'question004',
+      ques_id: 'qeaad',
       content: 'What does the len() function return for the string "Python"?',
       options: { A: '5', B: '6', C: '7', D: 'None' },
       answerKey: { correct: 'B' },
       points: 1,
     },
     {
-      ques_id: 'question005',
+      ques_id: 'qeaae',
       content: 'How do you create a list in Python?',
       options: {
         A: 'list = {1, 2, 3}',
@@ -350,7 +366,7 @@ export async function seedQuizzes(prisma: PrismaClient): Promise<void> {
 
   await createQuestions(prisma, quiz2Id, [
     {
-      ques_id: 'question006',
+      ques_id: 'qeaaf',
       content: 'What is the correct way to create a string variable in Python?',
       options: {
         A: 'string x = "Hello"',
@@ -362,7 +378,7 @@ export async function seedQuizzes(prisma: PrismaClient): Promise<void> {
       points: 1,
     },
     {
-      ques_id: 'question007',
+      ques_id: 'qeaag',
       content: 'What is the output of: print(type(True))?',
       options: {
         A: "<class 'boolean'>",
@@ -374,21 +390,21 @@ export async function seedQuizzes(prisma: PrismaClient): Promise<void> {
       points: 1,
     },
     {
-      ques_id: 'question008',
+      ques_id: 'qeaah',
       content: 'How do you convert a string "123" to an integer?',
       options: { A: 'integer("123")', B: 'int("123")', C: 'toInt("123")', D: 'parse("123")' },
       answerKey: { correct: 'B' },
       points: 1,
     },
     {
-      ques_id: 'question009',
+      ques_id: 'qeaai',
       content: 'What is the output of: print(10 / 3)?',
       options: { A: '3', B: '3.0', C: '3.333333333333333', D: '3.33' },
       answerKey: { correct: 'C' },
       points: 1,
     },
     {
-      ques_id: 'question010',
+      ques_id: 'qeaaj',
       content: 'Which data type is mutable in Python?',
       options: { A: 'tuple', B: 'string', C: 'list', D: 'integer' },
       answerKey: { correct: 'C' },
@@ -398,28 +414,28 @@ export async function seedQuizzes(prisma: PrismaClient): Promise<void> {
 
   await createQuestions(prisma, quiz3Id, [
     {
-      ques_id: 'question011',
+      ques_id: 'qeaak',
       content: 'What is the correct syntax for an if statement in Python?',
       options: { A: 'if (x == 5):', B: 'if x == 5:', C: 'if x = 5:', D: 'if x == 5 then:' },
       answerKey: { correct: 'B' },
       points: 1,
     },
     {
-      ques_id: 'question012',
+      ques_id: 'qeaal',
       content: 'How many times will this loop run? for i in range(5):',
       options: { A: '4', B: '5', C: '6', D: 'Infinite' },
       answerKey: { correct: 'B' },
       points: 1,
     },
     {
-      ques_id: 'question013',
+      ques_id: 'qeaam',
       content: 'What keyword is used to exit a loop prematurely?',
       options: { A: 'exit', B: 'stop', C: 'break', D: 'return' },
       answerKey: { correct: 'C' },
       points: 1,
     },
     {
-      ques_id: 'question014',
+      ques_id: 'qeaan',
       content: 'What is the difference between while and for loops?',
       options: {
         A: 'while runs forever, for has a fixed count',
@@ -431,7 +447,7 @@ export async function seedQuizzes(prisma: PrismaClient): Promise<void> {
       points: 1,
     },
     {
-      ques_id: 'question015',
+      ques_id: 'qeaao',
       content: 'What does the continue statement do in a loop?',
       options: {
         A: 'Exits the loop',
@@ -446,14 +462,14 @@ export async function seedQuizzes(prisma: PrismaClient): Promise<void> {
 
   await createQuestions(prisma, quiz4Id, [
     {
-      ques_id: 'question016',
+      ques_id: 'qeaap',
       content: 'What keyword is used to define a function in Python?',
       options: { A: 'function', B: 'def', C: 'func', D: 'define' },
       answerKey: { correct: 'B' },
       points: 1,
     },
     {
-      ques_id: 'question017',
+      ques_id: 'qeaaq',
       content: 'How do you import a specific function from a module?',
       options: {
         A: 'import math.sqrt',
@@ -465,7 +481,7 @@ export async function seedQuizzes(prisma: PrismaClient): Promise<void> {
       points: 1,
     },
     {
-      ques_id: 'question018',
+      ques_id: 'qeaar',
       content: 'What does the return statement do?',
       options: {
         A: 'Prints a value',
@@ -477,7 +493,7 @@ export async function seedQuizzes(prisma: PrismaClient): Promise<void> {
       points: 1,
     },
     {
-      ques_id: 'question019',
+      ques_id: 'qeaas',
       content: 'What is a default parameter in a function?',
       options: {
         A: 'A parameter that must be provided',
@@ -489,7 +505,7 @@ export async function seedQuizzes(prisma: PrismaClient): Promise<void> {
       points: 1,
     },
     {
-      ques_id: 'question020',
+      ques_id: 'qeaat',
       content: 'What is *args used for in function parameters?',
       options: {
         A: 'To multiply arguments',
@@ -504,21 +520,21 @@ export async function seedQuizzes(prisma: PrismaClient): Promise<void> {
 
   await createQuestions(prisma, quiz5Id, [
     {
-      ques_id: 'question021',
+      ques_id: 'qeaau',
       content: 'How do you create an empty dictionary in Python?',
       options: { A: 'd = []', B: 'd = {}', C: 'd = ()', D: 'd = dict[]' },
       answerKey: { correct: 'B' },
       points: 1,
     },
     {
-      ques_id: 'question022',
+      ques_id: 'qeaav',
       content: 'What method adds an element to the end of a list?',
       options: { A: 'add()', B: 'append()', C: 'insert()', D: 'push()' },
       answerKey: { correct: 'B' },
       points: 1,
     },
     {
-      ques_id: 'question023',
+      ques_id: 'qeaaw',
       content: 'What is unique about sets in Python?',
       options: {
         A: 'They allow duplicate values',
@@ -530,14 +546,14 @@ export async function seedQuizzes(prisma: PrismaClient): Promise<void> {
       points: 1,
     },
     {
-      ques_id: 'question024',
+      ques_id: 'qeaax',
       content: 'How do you access a value in a dictionary with key "name"?',
       options: { A: 'd.name', B: 'd[name]', C: 'd["name"]', D: 'd->name' },
       answerKey: { correct: 'C' },
       points: 1,
     },
     {
-      ques_id: 'question025',
+      ques_id: 'qeaay',
       content: 'What does list slicing [1:3] return?',
       options: {
         A: 'Elements at index 1 and 3',

@@ -1,7 +1,7 @@
 const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
-const QUIZ_IDS = ['quiz001', 'quiz002', 'quiz003', 'quiz004', 'quiz005'];
+const QUIZ_IDS = ['qabcd', 'qbcde', 'qcdef', 'qdefg', 'qefgh'];
 
 async function main() {
 	const classRecord = await prisma.class.findUnique({
@@ -27,7 +27,7 @@ async function main() {
 		FROM (
 			SELECT a.quiz_id, a.student_id, COUNT(*) AS c
 			FROM "Attempt" a
-			WHERE a.quiz_id IN ('quiz001', 'quiz002', 'quiz003', 'quiz004', 'quiz005')
+			WHERE a.quiz_id IN ('qabcd', 'qbcde', 'qcdef', 'qdefg', 'qefgh')
 			AND a.student_id IN (
 				SELECT sc."B"
 				FROM "_StudentInClass" sc
@@ -47,7 +47,7 @@ async function main() {
 			FROM "_StudentInClass" sc
 			CROSS JOIN "Quiz" q
 			WHERE sc."A" = 'class001'
-			AND q.qid IN ('quiz001', 'quiz002', 'quiz003', 'quiz004', 'quiz005')
+			AND q.qid IN ('qabcd', 'qbcde', 'qcdef', 'qdefg', 'qefgh')
 		) expected
 		LEFT JOIN "Attempt" a
 			ON a.student_id = expected.sid

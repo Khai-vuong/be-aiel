@@ -16,7 +16,7 @@ import {
   RAG_CAPABILITY_REQUIRED_PARAMS_BY_ID,
 } from './capability-entries';
 
-const MAX_LOOP = 3;
+const MAX_LOOP = 6;
 
 type ValidationResult = {
   validSteps: ExecutionAction[];
@@ -221,7 +221,9 @@ export class RagReactService {
       'Do not invent data not present in evidence.',
       'Provide concise, actionable answer for educator/admin context.',
       'DO NOT mention about the evidence blocks in the answer',
+      'DO NOT mention about the ids (even ones like quizXXX or classXXX) in the answer',
       `the answer's language should be the same as user question's language`,
+      'Try your best to resolve ids to its corresponding names, for those that us used for composing answer',
     ].join('\n');
 
     const prompt = [
