@@ -10,9 +10,6 @@ export class GeminiProvider implements iProvider, OnModuleInit {
   private apiKey = '';
   private ai: GoogleGenerativeAI;
   private model = process.env.GEMINI_CHAT_MODEL ?? 'gemini-2.5-flash';
-  private maxOutputTokens = Number(
-    process.env.GEMINI_MAX_OUTPUT_TOKENS ?? 1024,
-  );
 
   onModuleInit() {
     this.apiKey = process.env.GEMINI_API_KEY ?? '';
@@ -22,7 +19,6 @@ export class GeminiProvider implements iProvider, OnModuleInit {
       );
       return;
     }
-
     this.ai = new GoogleGenerativeAI(this.apiKey);
   }
 
@@ -39,19 +35,6 @@ export class GeminiProvider implements iProvider, OnModuleInit {
     }
   }
 
-  /**
-   * 
-   * @param prompt: Content to send
-   * @param setting: Temperature?, conversation history?, system prompt?, file context?
-   * @description
-   * Send content will look like this:
-   * [
-   *   { role: 'user', parts: [{ text: 'What is the capital of France?' }] }, //History messages (if any)
-   *   { role: 'model', parts: [{ text: 'The capital of France is Paris.' }] },
-   *   { role: 'user', parts: [{ text: 'What is the largest city in France?' }, { inlineData: { data: base64, mimeType: 'application/pdf' } }] } // current prompt with file
-   * ]
-   * @returns 
-   */
   async chat(prompt: string, setting?: AiChatSetting): Promise<string> {
     if (!this.apiKey || !this.ai) {
       throw new Error('Gemini Error: GEMINI_API_KEY is not configured.');
@@ -62,22 +45,22 @@ export class GeminiProvider implements iProvider, OnModuleInit {
     try {
       const model = this.ai.getGenerativeModel({ model: this.model });
 
-      // Build contents array with history if provided
+      // 1. Xây dựng mảng lịch sử trò chuyện
       const contents: any[] = history.map((msg) => ({
         role: msg.role === 'assistant' || msg.role === 'system' ? 'model' : 'user',
-        parts: [{ text: msg.content }]
+        parts: [{ text: msg.content }],
       }));
 
-      // Create parts array for current user message
+      // 2. Tạo phần nội dung cho lượt chat hiện tại (current user prompt)
       const currentUserParts: any[] = [];
 
-      // Process file context if provided
+      // 3. Xử lý File đính kèm nếu có
       if (fileContext) {
         const { url, mime_type, filename } = fileContext;
         const fileBuffer = await this.downloadFile(url);
 
         if (mime_type === 'application/pdf') {
-          // For PDF: Send directly as base64 inline data to Gemini (Native Multimodal)
+          // Với PDF: Gửi trực tiếp dữ liệu dạng mã hóa Base64 cho Gemini đọc (Native Multimodal)
           currentUserParts.push({
             inlineData: {
               data: fileBuffer.toString('base64'),
@@ -89,7 +72,7 @@ export class GeminiProvider implements iProvider, OnModuleInit {
           mime_type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || // docx
           mime_type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation'   // pptx
         ) {
-          // For DOCX / PPTX: Extract text and add to prompt
+          // Với DOCX / PPTX: Rút trích text ra rồi đưa vào prompt text
           const extractedText = await officeParser.parseOfficeAsync(fileBuffer);
           currentUserParts.push({
             text: `[Nội dung từ file tài liệu bài học: ${filename}]\n${extractedText}\n[Hết nội dung file]\n\n`,
@@ -98,26 +81,25 @@ export class GeminiProvider implements iProvider, OnModuleInit {
         }
       }
 
-      // Add current user prompt
+      // 4. Đẩy câu hỏi hiện tại của người dùng vào sau cùng
       currentUserParts.push({ text: prompt });
 
-      // Add current user message to contents
+      // Đưa toàn bộ lượt chat hiện tại vào cấu trúc contents
       contents.push({
         role: 'user',
         parts: currentUserParts,
       });
 
+      // 5. Gọi API Gemini để xử lý
       const result = await model.generateContent({
         contents,
-        generationConfig: {
-          temperature,
-          // maxOutputTokens: this.maxOutputTokens,
-        },
+        generationConfig: { temperature },
         systemInstruction: systemPrompt,
       });
 
       const response = await result.response;
       const content = response.text().trim();
+      
       if (!content) {
         throw new Error('Gemini returned empty content');
       }
@@ -127,4 +109,5 @@ export class GeminiProvider implements iProvider, OnModuleInit {
       const message = error?.message ?? String(error);
       throw new Error(`Gemini Error: ${message}`);
     }
-  }}
+  }
+}
