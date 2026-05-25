@@ -52,6 +52,14 @@ export const analyticsEntries: RagCapabilityEntry[] = [
     required: ['classId'],
   },
   {
+    id: 'get-file',
+    description:
+      'Retrieve complete file metadata (fid, filename, url, mime_type, size) by file ID. Use this to fetch file details for reading content with file-aware providers like Gemini.',
+    allowedRoles: ['Admin', 'Lecturer'],
+    parameters: 'fileId: string',
+    required: ['fileId'],
+  },
+  {
     id: 'class-quizzes',
     description:
       'Retrieve quizzes in a class with quiz name and quiz id.',
@@ -74,6 +82,22 @@ export const analyticsEntries: RagCapabilityEntry[] = [
     allowedRoles: ['Admin', 'Lecturer'],
     parameters: 'classId: string',
     required: ['classId'],
+  },
+  {
+    id: 'lecturer-name-from-id',
+    description:
+      'Resolve a lecturer name from a lecturer ID (lid). Use this when the user already has the lecturer ID and only needs the corresponding lecturer name.',
+    allowedRoles: ['Admin', 'Lecturer'],
+    parameters: 'lid: string',
+    required: ['lid'],
+  },
+  {
+    id: 'student-name-from-id',
+    description:
+      'Resolve a student name from a student ID (sid). Use this when the user already has the student ID and only needs the corresponding student name.',
+    allowedRoles: ['Admin', 'Lecturer'],
+    parameters: 'sid: string',
+    required: ['sid'],
   },
   {
     id: 'analyze-quiz-performance',

@@ -41,6 +41,10 @@ type ClassFilesParams = {
     classId?: string;
 };
 
+type GetFileParams = {
+    fileId?: string;
+};
+
 type ClassQuizzesParams = {
     classId?: string;
 };
@@ -51,6 +55,14 @@ type ClassStudentsParams = {
 
 type ClassLecturerParams = {
     classId?: string;
+};
+
+type LecturerNameFromIdParams = {
+    lid?: string;
+};
+
+type StudentNameFromIdParams = {
+    sid?: string;
 };
 
 type QueryStudentParams = {
@@ -141,9 +153,12 @@ export class RagPlanExecuterService {
         'enrollments': (step) => this.executeEnrollments(step),
         'class-overview': (step) => this.executeClassOverview(step),
         'class-files': (step) => this.executeClassFiles(step),
+        'get-file': (step) => this.executeGetFile(step),
         'class-quizzes': (step) => this.executeClassQuizzes(step),
         'class-students': (step) => this.executeClassStudents(step),
         'class-lecturer': (step) => this.executeClassLecturer(step),
+        'lecturer-name-from-id': (step) => this.executeLecturerNameFromId(step),
+        'student-name-from-id': (step) => this.executeStudentNameFromId(step),
         'analyze-quiz-performance': (step) => this.executeAnalyseQuizPerformance(step),
         'teaching-recommendation': (step) => this.executeTeachingRecommendation(step),
         'knowledge-gap': (step) => this.executeKnowledgeGap(step),
@@ -546,6 +561,41 @@ export class RagPlanExecuterService {
         return flattenJsonToTable(`class ${classId}: Files`, rows);
     }
 
+    private async executeGetFile(step: ExecutionAction): Promise<any> {
+        const params = (step.resolvedParameters ?? {}) as GetFileParams;
+        const fileId = this.toRequiredString(params.fileId, 'fileId');
+
+        const file = await this.prisma.file.findUnique({
+            where: { fid: fileId },
+            select: {
+                fid: true,
+                filename: true,
+                original_name: true,
+                url: true,
+                mime_type: true,
+                size: true,
+                file_type: true,
+                created_at: true,
+            },
+        });
+
+        if (!file) {
+            throw new Error(`File not found: ${fileId}`);
+        }
+
+        const fileMetadata = {
+            fid: file.fid,
+            filename: file.original_name || file.filename,
+            url: file.url,
+            mime_type: file.mime_type,
+            size: file.size,
+            file_type: file.file_type,
+            created_at: file.created_at,
+        };
+
+        return flattenJsonToTable(`File Metadata: ${file.original_name || file.filename}`, [fileMetadata]);
+    }
+
     private async executeClassQuizzes(step: ExecutionAction): Promise<any> {
         const params = (step.resolvedParameters ?? {}) as ClassQuizzesParams;
         const classId = this.toRequiredString(params.classId, 'classId');
@@ -636,6 +686,50 @@ export class RagPlanExecuterService {
             : [];
 
         return flattenJsonToTable(`class ${classId}: Lecturer`, rows);
+    }
+
+    private async executeLecturerNameFromId(step: ExecutionAction): Promise<any> {
+        const params = (step.resolvedParameters ?? {}) as LecturerNameFromIdParams;
+        const lid = this.toRequiredString(params.lid, 'lid');
+
+        const lecturer = await this.prisma.lecturer.findUnique({
+            where: { lid },
+            select: {
+                lid: true,
+                name: true,
+            },
+        });
+
+        if (!lecturer) {
+            throw new Error(`Lecturer not found: ${lid}`);
+        }
+
+        return flattenJsonToTable('LecturerNameLookup', [{
+            lid: lecturer.lid,
+            lecturerName: lecturer.name,
+        }]);
+    }
+
+    private async executeStudentNameFromId(step: ExecutionAction): Promise<any> {
+        const params = (step.resolvedParameters ?? {}) as StudentNameFromIdParams;
+        const sid = this.toRequiredString(params.sid, 'sid');
+
+        const student = await this.prisma.student.findUnique({
+            where: { sid },
+            select: {
+                sid: true,
+                name: true,
+            },
+        });
+
+        if (!student) {
+            throw new Error(`Student not found: ${sid}`);
+        }
+
+        return flattenJsonToTable('StudentNameLookup', [{
+            sid: student.sid,
+            studentName: student.name,
+        }]);
     }
 
     private async executeAnalyseQuizPerformance(step: ExecutionAction): Promise<any> {

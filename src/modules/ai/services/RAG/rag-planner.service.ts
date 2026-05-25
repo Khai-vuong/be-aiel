@@ -141,6 +141,8 @@ export class RagPlannerService {
       '- "hoc vien dang ky", "enrollment", "tinh trang dang ky" -> use "enrollments"',
       '- "diem quiz", "ket qua bai kiem tra", "performance" -> use "class-overview" or "analyze-quiz-performance"',
       '- "hoc sinh yeu", "duoi nguong", "threshold" -> use "analyze-quiz-performance"',
+      '- "ten giang vien", "lecturer", "lid" -> use "lecturer-name-from-id"',
+      '- "ten sinh vien", "student", "sid" -> use "student-name-from-id"',
       '- "lo hong kien thuc", "cau sai nhieu", "misconception" -> use "knowledge-gap"',
       '- "xu huong", "trend", "thang nao hoc tot" -> use "teaching-recommendation"',
       '',
