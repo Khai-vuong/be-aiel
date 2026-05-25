@@ -273,7 +273,7 @@ export class RagReactService {
   private async downloadFile(url: string): Promise<Buffer> {
     try {
       const response = await axios.get(url, { responseType: 'arraybuffer' });
-      return Buffer.from(response.data);
+      return Buffer.from(response.data as ArrayBuffer);
     } catch (error) {
       throw new Error(`Failed to download file from URL: ${error}`);
     }

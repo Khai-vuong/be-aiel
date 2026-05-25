@@ -84,6 +84,22 @@ export const analyticsEntries: RagCapabilityEntry[] = [
     required: ['classId'],
   },
   {
+    id: 'lecturer-name-from-id',
+    description:
+      'Resolve a lecturer name from a lecturer ID (lid). Use this when the user already has the lecturer ID and only needs the corresponding lecturer name.',
+    allowedRoles: ['Admin', 'Lecturer'],
+    parameters: 'lid: string',
+    required: ['lid'],
+  },
+  {
+    id: 'student-name-from-id',
+    description:
+      'Resolve a student name from a student ID (sid). Use this when the user already has the student ID and only needs the corresponding student name.',
+    allowedRoles: ['Admin', 'Lecturer'],
+    parameters: 'sid: string',
+    required: ['sid'],
+  },
+  {
     id: 'analyze-quiz-performance',
     description:
       'Query students in a class by average quiz score with customizable filters. If user mentions quiz name (e.g., "variable and data types"), first call class-quizzes to resolve the quiz ID.',

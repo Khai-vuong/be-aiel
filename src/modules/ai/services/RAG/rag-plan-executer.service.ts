@@ -57,6 +57,14 @@ type ClassLecturerParams = {
     classId?: string;
 };
 
+type LecturerNameFromIdParams = {
+    lid?: string;
+};
+
+type StudentNameFromIdParams = {
+    sid?: string;
+};
+
 type QueryStudentParams = {
     classId?: string;
     quizId?: string;
@@ -125,6 +133,8 @@ export class RagPlanExecuterService {
         'class-quizzes': (step) => this.executeClassQuizzes(step),
         'class-students': (step) => this.executeClassStudents(step),
         'class-lecturer': (step) => this.executeClassLecturer(step),
+        'lecturer-name-from-id': (step) => this.executeLecturerNameFromId(step),
+        'student-name-from-id': (step) => this.executeStudentNameFromId(step),
         'analyze-quiz-performance': (step) => this.executeAnalyseQuizPerformance(step),
         'teaching-recommendation': (step) => this.executeTeachingRecommendation(step),
         'knowledge-gap': (step) => this.executeKnowledgeGap(step),
@@ -646,6 +656,50 @@ export class RagPlanExecuterService {
             : [];
 
         return flattenJsonToTable(`class ${classId}: Lecturer`, rows);
+    }
+
+    private async executeLecturerNameFromId(step: ExecutionAction): Promise<any> {
+        const params = (step.resolvedParameters ?? {}) as LecturerNameFromIdParams;
+        const lid = this.toRequiredString(params.lid, 'lid');
+
+        const lecturer = await this.prisma.lecturer.findUnique({
+            where: { lid },
+            select: {
+                lid: true,
+                name: true,
+            },
+        });
+
+        if (!lecturer) {
+            throw new Error(`Lecturer not found: ${lid}`);
+        }
+
+        return flattenJsonToTable('LecturerNameLookup', [{
+            lid: lecturer.lid,
+            lecturerName: lecturer.name,
+        }]);
+    }
+
+    private async executeStudentNameFromId(step: ExecutionAction): Promise<any> {
+        const params = (step.resolvedParameters ?? {}) as StudentNameFromIdParams;
+        const sid = this.toRequiredString(params.sid, 'sid');
+
+        const student = await this.prisma.student.findUnique({
+            where: { sid },
+            select: {
+                sid: true,
+                name: true,
+            },
+        });
+
+        if (!student) {
+            throw new Error(`Student not found: ${sid}`);
+        }
+
+        return flattenJsonToTable('StudentNameLookup', [{
+            sid: student.sid,
+            studentName: student.name,
+        }]);
     }
 
     private async executeAnalyseQuizPerformance(step: ExecutionAction): Promise<any> {
