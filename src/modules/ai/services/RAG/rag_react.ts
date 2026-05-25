@@ -1,6 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
-import axios from 'axios';
+import { Injectable } from '@nestjs/common';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { JwtPayload } from 'src/modules/users/jwt.strategy';
+import { s3Client } from 'src/common/utils/s3.client';
 import { AiRequestDto } from '../../dtos/ai-request.dto';
 import { GeminiProvider } from '../../providers/gemini.provider';
 import { AiChatSetting } from '../../providers/iProvider.interface';
@@ -19,7 +21,7 @@ import {
   RAG_CAPABILITY_REQUIRED_PARAMS_BY_ID,
 } from './capability-entries';
 
-const MAX_LOOP = 3;
+const MAX_LOOP = 7;
 
 type ValidationResult = {
   validSteps: ExecutionAction[];
@@ -221,6 +223,7 @@ export class RagReactService {
     // Detect if file metadata is present in contexts
     const fileContext = this.extractFileContext(params.contexts);
 
+
     // If file is present, force use Gemini provider
     if (fileContext) {
       return this.composeWithGemini({
@@ -248,35 +251,202 @@ export class RagReactService {
     filename: string;
   } | null {
     const fileContext = contexts.find((ctx) => ctx.capabilityId === 'get-file');
+
     if (!fileContext || fileContext.error || !fileContext.result) {
       return null;
     }
 
+    const fileMetadata = this.parseFileContextResult(fileContext.result);
+
+    console.log('[RAG-ReAct] Extracted file context:', fileMetadata);
+
+    return fileMetadata;
+  }
+
+  private parseFileContextResult(result: unknown): {
+    url: string;
+    mime_type: string;
+    filename: string;
+  } | null {
+    if (result && typeof result === 'object') {
+      const data = result as Record<string, unknown>;
+      const url = typeof data.url === 'string' ? data.url.trim() : '';
+      const mimeType = typeof data.mime_type === 'string' ? data.mime_type.trim() : '';
+      const filename = typeof data.filename === 'string' ? data.filename.trim() : '';
+
+      if (url) {
+        return {
+          url,
+          mime_type: mimeType || 'application/octet-stream',
+          filename: filename || this.deriveFilenameFromUrl(url),
+        };
+      }
+    }
+
+    const text = String(result ?? '').trim();
+    if (!text) {
+      return null;
+    }
+
+    const tableMatch = this.parseTableMetadata(text);
+    if (tableMatch) {
+      return tableMatch;
+    }
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[0]) as Record<string, unknown>;
+        const url = typeof parsed.url === 'string' ? parsed.url.trim() : '';
+        if (url) {
+          const mimeType = typeof parsed.mime_type === 'string' ? parsed.mime_type.trim() : '';
+          const filename = typeof parsed.filename === 'string' ? parsed.filename.trim() : '';
+
+          return {
+            url,
+            mime_type: mimeType || 'application/octet-stream',
+            filename: filename || this.deriveFilenameFromUrl(url),
+          };
+        }
+      } catch {
+        // Fall through to URL extraction below.
+      }
+    }
+
+    const urlMatch = text.match(/https?:\/\/[^\s|"'<>]+/i);
+    if (urlMatch) {
+      const url = urlMatch[0].replace(/[),.;\]]+$/g, '');
+      return {
+        url,
+        mime_type: 'application/octet-stream',
+        filename: this.deriveFilenameFromUrl(url),
+      };
+    }
+
+    return null;
+  }
+
+  private parseTableMetadata(text: string): {
+    url: string;
+    mime_type: string;
+    filename: string;
+  } | null {
+    const lines = text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+
+    if (lines.length < 3) {
+      return null;
+    }
+
+    const headerIndex = lines.findIndex(
+      (line) => line.includes('|') && /(^|\s)url(\s|\|)/i.test(line),
+    );
+
+    if (headerIndex === -1 || headerIndex + 1 >= lines.length) {
+      return null;
+    }
+
+    const headers = lines[headerIndex]
+      .split('|')
+      .map((cell) => cell.trim())
+      .filter(Boolean);
+
+    const rowLine = lines
+      .slice(headerIndex + 1)
+      .find((line) => !line.startsWith('[') && line.includes('|'));
+
+    if (!rowLine || headers.length === 0) {
+      return null;
+    }
+
+    const values = rowLine.split('|').map((cell) => cell.trim());
+    const row: Record<string, string> = {};
+
+    headers.forEach((header, index) => {
+      row[header.toLowerCase()] = values[index] ?? '';
+    });
+
+    const url = row.url?.trim();
+    if (!url) {
+      return null;
+    }
+
+    return {
+      url,
+      mime_type: row.mime_type?.trim() || 'application/octet-stream',
+      filename: row.filename?.trim() || this.deriveFilenameFromUrl(url),
+    };
+  }
+
+  private deriveFilenameFromUrl(url: string): string {
     try {
-      const result = String(fileContext.result);
-      const jsonMatch = result.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
+      const normalizedUrl = new URL(url);
+      const pathname = normalizedUrl.pathname.split('/').filter(Boolean);
+      const lastSegment = pathname[pathname.length - 1] ?? 'file';
+      return lastSegment || 'file';
+    } catch {
+      const fallback = url.split('/').filter(Boolean).pop();
+      return fallback || 'file';
+    }
+  }
+
+  private isS3Url(url: string): boolean {
+    try {
+      const parsed = new URL(url);
+      return parsed.hostname.includes('.s3.') || parsed.hostname.startsWith('s3.');
+    } catch {
+      return false;
+    }
+  }
+
+  private parseS3BucketAndKey(rawUrl: string): { bucket: string; key: string } | null {
+    try {
+      const parsed = new URL(rawUrl);
+
+      if (parsed.hostname.startsWith('s3.')) {
+        const pathSegments = parsed.pathname.split('/').filter(Boolean);
+        const bucket = pathSegments.shift();
+        const key = pathSegments.join('/');
+
+        if (bucket && key) {
+          return { bucket, key: decodeURIComponent(key) };
+        }
         return null;
       }
 
-      const fileData = JSON.parse(jsonMatch[0]);
-      return {
-        url: fileData.url,
-        mime_type: fileData.mime_type,
-        filename: fileData.filename,
-      };
-    } catch (error) {
+      const hostnameParts = parsed.hostname.split('.');
+      const bucket = hostnameParts[0];
+      const key = parsed.pathname.replace(/^\//, '');
+
+      if (bucket && key) {
+        return { bucket, key: decodeURIComponent(key) };
+      }
+
+      return null;
+    } catch {
       return null;
     }
   }
 
-  private async downloadFile(url: string): Promise<Buffer> {
-    try {
-      const response = await axios.get(url, { responseType: 'arraybuffer' });
-      return Buffer.from(response.data as ArrayBuffer);
-    } catch (error) {
-      throw new Error(`Failed to download file from URL: ${error}`);
+  private async signS3Url(rawUrl: string, filename: string): Promise<string> {
+    if (!this.isS3Url(rawUrl)) {
+      return rawUrl;
     }
+
+    const bucketAndKey = this.parseS3BucketAndKey(rawUrl);
+    if (!bucketAndKey) {
+      return rawUrl;
+    }
+
+    const command = new GetObjectCommand({
+      Bucket: bucketAndKey.bucket,
+      Key: bucketAndKey.key,
+      ResponseContentDisposition: `attachment; filename="${filename}"`,
+    });
+
+    return getSignedUrl(s3Client, command, { expiresIn: 60 });
   }
 
   private async composeWithGemini(params: {
@@ -286,7 +456,10 @@ export class RagReactService {
     validationErrors: string[];
     temperature: number;
   }): Promise<{ text: string; provider: string }> {
-    await this.downloadFile(params.fileContext.url);
+    const signedUrl = await this.signS3Url(
+      params.fileContext.url,
+      params.fileContext.filename,
+    );
 
     const instructionPrompt = [
       'You are the Answer Composer layer in a ReAct pipeline with file reading capability.',
@@ -309,7 +482,7 @@ export class RagReactService {
       temperature: params.temperature,
       systemPrompt: instructionPrompt,
       fileContext: {
-        url: params.fileContext.url,
+        url: signedUrl,
         mime_type: params.fileContext.mime_type,
         filename: params.fileContext.filename,
       },
