@@ -31,6 +31,10 @@ type IntentClassifierTestBody = {
     user: JwtPayload;
 };
 
+type GeminiFileSummaryBody = {
+    fid: string;
+};
+
 @UseGuards(JwtGuard, RolesGuard)
 @Controller('test')
 export class TestController {
@@ -58,12 +62,18 @@ export class TestController {
         return this.intentClassifierService.resolveExecutionMode(
             body,
             req.user
-        );
+    );
     }
 
     @Roles('any')
     @Post('rag-planner/select-capabilities')
     async testSelectCapabilitiesFromPrompt(@Body() body: plannerInputDTO) {
         return this.ragPlannerService.selectActionsFromPrompt(body);
+    }
+
+    @Roles('any')
+    @Post('gemini/file-summary')
+    async testGeminiFileSummary(@Body() body: GeminiFileSummaryBody) {
+        return this.testService.summarizeFileById(body.fid);
     }
 }

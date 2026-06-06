@@ -5,6 +5,9 @@ import { AiChatSetting, iProvider } from './iProvider.interface';
 import axios from 'axios';
 import * as officeParser from 'officeparser';
 import { Readable } from 'stream';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 
 @Injectable()
 export class GeminiProvider implements iProvider, OnModuleInit {
@@ -168,6 +171,30 @@ export class GeminiProvider implements iProvider, OnModuleInit {
   }
 
   /**
+   * Trích xuất text từ file DOCX/PPTX bằng cách ghi ra temp file.
+   * officeParser hoạt động ổn định hơn với file path so với Buffer trực tiếp.
+   */
+  private async extractOfficeText(buffer: Buffer, filename: string): Promise<string> {
+    const ext = path.extname(filename) || '.tmp';
+    const tmpPath = path.join(os.tmpdir(), `gemini_office_${Date.now()}${ext}`);
+
+    try {
+      fs.writeFileSync(tmpPath, buffer);
+      this.logger.log(`Đã ghi temp file: ${tmpPath}`);
+
+      const text = await officeParser.parseOffice(tmpPath);
+      return typeof text === 'string' ? text : JSON.stringify(text ?? '');
+    } finally {
+      // Luôn xoá temp file dù thành công hay lỗi
+      try {
+        fs.unlinkSync(tmpPath);
+      } catch {
+        // Bỏ qua lỗi xoá file
+      }
+    }
+  }
+
+  /**
    * @param prompt Content to send
    * @param setting Temperature?, conversation history?, system prompt?, file context?
    * @description
@@ -218,12 +245,16 @@ export class GeminiProvider implements iProvider, OnModuleInit {
           mime_type ===
             'application/vnd.openxmlformats-officedocument.presentationml.presentation' // pptx
         ) {
-          // DOCX / PPTX: trích xuất text rồi nhúng vào prompt
-          const extractedText = await officeParser.parseOffice(fileBuffer);
+          // DOCX / PPTX: officeParser hoạt động ổn định hơn với file path
+          // nên ghi buffer ra temp file, trích xuất, rồi xoá ngay sau đó
+          const extractedText = await this.extractOfficeText(fileBuffer, filename);
+          if (!extractedText.trim()) {
+            this.logger.warn(`officeParser trả về nội dung rỗng cho file: ${filename}`);
+          }
           currentUserParts.push({
             text: `[Nội dung từ file tài liệu bài học: ${filename}]\n${extractedText}\n[Hết nội dung file]\n\n`,
           });
-          this.logger.log(`Đã rút trích text từ file Office: ${filename}`);
+          this.logger.log(`Đã rút trích text từ file Office: ${filename} (${extractedText.length} ký tự)`);
         }
       }
 

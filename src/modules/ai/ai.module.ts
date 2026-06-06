@@ -66,7 +66,8 @@ import { LanguageDetectionService } from './utils/language-detect.service';
     QuizGenerationService,
     RagReactService,
     RagPlanExecuterService,
-    RagPlannerService
+    RagPlannerService,
+    GeminiProvider,
   ],
 })
 export class AiModule {}
