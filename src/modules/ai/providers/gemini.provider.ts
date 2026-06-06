@@ -4,7 +4,6 @@ import { GoogleAIFileManager, FileState } from '@google/generative-ai/server';
 import { AiChatSetting, iProvider } from './iProvider.interface';
 import axios from 'axios';
 import * as officeParser from 'officeparser';
-import { Readable } from 'stream';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -110,33 +109,43 @@ export class GeminiProvider implements iProvider, OnModuleInit {
   ): Promise<string> {
     this.logger.log(`Đang upload PDF qua Files API: ${filename}`);
 
-    // Chuyển Buffer thành Readable stream để FileManager chấp nhận
-    const readable = Readable.from(buffer);
+    const ext = path.extname(filename) || '.pdf';
+    const tmpPath = path.join(os.tmpdir(), `gemini_pdf_${Date.now()}${ext}`);
 
-    const uploadResponse = await this.fileManager.uploadFile(readable as any, {
-      mimeType: 'application/pdf',
-      displayName: filename,
-    });
+    try {
+      fs.writeFileSync(tmpPath, buffer);
 
-    let file = uploadResponse.file;
+      const uploadResponse = await this.fileManager.uploadFile(tmpPath, {
+        mimeType: 'application/pdf',
+        displayName: filename,
+      });
 
-    // Polling cho đến khi file chuyển sang trạng thái ACTIVE
-    while (file.state === FileState.PROCESSING) {
-      this.logger.log(`File đang xử lý, chờ 2 giây... (${filename})`);
-      await new Promise((r) => setTimeout(r, 2000));
-      file = await this.fileManager.getFile(file.name);
-    }
+      let file = uploadResponse.file;
 
-    if (file.state === FileState.FAILED) {
-      throw new Error(
-        `Gemini Files API xử lý thất bại cho file: ${filename}`,
+      // Polling cho đến khi file chuyển sang trạng thái ACTIVE
+      while (file.state === FileState.PROCESSING) {
+        this.logger.log(`File đang xử lý, chờ 2 giây... (${filename})`);
+        await new Promise((r) => setTimeout(r, 2000));
+        file = await this.fileManager.getFile(file.name);
+      }
+
+      if (file.state === FileState.FAILED) {
+        throw new Error(
+          `Gemini Files API xử lý thất bại cho file: ${filename}`,
+        );
+      }
+
+      this.logger.log(
+        `Upload thành công qua Files API: ${filename} → ${file.uri}`,
       );
+      return file.uri;
+    } finally {
+      try {
+        fs.unlinkSync(tmpPath);
+      } catch {
+        // Bỏ qua lỗi xoá file tạm
+      }
     }
-
-    this.logger.log(
-      `Upload thành công qua Files API: ${filename} → ${file.uri}`,
-    );
-    return file.uri;
   }
 
   /**
