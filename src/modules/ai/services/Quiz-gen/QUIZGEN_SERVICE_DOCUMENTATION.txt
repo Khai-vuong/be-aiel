@@ -19,6 +19,64 @@ Request Fields:
   - text (required): string - Prompt de yeu cau AI tao quiz
   - provider (optional): 'gemini' | 'groq' | 'openai' - Provider uu tien muon thu truoc
 
+Stream mode cho frontend:
+  - Bat SSE bang query param: ?stream=true
+  - Hoac gui header: Accept: text/event-stream
+  - Neu khong bat stream, API van tra JSON nhu cu
+
+Thought streaming contract:
+  - Moi request stream se bat dau bang event progress co stage = sse.start
+  - Backend se phat cac progress event theo tung buoc suy nghi / lay file / tao quiz / parse ket qua
+  - Frontend co the map progress.stage thanh cac state UI tuong ung de hien thi thought steps
+
+Progress stages de frontend adapt:
+  - sse.start: da mo ket noi stream, dang xu ly yeu cau tao quiz
+  - quiz.start: khoi tao luong tao quiz
+  - quiz.file.context: da co san file context tu client
+  - quiz.file.resolve: dang lay metadata file theo fileId
+  - quiz.file.list: dang liet ke file trong class
+  - quiz.file.match: da tim duoc file phu hop trong class
+  - quiz.file.ready: da co file context va san sang dua cho LLM doc
+  - quiz.generate: dang tao quiz theo cach thong thuong (khong file)
+  - quiz.llm.generate: LLM dang sinh/noi suy noi dung quiz
+  - quiz.parse: dang phan tich ket qua JSON tra ve
+  - quiz.done: hoan tat tao quiz
+
+SSE events:
+  - progress: thong bao tien trinh suy nghi / lay file / tao quiz / parse ket qua
+  - final: payload cuoi cung, van la quiz generation result
+  - done: dong stream
+
+Example SSE output:
+  event: progress
+  data: {"stage":"sse.start","message":"Da mo ket noi stream, dang xu ly yeu cau tao quiz..."}
+
+  event: progress
+  data: {"stage":"quiz.file.list","message":"Dang liet ke cac file trong lop de tim tai lieu phu hop...","data":{"classId":"L01"}}
+
+  event: progress
+  data: {"stage":"quiz.file.match","message":"Da tim thay file phu hop trong lop.","data":{"classId":"L01","fileId":"fid_123","fileName":"midterm_practice.pdf"}}
+
+  event: progress
+  data: {"stage":"quiz.llm.generate","message":"Gemini dang doc file va suy luan noi dung quiz..."}
+
+  event: progress
+  data: {"stage":"quiz.parse","message":"Dang phan tich ket qua quiz tu Gemini..."}
+
+  event: final
+  data: {"text":"Duoi day la 5 cau quiz duoc tao dua tren tai lieu...","questions":[{"content":"...","options_json":{"A":"...","B":"..."},"answer_key_json":{"correct":"A"},"points":1}],"provider":"gemini","rawText":"..."}
+
+  event: done
+  data: {"message":"Hoan tat stream tao quiz."}
+
+Frontend note:
+  - Neu muon visualize thought stream, nen map progress.stage sang 3 nhom UI:
+    + Discovery: quiz.start, quiz.file.resolve, quiz.file.list, quiz.file.match
+    + Generation: quiz.file.ready, quiz.generate, quiz.llm.generate
+    + Completion: quiz.parse, quiz.done
+  - Neu gui metadata.classId, frontend khong can tu lay danh sach file; backend se tu match file theo prompt.
+  - Neu muon fix file cu the, co the gui metadata.fileId hoac metadata.fileContext.
+
 Example Request 1 (auto provider order):
 POST /ai/quizgen
 {

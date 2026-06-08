@@ -2,6 +2,9 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GoogleAIFileManager, FileState } from '@google/generative-ai/server';
 import { AiChatSetting, iProvider } from './iProvider.interface';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { s3Client } from 'src/common/utils/s3.client';
 import axios from 'axios';
 import * as officeParser from 'officeparser';
 import * as fs from 'fs';
@@ -58,12 +61,83 @@ export class GeminiProvider implements iProvider, OnModuleInit {
     }
   }
 
+  private isS3Url(rawUrl: string): boolean {
+    try {
+      const parsed = new URL(rawUrl);
+      return parsed.hostname.includes('.s3.') || parsed.hostname.startsWith('s3.');
+    } catch {
+      return false;
+    }
+  }
+
+  private parseS3BucketAndKey(rawUrl: string): { bucket: string; key: string } | null {
+    try {
+      const parsed = new URL(rawUrl);
+
+      if (parsed.hostname.startsWith('s3.')) {
+        const pathSegments = parsed.pathname.split('/').filter(Boolean);
+        const bucket = pathSegments.shift();
+        const key = pathSegments.join('/');
+
+        if (bucket && key) {
+          return { bucket, key: decodeURIComponent(key) };
+        }
+
+        return null;
+      }
+
+      const hostnameParts = parsed.hostname.split('.');
+      const bucket = hostnameParts[0];
+      const key = parsed.pathname.replace(/^\//, '');
+
+      if (bucket && key) {
+        return { bucket, key: decodeURIComponent(key) };
+      }
+
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  private deriveFilenameFromUrl(url: string): string {
+    try {
+      const normalizedUrl = new URL(url);
+      const pathname = normalizedUrl.pathname.split('/').filter(Boolean);
+      const lastSegment = pathname[pathname.length - 1] ?? 'file';
+      return lastSegment || 'file';
+    } catch {
+      const fallback = url.split('/').filter(Boolean).pop();
+      return fallback || 'file';
+    }
+  }
+
+  private async signS3Url(rawUrl: string, filename: string): Promise<string> {
+    if (!this.isS3Url(rawUrl)) {
+      return rawUrl;
+    }
+
+    const bucketAndKey = this.parseS3BucketAndKey(rawUrl);
+    if (!bucketAndKey) {
+      return rawUrl;
+    }
+
+    const command = new GetObjectCommand({
+      Bucket: bucketAndKey.bucket,
+      Key: bucketAndKey.key,
+      ResponseContentDisposition: `attachment; filename="${filename}"`,
+    });
+
+    return getSignedUrl(s3Client, command, { expiresIn: 60 });
+  }
+
   /**
    * Tải file từ S3 URL (pre-signed hoặc public) về dưới dạng Buffer.
    * Tự động encode tên file có khoảng trắng hoặc ký tự đặc biệt.
    */
   private async downloadFile(url: string): Promise<Buffer> {
-    const encodedUrl = this.encodeS3Url(url);
+    const signedUrl = await this.signS3Url(url, this.deriveFilenameFromUrl(url));
+    const encodedUrl = this.encodeS3Url(signedUrl);
 
     if (encodedUrl !== url) {
       this.logger.log(`S3 URL sau khi xử lý: ${encodedUrl}`);
@@ -203,6 +277,25 @@ export class GeminiProvider implements iProvider, OnModuleInit {
     }
   }
 
+  private isTextLikeMimeType(mimeType: string): boolean {
+    return (
+      mimeType.startsWith('text/') ||
+      mimeType === 'application/json' ||
+      mimeType === 'application/xml' ||
+      mimeType === 'text/xml' ||
+      mimeType === 'text/csv'
+    );
+  }
+
+  private extractPlainText(buffer: Buffer, filename: string): string {
+    const content = buffer.toString('utf8');
+    if (!content.trim()) {
+      this.logger.warn(`Text file appears empty: ${filename}`);
+    }
+
+    return content;
+  }
+
   /**
    * @param prompt Content to send
    * @param setting Temperature?, conversation history?, system prompt?, file context?
@@ -264,6 +357,12 @@ export class GeminiProvider implements iProvider, OnModuleInit {
             text: `[Nội dung từ file tài liệu bài học: ${filename}]\n${extractedText}\n[Hết nội dung file]\n\n`,
           });
           this.logger.log(`Đã rút trích text từ file Office: ${filename} (${extractedText.length} ký tự)`);
+        } else if (this.isTextLikeMimeType(mime_type)) {
+          const extractedText = this.extractPlainText(fileBuffer, filename);
+          currentUserParts.push({
+            text: `[Nội dung từ file tài liệu bài học: ${filename}]\n${extractedText}\n[Hết nội dung file]\n\n`,
+          });
+          this.logger.log(`Đã rút trích text từ file dạng plain text: ${filename} (${extractedText.length} ký tự)`);
         }
       }
 

@@ -115,7 +115,59 @@ Frontend note:
   - Nen dung EventSource neu chi can receive stream 1 chieu
   - Neu dung fetch streaming, can parse SSE chunks theo tung dong event/data
 
-====3. GET /ai/conversations
+====3. POST /ai/quizgen
+====Description: Tao quiz va co the doc file de phat sinh cau hoi chinh xac hon
+Method: POST
+Role: Lecturer, Admin
+Content-Type: application/json
+
+Stream mode:
+  - Bat SSE bang query param: ?stream=true
+  - Hoac gui header: Accept: text/event-stream
+  - Neu khong bat stream, API van tra JSON nhu cu
+
+Request Body:
+{
+  "text": "Hay tao 5 cau quiz dua tren noi dung cua file A",
+  "provider": "groq",
+  "temperature": 0.7,
+  "metadata": {
+    "fileId": "fid_123"
+  }
+}
+
+File input options:
+  - metadata.fileId: string (khuyen nghi, backend se tu fetch metadata file)
+  - metadata.fileContext: object { url, mime_type, filename } (neu frontend da co san URL)
+  - metadata.fileUrl + metadata.fileMimeType + metadata.fileName: fallback neu muon gui rieng
+  - metadata.classId: backend se list file trong class, match theo ten file duoc nhac trong prompt, roi fetch metadata
+
+Frontend can chi gui:
+  - text
+  - metadata.classId
+  - prompt co nhac toi file muon dung (vi du: "file midterm practice")
+
+SSE events:
+  - progress: dang resolve file, doc file, tao quiz, parse ket qua
+  - final: payload cuoi cung, van la quiz generation result
+  - done: dong stream
+
+Example Output:
+{
+  "text": "Duoi day la 5 cau quiz duoc tao dua tren tai lieu...",
+  "questions": [
+    {
+      "content": "...",
+      "options_json": {"A": "...", "B": "..."},
+      "answer_key_json": {"correct": "A"},
+      "points": 1
+    }
+  ],
+  "provider": "gemini",
+  "rawText": "..."
+}
+
+====4. GET /ai/conversations
 ====Description: Lay danh sach conversation cua user hien tai
 Method: GET
 Role: any (authenticated users)
@@ -145,7 +197,7 @@ Example Output:
   "hasMore": true
 }
 
-====4. GET /ai/conversations/:id/messages
+====5. GET /ai/conversations/:id/messages
 ====Description: Lay messages cua mot conversation (co phan trang)
 Method: GET
 Role: any (authenticated users)
@@ -189,7 +241,7 @@ Example Output:
   "hasMore": true
 }
 
-====5. PUT /ai/conversations/:id/rename
+====6. PUT /ai/conversations/:id/rename
 ====Description: Doi ten conversation cua user hien tai
 Method: PUT
 Role: any (authenticated users)
@@ -207,7 +259,7 @@ Example Output:
   "message": "Conversation renamed successfully"
 }
 
-====6. PUT /ai/conversations/:id/archive
+====7. PUT /ai/conversations/:id/archive
 ====Description: Archive conversation cua user hien tai
 Method: PUT
 Role: any (authenticated users)
@@ -225,7 +277,7 @@ Example Output:
   "message": "Conversation archived successfully"
 }
 
-====7. DELETE /ai/conversations/:id
+====8. DELETE /ai/conversations/:id
 ====Description: Xoa 1 conversation cua user hien tai
 Method: DELETE
 Role: any (authenticated users)

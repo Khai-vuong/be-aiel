@@ -221,6 +221,11 @@ export class AiController {
 
       try {
         progress({
+          stage: 'sse.start',
+          message: 'Đã mở kết nối stream, đang xử lý yêu cầu tạo quiz...',
+        });
+
+        progress({
           stage: 'quiz.start',
           message: 'Đang khởi tạo quiz generation...',
         });
@@ -229,6 +234,8 @@ export class AiController {
           prompt: body.text,
           role: req.user.role,
           provider: body.provider as OuterApiProvider,
+          metadata: body.metadata,
+          progress,
         });
 
         this.writeSseEvent(res, 'final', response);
@@ -250,6 +257,7 @@ export class AiController {
       prompt: body.text,
       role: req.user.role,
       provider: body.provider as OuterApiProvider,
+      metadata: body.metadata,
     });
   }
 
