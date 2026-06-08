@@ -32,7 +32,8 @@ import {
     SwaggerDeleteClass,
     SwaggerProcessEnrollments,
     SwaggerUploadFile,
-    SwaggerDownloadFile
+    SwaggerDownloadFile,
+    SwaggerDeleteFile
 } from './classes.swagger';
 import { JsonParseInterceptor } from 'src/common/interceptors/json-parse.interceptor';
 import { FileValidationPipe } from 'src/common/pipes/file-validation.pipe';
@@ -106,6 +107,14 @@ export class ClassesController {
     async delete(@Request() req, @Param('id') id: string) {
         await this.classesService.delete(req.user, id);
         return { message: `Class with ID ${id} deleted successfully` };
+    }
+
+    @Delete('file/:fid')
+    @Roles('Admin', 'Lecturer')
+    @SwaggerDeleteFile()
+    async deleteFile(@Request() req, @Param('fid') fid: string) {
+        await this.classesService.deleteFile(req.user, fid);
+        return { message: `File with ID ${fid} deleted successfully` };
     }
 
     

@@ -244,7 +244,7 @@ Storage behavior:
 Example Output (Production / S3):
 {
   "fid": "file001",
-  "filename": "lecture01.pdf",
+  "filename": "Chapter 1 Notes.pdf",
   "original_name": "Chapter 1 Notes.pdf",
   "url": "https://bucket.s3.region.amazonaws.com/class-files/class001/1710000000000-Chapter%201%20Notes.pdf",
   "size": 1024576,
@@ -287,6 +287,7 @@ URL Parameters:
   - fid (required): string - File ID
 
 Response behavior:
+  - Chi file co is_public = true moi duoc phep tai
   - Local mode: API tra ve file download truc tiep bang res.download()
   - Production mode: API tra ve JSON chua thong tin file va downloadUrl da ky
 
@@ -294,7 +295,7 @@ Example Output (Production / S3):
 {
   "file": {
     "fid": "file001",
-    "filename": "lecture-notes.pdf",
+    "filename": "Chapter 1 Notes.pdf",
     "original_name": "Chapter 1 Notes.pdf",
     "size": 1024576,
     "mime_type": "application/pdf",
@@ -305,6 +306,20 @@ Example Output (Production / S3):
 
 Example Output (Local):
 Binary file download with appropriate Content-Type header
+
+
+====9. DELETE /classes/file/:fid
+====Description: Soft delete file theo File ID (cap nhat is_public = false)
+Method: DELETE
+Role: Admin, Lecturer
+Authorization: Required (JWT Token)
+URL Parameters:
+  - fid (required): string - File ID
+
+Example Output:
+{
+  "message": "File with ID file001 deleted successfully"
+}
 
 
 ====ERROR RESPONSES
@@ -337,6 +352,12 @@ Binary file download with appropriate Content-Type header
 
 8. Khi chay production, download file tra ve JSON co downloadUrl da ky thay vi stream file truc tiep
 
-9. Schedule_json nen dung format JSON hop le
+9. Cac API tra ve file chi bao gom file co is_public = true
+
+10. Truong filename trong response file su dung gia tri original_name (neu co)
+
+11. DELETE /classes/file/:fid la soft delete, chi cap nhat is_public = false
+
+12. Schedule_json nen dung format JSON hop le
 
 ====

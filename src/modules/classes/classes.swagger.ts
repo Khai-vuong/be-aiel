@@ -380,7 +380,9 @@ export function SwaggerDownloadFile() {
 - Client must use the signed URL to download directly from S3
 - Reduces server load and bandwidth
 
-**Access Control:** Students, Lecturers, and Admins can download class files`
+**Access Control:** Students, Lecturers, and Admins can download class files
+
+**Visibility Rule:** Only files with is_public = true can be downloaded`
     }),
     ApiParam({
       name: 'clid',
@@ -405,7 +407,7 @@ export function SwaggerDownloadFile() {
                 type: 'object',
                 properties: {
                   fid: { type: 'string', example: 'file001' },
-                  filename: { type: 'string', example: 'lecture-notes.pdf' },
+                  filename: { type: 'string', example: 'Chapter 1 Notes.pdf', description: 'Returned as original file name' },
                   original_name: { type: 'string', example: 'Chapter 1 Notes.pdf' },
                   size: { type: 'number', example: 1024576 },
                   mime_type: { type: 'string', example: 'application/pdf' },
@@ -430,6 +432,34 @@ export function SwaggerDownloadFile() {
     ApiResponse({ status: 400, description: 'Bad Request - Invalid S3 URL format or failed to generate download URL' }),
     ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing JWT token' }),
     ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions to access this file' }),
+    ApiResponse({ status: 404, description: 'File not found' })
+  );
+}
+
+export function SwaggerDeleteFile() {
+  return applyDecorators(
+    ApiBearerAuth('JWT-auth'),
+    ApiOperation({
+      summary: 'Delete class file (soft delete)',
+      description: 'Soft delete a file by file ID. This endpoint does not remove the physical file; it only sets is_public to false so the file is hidden from file-returning APIs.'
+    }),
+    ApiParam({
+      name: 'fid',
+      description: 'File ID to soft delete',
+      example: 'file001'
+    }),
+    ApiResponse({
+      status: 200,
+      description: 'File successfully soft deleted',
+      schema: {
+        type: 'object',
+        properties: {
+          message: { type: 'string', example: 'File with ID file001 deleted successfully' }
+        }
+      }
+    }),
+    ApiResponse({ status: 401, description: 'Unauthorized - Invalid or missing JWT token' }),
+    ApiResponse({ status: 403, description: 'Forbidden - Insufficient permissions (Admin or Lecturer role required)' }),
     ApiResponse({ status: 404, description: 'File not found' })
   );
 }

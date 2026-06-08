@@ -38,6 +38,13 @@ export class ClassesService {
         private readonly logService: LogService,
     ) { }
 
+    private mapFilenameToOriginal<T extends { filename: string; original_name?: string | null }>(file: T) {
+        return {
+            ...file,
+            filename: file.original_name || file.filename,
+        };
+    }
+
     // Get all classes
     async findAll(): Promise<Class[]> {
         return this.prisma.class.findMany({
@@ -78,7 +85,7 @@ export class ClassesService {
     }
 
     // Get a single class by ID
-    async findOne(id: string): Promise<Class> {
+    async findOne(id: string): Promise<any> {
         const classData = await this.prisma.class.findUnique({
             where: { clid: id },
             include: {
@@ -107,9 +114,13 @@ export class ClassesService {
                     }
                 },
                 files: {
+                    where: {
+                        is_public: true,
+                    },
                     select: {
                         fid: true,
                         filename: true,
+                        original_name: true,
                         url: true,
                         file_type: true,
                         is_public: true,
@@ -133,7 +144,10 @@ export class ClassesService {
             throw new NotFoundException(`Class with ID ${id} not found`);
         }
 
-        return classData;
+        return {
+            ...classData,
+            files: classData.files.map((file) => this.mapFilenameToOriginal(file)),
+        };
     }
 
     // Get classes for the logged-in user
@@ -276,6 +290,27 @@ export class ClassesService {
         return deletedClass;
     }
 
+    async deleteFile(user: JwtPayload, fid: string) {
+        const file = await this.prisma.file.findUnique({
+            where: { fid },
+        });
+
+        if (!file) {
+            throw new NotFoundException(`File with ID ${fid} not found`);
+        }
+
+        const deletedFile = await this.prisma.file.update({
+            where: { fid },
+            data: {
+                is_public: false,
+            },
+        });
+
+        await this.logService.createLog('delete_file', user.uid, 'File', fid);
+
+        return this.mapFilenameToOriginal(deletedFile);
+    }
+
     /**
      * Uploads file to AWS S3 bucket and creates database record
      * Steps:
@@ -311,6 +346,7 @@ export class ClassesService {
         const createdFile = await this.prisma.file.create({
             data: {
                 filename: file.originalname,
+                original_name: file.originalname,
                 url: file.path.replace(/\\/g, '/'), // Normalize path for cross-platform compatibility
                 size: file.size,
                 mime_type: file.mimetype,
@@ -328,10 +364,24 @@ export class ClassesService {
         await this.logService.createLog('upload_file_local', user.uid, 'File', createdFile.fid);
 
         // Return the updated class with the new file
-        return this.prisma.class.findUnique({
+        const classData = await this.prisma.class.findUnique({
             where: { clid: classId },
             include: {
                 files: {
+                    where: {
+                        is_public: true,
+                    },
+                    select: {
+                        fid: true,
+                        filename: true,
+                        original_name: true,
+                        url: true,
+                        size: true,
+                        mime_type: true,
+                        file_type: true,
+                        is_public: true,
+                        created_at: true,
+                    },
                     orderBy: {
                         created_at: 'desc'
                     }
@@ -349,6 +399,15 @@ export class ClassesService {
                 }
             }
         });
+
+        if (!classData) {
+            throw new NotFoundException(`Class with ID ${classId} not found`);
+        }
+
+        return {
+            ...classData,
+            files: classData.files.map((resourceFile) => this.mapFilenameToOriginal(resourceFile)),
+        };
     }
 
     /**
@@ -446,7 +505,7 @@ export class ClassesService {
             fs.unlinkSync(file.path);
         }
 
-        return newFile;        
+        return this.mapFilenameToOriginal(newFile);        
     }
 
     /**
@@ -458,8 +517,11 @@ export class ClassesService {
     //#endregion
     async downloadFromLocal(fid: string) {
         // Find the file in database
-        const file = await this.prisma.file.findUnique({
-            where: { fid }
+        const file = await this.prisma.file.findFirst({
+            where: {
+                fid,
+                is_public: true,
+            }
         });
 
         if (!file || !file.url) {
@@ -482,8 +544,11 @@ export class ClassesService {
     // //#endregion
     async downloadFromS3(fid: string) {
         // Find the file in database
-        const file = await this.prisma.file.findUnique({
-            where: { fid },
+        const file = await this.prisma.file.findFirst({
+            where: {
+                fid,
+                is_public: true,
+            },
         });
 
         if (!file) {
@@ -519,7 +584,7 @@ export class ClassesService {
             return {
                 file: {
                     fid: file.fid,
-                    filename: file.filename,
+                    filename: file.original_name || file.filename,
                     original_name: file.original_name,
                     size: file.size,
                     mime_type: file.mime_type,
