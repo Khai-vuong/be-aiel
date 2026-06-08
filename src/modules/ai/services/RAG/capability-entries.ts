@@ -47,7 +47,7 @@ export const analyticsEntries: RagCapabilityEntry[] = [
     id: 'class-files',
     description:
       'Retrieve files in a class with file name and file id for quick browsing.',
-    allowedRoles: ['Admin', 'Lecturer'],
+    allowedRoles: ['Admin', 'Lecturer', 'Student'],
     parameters: 'classId: string',
     required: ['classId'],
   },
@@ -55,7 +55,7 @@ export const analyticsEntries: RagCapabilityEntry[] = [
     id: 'get-file',
     description:
       'Retrieve complete file metadata (fid, filename, url, mime_type, size) by file ID. Use this to fetch file details for reading content with file-aware providers like Gemini.',
-    allowedRoles: ['Admin', 'Lecturer'],
+    allowedRoles: ['Admin', 'Lecturer', 'Student'],
     parameters: 'fileId: string',
     required: ['fileId'],
   },

@@ -19,9 +19,15 @@ export class IntentClassifierService {
     request: AiRequestDto,
     user: JwtPayload,
   ): Promise<ExecutionMode> {
-    if (user.role === 'Student') {
-      return 'chat';
-    }
+    const normalizedRole = String(user.role ?? '').trim().toLowerCase();
+    const roleConstraints =
+      normalizedRole === 'student'
+        ? [
+            'Role constraint: current user role is Student.',
+            'Student must NEVER be routed to quiz_assistant.',
+            'If the input looks like quiz creation/generation, route to insight instead of quiz_assistant.',
+          ]
+        : [];
 
     const instructionPrompt = [
       'You are a routing classifier for the backend AI orchestrator. Return exactly one string that best fits the following guidelines.',
@@ -29,6 +35,7 @@ export class IntentClassifierService {
       'quiz_assistant: if the user is asking for help generating quiz questions, structuring quizzes, or anything directly related to quiz creation.',
       'insight: analytics, reports, trends, recommendations, logs, enrollments, reading files or answers that require internal platform data.',
       'chat: Not quiz_assistant or insight, just general AI chat.',
+      ...roleConstraints,
       'Return only one label: quiz_assistant, insight, or chat. Do not answer the user request.',
     ].join('\n');
 
@@ -46,6 +53,13 @@ export class IntentClassifierService {
 
         const mode = this.parseExecutionMode(result?.text);
         if (mode) {
+          if (normalizedRole === 'student' && mode === 'quiz_assistant') {
+            this.logger.warn(
+              `Classifier attempted blocked mode quiz_assistant for role=${user.role}. Remapping to insight.`,
+            );
+            return 'insight';
+          }
+
           return mode;
         }
 

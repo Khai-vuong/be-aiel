@@ -317,13 +317,13 @@ export class OrchestratorService {
       return;
     }
 
-    if (role === 'student') {
+    if (role === 'student' && mode === 'quiz_assistant') {
       throw new ForbiddenException(
-        'Students can only access the general AI chat mode.',
+        'Students are not allowed to access quiz_assistant mode.',
       );
     }
 
-    if (role !== 'lecturer' && role !== 'admin') {
+    if (role !== 'lecturer' && role !== 'admin' && role !== 'student') {
       throw new ForbiddenException(
         `Role "${user.role}" is not allowed to access ${mode}.`,
       );
