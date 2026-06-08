@@ -6,6 +6,7 @@ import { s3Client } from 'src/common/utils/s3.client';
 import { AiRequestDto } from '../../dtos/ai-request.dto';
 import { GeminiProvider } from '../../providers/gemini.provider';
 import { AiChatSetting } from '../../providers/iProvider.interface';
+import { AiProgressReporter } from '../../stream/ai-stream.types';
 import {
   OuterApiProvider,
   OuterApiService,
@@ -34,6 +35,7 @@ type ValidationResult = {
 export type RagReactOrchestratorRequest = {
   aiRequest: AiRequestDto;
   user: JwtPayload;
+  progress?: AiProgressReporter;
 };
 
 @Injectable()
@@ -63,6 +65,15 @@ export class RagReactService {
       .join('\n');
   }
 
+  private emitProgress(
+    progress: AiProgressReporter | undefined,
+    stage: string,
+    message: string,
+    data?: Record<string, unknown>,
+  ): void {
+    progress?.({ stage, message, data });
+  }
+
   // PoC: process flow with simplified ReAct loop
   // Step 1: initialize - Step 2: plan+validate - Step 3: execute+accumulate - Loop control
   async chat(params: RagReactOrchestratorRequest) {
@@ -73,9 +84,17 @@ export class RagReactService {
     const overallContexts: ExecutionContext[] = [];
     let accumulateEvidence = 'none';
 
+    this.emitProgress(params.progress, 'rag.start', 'Đang khởi tạo vòng suy luận ReAct...');
+
     // ReAct loop: Plan -> Validate -> Act, max MAX_LOOP iterations
     for (let loop = 1; loop <= MAX_LOOP; loop += 1) {
       console.log(`[RAG-ReAct] Loop ${loop}/${MAX_LOOP}`);
+      this.emitProgress(
+        params.progress,
+        'rag.plan',
+        `Đang suy nghĩ bước ${loop}/${MAX_LOOP} để chọn công cụ phù hợp...`,
+        { loop },
+      );
 
       // Step 2: Plan (Planner decides next action based on accumulated evidence)
       const plannerResponse = await this.ragPlannerService.selectActionsFromPrompt({
@@ -89,11 +108,22 @@ export class RagReactService {
       // If planner determines reasoning is complete, exit loop and compose answer
       if (plannerResponse.doneReasoning) {
         console.log('[RAG-ReAct] Planner indicated reasoning is complete');
+        this.emitProgress(params.progress, 'rag.compose', 'Đã đủ thông tin, đang tổng hợp câu trả lời cuối cùng...');
         break;
       }
 
       // Step 2.5: Validate planned actions before execution
       const validateStepsData = this.validateCapabilities(plannerResponse.actions);
+      if (validateStepsData.rejected.length > 0) {
+        this.emitProgress(
+          params.progress,
+          'rag.validate.rejected',
+          'Một số công cụ được đề xuất không hợp lệ, hệ thống đang lọc bỏ...',
+          { rejectedCount: validateStepsData.rejected.length },
+        );
+      } else {
+        this.emitProgress(params.progress, 'rag.validate', 'Đã xác thực danh sách công cụ cần thực thi.');
+      }
       validateStepsData.rejected.forEach((item) => {
         validationErrors.push(`[Loop ${loop}] ${item.capabilityId}: ${item.reason}`);
       });
@@ -107,17 +137,33 @@ export class RagReactService {
 
       if (validSteps.length === 0) {
         console.log('[RAG-ReAct] No valid steps to execute');
+        this.emitProgress(params.progress, 'rag.stop', 'Không còn công cụ hợp lệ để chạy tiếp.');
         break;
       }
 
       // Step 3: Execute actions and accumulate evidence
       console.log(`[RAG-ReAct] Executing ${validSteps.length} action(s): ${validSteps.map((s) => s.capabilityId).join(', ')}`);
+      this.emitProgress(
+        params.progress,
+        'rag.execute',
+        `Đang thực thi ${validSteps.length} công cụ: ${validSteps.map((s) => s.capabilityId).join(', ')}`,
+        { capabilityIds: validSteps.map((step) => step.capabilityId) },
+      );
       const contexts = await this.planExecuterService.execute(validSteps);
       overallContexts.push(...contexts);
+
+      contexts.forEach((ctx) => {
+        const friendlyMessage = this.describeCapabilityProgress(ctx.capabilityId);
+        this.emitProgress(params.progress, 'rag.execute.step', friendlyMessage, {
+          capabilityId: ctx.capabilityId,
+          hasError: Boolean(ctx.error),
+        });
+      });
 
       // Rebuild accumulated evidence string for next planner iteration
       accumulateEvidence = this.buildAccumulatedEvidence(overallContexts);
       console.log(`[RAG-ReAct] Accumulated ${overallContexts.length} evidence block(s)`);
+      this.emitProgress(params.progress, 'rag.evidence', 'Đã gom xong bằng chứng tạm thời cho vòng suy nghĩ tiếp theo.');
     }
 
     // Step 4: Compose final answer from validated execution evidence
@@ -127,7 +173,10 @@ export class RagReactService {
       contexts: overallContexts,
       validationErrors,
       temperature: params.aiRequest.temperature,
+      progress: params.progress,
     });
+
+    this.emitProgress(params.progress, 'rag.done', 'Luồng ReAct đã hoàn tất.');
 
     // Return response with execution metadata
     return {
@@ -211,6 +260,7 @@ export class RagReactService {
     contexts: ExecutionContext[];
     validationErrors: string[];
     temperature?: number;
+    progress?: AiProgressReporter;
   }): Promise<{ text: string; provider: string }> {
     const evidence = params.contexts
       .map((ctx, index) => {
@@ -221,31 +271,38 @@ export class RagReactService {
       .join('\n\n');
 
     // Detect if file metadata is present in contexts
-    const fileContext = this.extractFileContext(params.contexts);
+    const fileContext = this.extractFileContext(params.contexts, params.progress);
 
 
     // If file is present, force use Gemini provider
     if (fileContext) {
+      this.emitProgress(params.progress, 'rag.file.ready', 'Đã lấy được file tài liệu, đang dùng Gemini để tổng hợp với file đính kèm.');
       return this.composeWithGemini({
         userQuestion: params.userQuestion,
         evidence,
         fileContext,
         validationErrors: params.validationErrors,
         temperature: params.temperature ?? 0.8,
+        progress: params.progress,
       });
     }
 
     // Otherwise use regular provider
+    this.emitProgress(params.progress, 'rag.compose', 'Đang tổng hợp câu trả lời cuối cùng từ bằng chứng đã thu thập.');
     return this.composeWithRegularProvider({
       userQuestion: params.userQuestion,
       provider: params.provider,
       evidence,
       validationErrors: params.validationErrors,
       temperature: params.temperature ?? 0.8,
+      progress: params.progress,
     });
   }
 
-  private extractFileContext(contexts: ExecutionContext[]): {
+  private extractFileContext(
+    contexts: ExecutionContext[],
+    progress?: AiProgressReporter,
+  ): {
     url: string;
     mime_type: string;
     filename: string;
@@ -257,6 +314,13 @@ export class RagReactService {
     }
 
     const fileMetadata = this.parseFileContextResult(fileContext.result);
+
+    if (fileMetadata) {
+      this.emitProgress(progress, 'rag.file.detected', 'Đã phát hiện file tài liệu cần nạp vào bước tổng hợp.', {
+        filename: fileMetadata.filename,
+        mimeType: fileMetadata.mime_type,
+      });
+    }
 
     console.log('[RAG-ReAct] Extracted file context:', fileMetadata);
 
@@ -455,11 +519,15 @@ export class RagReactService {
     fileContext: { url: string; mime_type: string; filename: string };
     validationErrors: string[];
     temperature: number;
+    progress?: AiProgressReporter;
   }): Promise<{ text: string; provider: string }> {
+    this.emitProgress(params.progress, 'rag.file.sign', 'Đang tạo URL tạm thời để đọc file tài liệu...');
     const signedUrl = await this.signS3Url(
       params.fileContext.url,
       params.fileContext.filename,
     );
+
+    this.emitProgress(params.progress, 'rag.compose', 'Đang tổng hợp câu trả lời với file tài liệu đính kèm...');
 
     const instructionPrompt = [
       'You are the Answer Composer layer in a ReAct pipeline with file reading capability.',
@@ -502,6 +570,7 @@ export class RagReactService {
     evidence: string;
     validationErrors: string[];
     temperature: number;
+    progress?: AiProgressReporter;
   }): Promise<{ text: string; provider: string }> {
     const instructionPrompt = [
       'You are the Answer Composer layer in a ReAct pipeline.',
@@ -535,5 +604,22 @@ export class RagReactService {
       text: composed.text,
       provider: composed.provider,
     };
+  }
+
+  private describeCapabilityProgress(capabilityId: string): string {
+    switch (capabilityId) {
+      case 'get-file':
+        return 'Đang lấy file tài liệu để đọc nội dung liên quan...';
+      case 'class-files':
+        return 'Đang truy xuất danh sách file của lớp học...';
+      case 'class-quizzes':
+        return 'Đang lấy danh sách quiz liên quan...';
+      case 'knowledge-gap':
+        return 'Đang phân tích lỗ hổng kiến thức...';
+      case 'teaching-recommendation':
+        return 'Đang tổng hợp khuyến nghị giảng dạy...';
+      default:
+        return `Đang thực thi công cụ: ${capabilityId}`;
+    }
   }
 }

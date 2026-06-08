@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { JwtPayload } from 'src/modules/users/jwt.strategy';
 import { AiRequestDto } from '../dtos/ai-request.dto';
 import { AiResponseDto } from '../dtos/ai-response.dto';
+import { AiProgressReporter } from '../stream/ai-stream.types';
 import { ConversationService } from '../services/conversation.service';
 import { OuterApiService } from '../services/outer-api/outer-api.service';
 // import { RagOrchestratorService } from '../services/RAG/rag-orchestrator.service';
@@ -52,13 +53,23 @@ export class OrchestratorService {
   async processRequest(
     request: AiRequestDto,
     user: JwtPayload,
+    progress?: AiProgressReporter,
   ): Promise<AiResponseDto> {
     const startTime = Date.now();
+
+    progress?.({
+      stage: 'request.start',
+      message: 'Đang khởi tạo luồng xử lý AI...',
+    });
 
     let conversationId = request.conversationId;
 
     // Step 1: create a new conversation or continue the existing one
     if (!conversationId) {
+      progress?.({
+        stage: 'conversation.create',
+        message: 'Đang tạo hội thoại mới...',
+      });
       const titleRes = await this.summarizationService.summarize(request.text, {
         minLength: 3,
         maxLength: 7,
@@ -71,6 +82,10 @@ export class OrchestratorService {
     }
 
     // Step 2: Fetch history (if have)
+    progress?.({
+      stage: 'conversation.history',
+      message: 'Đang tải lịch sử hội thoại...',
+    });
     const history = await this.conversationService.getConversationHistory(
       conversationId,
       user.uid,
@@ -94,11 +109,21 @@ export class OrchestratorService {
     };
 
     // Step 2: classify intent
+    progress?.({
+      stage: 'intent.classify',
+      message: 'Đang phân loại ý định và chọn luồng xử lý...',
+    });
     const mode = await this.intentClassifierService.resolveExecutionMode(
       requestWithConv,
       user,
     );
     this.enforceFeatureAccess(mode, user); //Giống Guard 
+
+    progress?.({
+      stage: 'intent.resolved',
+      message: `Đã chọn luồng xử lý: ${mode}`,
+      data: { mode },
+    });
 
     // const caller = this.resolveCallerByMode(mode);
 
@@ -115,9 +140,18 @@ export class OrchestratorService {
     let response: RoutedResponse;
 
     // Step 3: route request to the right module
-    response = await this.dispatchByMode(requestWithConv, user, mode);
+    progress?.({
+      stage: 'route.dispatch',
+      message: 'Đang chuyển yêu cầu sang agent phù hợp...',
+      data: { mode },
+    });
+    response = await this.dispatchByMode(requestWithConv, user, mode, progress);
 
     // Step 4: persist assistant response to AI conversation
+    progress?.({
+      stage: 'response.persist',
+      message: 'Đang lưu phản hồi của AI vào hội thoại...',
+    });
     const assistantContent = this.extractAssistantContent(response);
     const assistantMsg = await this.conversationService.createMessage({
       conversationId,
@@ -137,6 +171,17 @@ export class OrchestratorService {
     const provider = this.extractProvider(response, request.provider);
     const modelName = this.extractModelName(response) || provider;
 
+    progress?.({
+      stage: 'request.done',
+      message: 'Đã hoàn tất xử lý yêu cầu.',
+      data: {
+        conversationId,
+        messageId: assistantMsg.amid,
+        provider,
+        serviceType: this.resolveServiceType(mode),
+      },
+    });
+
     return {
       success: true,
       conversationId,
@@ -153,11 +198,16 @@ export class OrchestratorService {
   async directChat(
     request: AiRequestDto,
     user: JwtPayload,
+    progress?: AiProgressReporter,
   ): Promise<AiResponseDto> {
     const startTime = Date.now();
     let conversationId = request.conversationId;
 
     if (!conversationId) {
+      progress?.({
+        stage: 'conversation.create',
+        message: 'Đang tạo hội thoại mới cho chế độ chat trực tiếp...',
+      });
       const titleRes = await this.summarizationService.summarize(request.text, {
         minLength: 3,
         maxLength: 7,
@@ -191,6 +241,11 @@ export class OrchestratorService {
       onlyUseSystemPrompt: false,
     });
 
+    progress?.({
+      stage: 'direct.chat',
+      message: 'Đang gọi nhà cung cấp AI bên ngoài...',
+    });
+
     const result = await this.outerApiService.chat({
       prompt: request.text,
       caller: 'direct',
@@ -206,6 +261,16 @@ export class OrchestratorService {
       modelName: result.provider,
       metadata: {
         mode: 'chat',
+      },
+    });
+
+    progress?.({
+      stage: 'request.done',
+      message: 'Đã hoàn tất chat trực tiếp.',
+      data: {
+        conversationId,
+        messageId: assistantMsg.amid,
+        provider: result.provider,
       },
     });
 
@@ -269,22 +334,28 @@ export class OrchestratorService {
     request: EnrichedAiRequest,
     user: JwtPayload,
     mode: ExecutionMode,
+    progress?: AiProgressReporter,
   ): Promise<RoutedResponse> {
     switch (mode) {
       case 'quiz_assistant':
-        return this.handleQuizAssistant(request, user);
+        return this.handleQuizAssistant(request, user, progress);
       case 'insight':
-        return this.handleInsight(request, user);
+        return this.handleInsight(request, user, progress);
       case 'chat':
       default:
-        return this.handleChat(request, user);
+        return this.handleChat(request, user, progress);
     }
   }
 
   private async handleChat(
     request: EnrichedAiRequest,
     user: JwtPayload,
+    progress?: AiProgressReporter,
   ): Promise<RoutedResponse> {
+    progress?.({
+      stage: 'chat.generate',
+      message: 'Đang tạo phản hồi chat thông thường...',
+    });
     const result = await this.outerApiService.chat({
       prompt: request.text,
       caller: 'general',
@@ -309,6 +380,7 @@ export class OrchestratorService {
   private async handleQuizAssistant(
     request: EnrichedAiRequest,
     user: JwtPayload,
+    progress?: AiProgressReporter,
   ): Promise<RoutedResponse> {
 
     /**
@@ -321,6 +393,10 @@ export class OrchestratorService {
     const sendFrom = request.metadata?.sendFrom?.toLowerCase();
 
     if (sendFrom === 'chatpage' || sendFrom === 'aichatsidebar') {
+      progress?.({
+        stage: 'quiz.redirect',
+        message: 'Đang hướng người dùng tới màn hình tạo quiz...',
+      });
       if (this.languageDetectionService.detect(request.text) === 'vie') {
         return {
           usecase: 'QUIZ_ASSISTANT',
@@ -358,6 +434,11 @@ export class OrchestratorService {
     '"points" (number, optional, defaults to 1). ' +
     'Example: {"text":"Here are 2 questions.","questions":[{"content":"What is the capital of France?","options_json":{"A":"Paris","B":"London","C":"Berlin"},"answer_key_json":{"correct":"A"},"points":1}]}';
 
+    progress?.({
+      stage: 'quiz.generate',
+      message: 'Đang tạo nội dung quiz và chuẩn bị bộ câu hỏi...',
+    });
+
     const result = await this.outerApiService.chat({
       prompt: request.text,
       caller: 'quiz-generator',
@@ -367,6 +448,12 @@ export class OrchestratorService {
         
       history: request.history ?? [],
     });
+
+      progress?.({
+        stage: 'quiz.generate.done',
+        message: 'Đã tổng hợp xong nội dung quiz.',
+        data: { provider: result.provider },
+      });
 
 
     //Đây sẽ trả về kết quả để đưa lên UI. Đây là kết quả raw
@@ -384,10 +471,16 @@ export class OrchestratorService {
   private async handleInsight(
     request: AiRequestDto,
     user: JwtPayload,
+    progress?: AiProgressReporter,
   ): Promise<RoutedResponse> {
+    progress?.({
+      stage: 'rag.start',
+      message: 'Đang bắt đầu luồng ReAct RAG...',
+    });
     const result = await this.ragReactService.chat({
       aiRequest: request,
       user,
+      progress,
     });
 
     // Old orchestrator path kept for reference during PoC validation.

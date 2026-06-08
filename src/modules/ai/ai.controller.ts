@@ -11,6 +11,7 @@ import {
   DefaultValuePipe,
   Delete,
   Put,
+  Res,
 } from '@nestjs/common';
 import {
   ApiBody,
@@ -19,6 +20,7 @@ import {
   ApiTags,
   ApiBearerAuth,
 } from '@nestjs/swagger';
+import type { Response } from 'express';
 
 import { OrchestratorService } from './orchestrator/orchestrator.service';
 import { ConversationService } from './services/conversation.service';
@@ -30,7 +32,7 @@ import { SwaggerAiChat } from './swagger/ai.swagger';
 import { StudyAnalystAIService } from './services/study-analyst/study-analyst-ai.service';
 import { OuterApiProvider } from './services/outer-api/outer-api.service';
 import { QuizGenerationService } from './services/Quiz-gen/quizGeneration.service';
-import { title } from 'node:process';
+import { AiProgressReporter } from './stream/ai-stream.types';
 
 /**
  * DTO dành riêng cho việc test Study Analyst trên Swagger
@@ -51,7 +53,7 @@ class StudyAnalystPromptDto {
 }
 
 @ApiTags('AI - Study Analyst')
-@ApiBearerAuth() // Hiển thị biểu tượng ổ khóa để nhập Token trên Swaggerimport { OuterApiProvider } from './services/outer-api/outer-api.service';
+@ApiBearerAuth() // Hiển thị biểu tượng ổ khóa để nhập Token trên Swagger
 @Controller('ai')
 @UseGuards(JwtGuard, RolesGuard)
 export class AiController {
@@ -65,7 +67,46 @@ export class AiController {
   @Post('chat')
   @Roles('any')
   @SwaggerAiChat()
-  async chat(@Request() req, @Body() aiRequest: AiRequestDto) {
+  async chat(
+    @Request() req,
+    @Body() aiRequest: AiRequestDto,
+    @Query('stream') stream?: string,
+    @Res({ passthrough: true }) res?: Response,
+  ) {
+    if (this.shouldStream(req, stream)) {
+      this.initializeSse(res);
+
+      const progress: AiProgressReporter = (event) => {
+        this.writeSseEvent(res, 'progress', event);
+      };
+
+      try {
+        progress({
+          stage: 'sse.start',
+          message: 'Đã mở kết nối stream, đang xử lý yêu cầu...',
+        });
+
+        const response = await this.orchestratorService.processRequest(
+          aiRequest,
+          req.user,
+          progress,
+        );
+
+        this.writeSseEvent(res, 'final', response);
+        this.writeSseEvent(res, 'done', {
+          message: 'Hoàn tất stream phản hồi.',
+        });
+      } catch (error) {
+        this.writeSseEvent(res, 'error', {
+          message: error instanceof Error ? error.message : String(error),
+        });
+      } finally {
+        res?.end();
+      }
+
+      return;
+    }
+
     return this.orchestratorService.processRequest(aiRequest, req.user);
   }
 
@@ -168,7 +209,43 @@ export class AiController {
     @Request() req,
     @Body()
     body: AiRequestDto,
+    @Query('stream') stream?: string,
+    @Res({ passthrough: true }) res?: Response,
   ) {
+    if (this.shouldStream(req, stream)) {
+      this.initializeSse(res);
+
+      const progress: AiProgressReporter = (event) => {
+        this.writeSseEvent(res, 'progress', event);
+      };
+
+      try {
+        progress({
+          stage: 'quiz.start',
+          message: 'Đang khởi tạo quiz generation...',
+        });
+
+        const response = await this.quizGenerationService.generateQuiz({
+          prompt: body.text,
+          role: req.user.role,
+          provider: body.provider as OuterApiProvider,
+        });
+
+        this.writeSseEvent(res, 'final', response);
+        this.writeSseEvent(res, 'done', {
+          message: 'Hoàn tất stream tạo quiz.',
+        });
+      } catch (error) {
+        this.writeSseEvent(res, 'error', {
+          message: error instanceof Error ? error.message : String(error),
+        });
+      } finally {
+        res?.end();
+      }
+
+      return;
+    }
+
     return this.quizGenerationService.generateQuiz({
       prompt: body.text,
       role: req.user.role,
@@ -268,5 +345,37 @@ export class AiController {
       req.user.uid,
       req.user.role,
     );
+  }
+
+  private shouldStream(req: { headers?: Record<string, unknown> }, stream?: string): boolean {
+    const normalizedStream = String(stream ?? '').trim().toLowerCase();
+    if (normalizedStream === 'true' || normalizedStream === '1') {
+      return true;
+    }
+
+    const acceptHeader = String(req.headers?.accept ?? '').toLowerCase();
+    return acceptHeader.includes('text/event-stream');
+  }
+
+  private initializeSse(res?: Response): void {
+    if (!res) {
+      return;
+    }
+
+    res.status(200);
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders?.();
+  }
+
+  private writeSseEvent(res: Response | undefined, event: string, data: unknown): void {
+    if (!res) {
+      return;
+    }
+
+    res.write(`event: ${event}\n`);
+    res.write(`data: ${JSON.stringify(data)}\n\n`);
   }
 }

@@ -1,6 +1,32 @@
-// Có 2 vấn đề trong code:
+// // ai.controller.ts
+// import { Controller, Post, Body, Sse, Res } from '@nestjs/common';
+// import { Response } from 'express';
 
-// await this.downloadFile(...) ở đầu hàm là thừa — Gemini provider tự tải file rồi, bạn đang tải 2 lần
-// 403 — S3 bucket của bạn yêu cầu pre-signed URL cho programmatic access (dù browser tải được vì browser gửi thêm cookie/session)
+// @Controller('ai')
+// export class AiController {
+//   constructor(private readonly aiService: AiService) {}
 
-// Cần dùng AWS SDK để tạo signed URL trước khi truyền vào. Đây là fix cho composeWithGemini và thêm helper getSignedUrl:
+//   @Post('analyze')
+//   async analyzeWithStream(@Body() dto: AnalyzeDto, @Res() res: Response) {
+//     res.setHeader('Content-Type', 'text/event-stream');
+//     res.setHeader('Cache-Control', 'no-cache');
+//     res.setHeader('Connection', 'keep-alive');
+
+//     const emit = (step: string, detail?: string) => {
+//       res.write(`data: ${JSON.stringify({ step, detail })}\n\n`);
+//     };
+
+//     emit('reading_file', 'Đang tải file lên Gemini...');
+//     const fileContent = await this.aiService.uploadFile(dto.fileUrl);
+
+//     emit('thinking', 'Agent đang phân tích nội dung...');
+//     // ReAct loop
+//     for await (const action of this.aiService.reactLoop(fileContent, dto.query)) {
+//       emit(action.type, action.description); 
+//       // ví dụ: { type: 'tool_call', description: 'Tìm kiếm trong tài liệu...' }
+//     }
+
+//     emit('done', 'Hoàn thành');
+//     res.end();
+//   }
+// }

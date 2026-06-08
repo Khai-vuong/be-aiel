@@ -9,6 +9,16 @@ Method: POST
 Role: any (authenticated users)
 Content-Type: application/json
 
+Stream mode cho frontend:
+  - Bat SSE bang query param: ?stream=true
+  - Hoac gui header: Accept: text/event-stream
+  - Neu khong bat stream, API van tra JSON nhu cu
+
+SSE events:
+  - progress: thong bao tien trinh (suy nghi, validate, execute, lay file, tong hop...)
+  - final: response cuoi cung, payload chinh la AiResponseDto
+  - done: thong bao dong stream
+
 Request Body (AiRequestDto):
 {
   "text": "Tao cho toi 5 cau hoi ve SQL",
@@ -17,24 +27,19 @@ Request Body (AiRequestDto):
     "courseId": "C01"
   },
   "conversationId": "conv_123",
-  "context": {
-    "source": "web"
-  },
   "provider": "groq",
   "temperature": 0.7,
-  "customSystemPrompt": "Ban la tro ly hoc tap",
+  "instructionPrompt": "Ban la tro ly hoc tap",
   "serviceType": "STUDY_ANALYST"
 }
 
 AiRequestDto fields:
   - text: string (required)
-  - metadata.classId: string (optional)
-  - metadata.courseId: string (optional)
+  - metadata: object (optional, dung de truyen context cho orchestrator)
   - conversationId: string (optional, dung de tiep tuc hoi thoai)
-  - context: object (optional)
   - provider: string (optional)
   - temperature: number (optional)
-  - customSystemPrompt: string (optional)
+  - instructionPrompt: string (optional)
   - serviceType: enum (optional, test/future only)
     + SYSTEM_CONTROL
     + STUDY_ANALYST
@@ -50,7 +55,7 @@ Response Body (AiResponseDto):
   "metadata": {
     "serviceType": "Chat",
     "provider": "groq",
-    "processingTime": 250,
+    "processingTime": 250
   }
 }
 
@@ -73,6 +78,10 @@ Method: POST
 Role: any (authenticated users)
 Content-Type: application/json
 
+Stream mode:
+  - Hanh vi giong /ai/chat: dung ?stream=true hoac Accept: text/event-stream
+  - Event final van tra AiResponseDto
+
 Request Body:
   - Su dung AiRequestDto nhu /ai/chat
 
@@ -86,6 +95,25 @@ Example Output:
     "processingTime": 180
   }
 }
+
+====SSE RESPONSE FORMAT
+Khi stream duoc bat, frontend se nhan duoc cac event co dang sau:
+
+event: progress
+data: {"stage":"rag.plan","message":"Dang suy nghi buoc 1/7 de chon cong cu phu hop...","data":{"loop":1}}
+
+event: progress
+data: {"stage":"rag.execute","message":"Dang thuc thi 2 cong cu: class-quizzes, get-file","data":{"capabilityIds":["class-quizzes","get-file"]}}
+
+event: final
+data: {"success":true,"conversationId":"conv_123","messageId":"msg_456","text":"Day la cau tra loi cua AI","metadata":{"serviceType":"Chat","provider":"groq","processingTime":250}}
+
+event: done
+data: {"message":"Hoan tat stream phan hoi."}
+
+Frontend note:
+  - Nen dung EventSource neu chi can receive stream 1 chieu
+  - Neu dung fetch streaming, can parse SSE chunks theo tung dong event/data
 
 ====3. GET /ai/conversations
 ====Description: Lay danh sach conversation cua user hien tai
@@ -226,3 +254,5 @@ Format: Authorization: Bearer <token>
 3. serviceType runtime thuong la: Chat, quizgen, insight.
 4. provider la nha cung cap AI duoc su dung de tao response.
 5. processingTime la thoi gian xu ly (ms).
+6. SSE progress chi la thong bao tien trinh, khong phai ket qua tam thoi.
+7. Event final trong SSE la payload chinh xac nhu JSON response thong thuong.
