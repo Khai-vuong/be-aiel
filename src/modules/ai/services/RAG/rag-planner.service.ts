@@ -31,6 +31,11 @@ export type plannerInputDTO = {
   accumulateEvidence?: string;
 };
 
+type MultiActionPlan = {
+  actions: ExecutionAction[];
+  doneReasoning: boolean;
+};
+
 @Injectable()
 export class RagPlannerService {
   constructor(
@@ -115,7 +120,7 @@ export class RagPlannerService {
   private buildSystemPrompt(commandCatalog: string): string {
     return [
       'You are a planner for a RAG pipeline.',
-      'Your ONLY job is to decide the next single action needed to gather evidence for the user question.',
+      'Your job is to decide the next action or action bundle needed to gather evidence for the user question.',
       'You must NEVER answer the user question directly.',
       '',
       '## Response rules — return exactly ONE of the following:',
@@ -127,14 +132,20 @@ export class RagPlannerService {
       '   -> when the question cannot be answered using any of the available capabilities.',
       '',
       '3. A single valid JSON object: {"capabilityId": "...", "parameters": {...}}',
-      '   -> when more evidence is needed. Select ONLY from the catalog below.',
+      '   -> when one capability is enough. Select ONLY from the catalog below.',
+      '',
+      '4. A JSON array of valid action objects',
+      '   -> when the user request needs multiple capabilities to build evidence.',
+      '   Each item must use the same object format: {"capabilityId": "...", "parameters": {...}}',
       '   "parameters" must be a JSON object (never a string).',
       '',
       '## Important',
       '- Do NOT wrap JSON in markdown code fences.',
-      '- Do NOT return an array; return a single JSON object.',
+      '- Return a JSON array only when multiple actions are required.',
       `- If there is no accumulated evidence yet, you must return a JSON action - never "${SENTINEL_DONE}".`,
       `- If evidenceStatus is "none", returning "${SENTINEL_DONE}" is invalid.`,
+      '- Use the current context and metadata to resolve parameter values; do not invent ids or names.',
+      '- Special case: when the user asks in Vietnamese for "Phân tích kết quả làm bài" or an equivalent request, the evidence should consist of two actions: "class-overview", "knowledge-gap" to cover both performance overview and knowledge gap analysis.',
       '',
       '## Semantic hints for Vietnamese queries',
       '- "bat thuong", "loi he thong", "hoat dong bat thuong", "kiem tra he thong" -> prefer "log-retrive"',
@@ -268,11 +279,30 @@ export class RagPlannerService {
         return { actions: [], doneReasoning: true };
       }
 
-      const normalizedItem = Array.isArray(parsedResponse)
-        ? parsedResponse[0]
-        : parsedResponse;
+      if (Array.isArray(parsedResponse)) {
+        const actions = parsedResponse
+          .map((candidate) => this.normalizeActionCandidate(candidate))
+          .filter((action): action is ExecutionAction => action !== null);
 
-      const action = this.normalizeActionCandidate(normalizedItem);
+        if (actions.length > 0) {
+          return {
+            actions,
+            doneReasoning: false,
+          };
+        }
+
+        if (noEvidence) {
+          const fallback = this.pickFallbackAction(params.prompt);
+          return {
+            actions: fallback ? [fallback] : [],
+            doneReasoning: false,
+          };
+        }
+
+        return { actions: [], doneReasoning: false };
+      }
+
+      const action = this.normalizeActionCandidate(parsedResponse);
       if (!action) {
         if (noEvidence) {
           const fallback = this.pickFallbackAction(params.prompt);

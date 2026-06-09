@@ -736,7 +736,7 @@ export class RagPlanExecuterService {
         const params = (step.resolvedParameters ?? {}) as QueryStudentParams;
         const classId = this.toRequiredString(params.classId, 'classId');
         const quizId = typeof params.quizId === 'string' ? params.quizId.trim() : '';
-        const take = Math.min(this.toSafeNumber(params.take, 10), 100);
+        const take = Math.min(this.toSafeNumber(params.take, 20), 100);
         const threshold =
             params.threshold === undefined || params.threshold === null
                 ? null

@@ -29,6 +29,11 @@ export class IntentClassifierService {
             'If a Student request looks like quiz creation/generation, route to chat',
             'Only route to insight when the request needs internal platform data, or the user explicitly mentions file names',
           ]
+        : normalizedRole === 'lecturer'
+          ? [
+              'Role constraint: current user role is Lecturer.',
+              'If the user names a quiz or asks for a quiz-specific overview, summary, details, question list, performance, or analysis for an existing named quiz, route to insight.',
+            ]
         : [];
 
     const instructionPrompt = [
@@ -36,8 +41,10 @@ export class IntentClassifierService {
       'Available modes:',
       'quiz_assistant: only when the user explicitly needs quiz generation, quiz structuring, or another dedicated quiz-creation workflow.',
       'insight: only when the request requires internal platform data such as analytics, reports, trends, recommendations, logs, enrollments, uploaded files, stored answers, or other system-specific information.',
+      'For lecturers, requests about an existing quiz by name, such as quiz overview, quiz details, question list, performance summary, or analysis for that quiz, must be treated as insight.',
       'chat: everything else, including general explanations, tutoring, brainstorming, conceptual questions, and requests about common algorithms or data structures that do not require internal data.',
       'Decision rule: prefer chat whenever the request can be answered from general knowledge alone; do NOT upgrade a general study question to insight just because the user is a Student.',
+      'If the request is from a Lecturer and mentions a specific quiz name while asking for an overview, summary, or analysis, prefer insight over chat.',
       ...roleConstraints,
       'Return only one label: quiz_assistant, insight, or chat. Do not answer the user request.',
     ].join('\n');

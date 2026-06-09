@@ -78,7 +78,7 @@ export class RagReactService {
   // Step 1: initialize - Step 2: plan+validate - Step 3: execute+accumulate - Loop control
   async chat(params: RagReactOrchestratorRequest) {
     // Step 1: Initialize ReAct runtime state
-    const provider = (params.aiRequest.provider as OuterApiProvider) || 'groq';
+    const plannerProvider = (params.aiRequest.provider as OuterApiProvider) || 'gemini';
     const usedCapabilityIds = new Set<string>();
     const validationErrors: string[] = [];
     const overallContexts: ExecutionContext[] = [];
@@ -101,7 +101,7 @@ export class RagReactService {
         prompt: params.aiRequest.text,
         userRole: params.user.role,
         metadata: params.aiRequest.metadata,
-        provider,
+        provider: plannerProvider,
         accumulateEvidence,
       });
 
@@ -169,7 +169,7 @@ export class RagReactService {
     // Step 4: Compose final answer from validated execution evidence
     const composed = await this.composeAnswer({
       userQuestion: params.aiRequest.text,
-      provider,
+      provider: params.aiRequest.provider as OuterApiProvider | 'gemini',
       contexts: overallContexts,
       validationErrors,
       temperature: params.aiRequest.temperature,
@@ -256,7 +256,7 @@ export class RagReactService {
    */
   private async composeAnswer(params: {
     userQuestion: string;
-    provider: OuterApiProvider;
+    provider?: OuterApiProvider;
     contexts: ExecutionContext[];
     validationErrors: string[];
     temperature?: number;
@@ -566,7 +566,7 @@ export class RagReactService {
 
   private async composeWithRegularProvider(params: {
     userQuestion: string;
-    provider: OuterApiProvider;
+    provider?: OuterApiProvider;
     evidence: string;
     validationErrors: string[];
     temperature: number;
