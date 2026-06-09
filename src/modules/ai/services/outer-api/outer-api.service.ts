@@ -63,14 +63,20 @@ export class OuterApiService {
     const startTime = Date.now();
 
     const caller = input.caller || 'unknown';
-    const provider = input.provider || 'auto';
-    
-    // Log sent request with system and user prompt previews    
-    this.logger.log(`[${caller} - sent] Provider: ${provider}`);
+    const requestedProvider = input.provider ?? 'auto';
+
+    // Log sent request with system and user prompt previews
+    this.logger.log(`[${caller} - sent] Provider: ${requestedProvider}`);
     this.logger.log(`  [System Prompt] ${input.instructionPrompt ?? '(none)'}`);
     this.logger.log(`  [User Prompt] ${input.prompt ?? '(none)'}`);
 
-    const providerOrder = this.getProviderOrder(input.provider);
+    // If caller explicitly passed the sentinel 'auto', prefer Gemini first.
+    const preferredProvider: OuterApiProvider | undefined =
+      requestedProvider === 'auto'
+        ? 'gemini'
+        : (requestedProvider as OuterApiProvider);
+
+    const providerOrder = this.getProviderOrder(preferredProvider);
     const attemptedProviders: OuterApiProvider[] = [];
     const now = Date.now();
     let lastError: unknown = null;

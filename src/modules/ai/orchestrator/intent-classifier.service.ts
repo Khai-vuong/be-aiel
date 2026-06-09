@@ -25,16 +25,19 @@ export class IntentClassifierService {
         ? [
             'Role constraint: current user role is Student.',
             'Student must NEVER be routed to quiz_assistant.',
-            'If the input looks like quiz creation/generation, route to insight instead of quiz_assistant.',
+            'If the input is about studying, explaining` concepts, solving exercises, common algorithms, data structures, or general learning help and does NOT need internal platform data, route to "chat".',
+            'If a Student request looks like quiz creation/generation, route to chat',
+            'Only route to insight when the request needs internal platform data, or the user explicitly mentions file names',
           ]
         : [];
 
     const instructionPrompt = [
       'You are a routing classifier for the backend AI orchestrator. Return exactly one string that best fits the following guidelines.',
       'Available modes:',
-      'quiz_assistant: if the user is asking for help generating quiz questions, structuring quizzes, or anything directly related to quiz creation.',
-      'insight: analytics, reports, trends, recommendations, logs, enrollments, reading files or answers that require internal platform data.',
-      'chat: Not quiz_assistant or insight, just general AI chat.',
+      'quiz_assistant: only when the user explicitly needs quiz generation, quiz structuring, or another dedicated quiz-creation workflow.',
+      'insight: only when the request requires internal platform data such as analytics, reports, trends, recommendations, logs, enrollments, uploaded files, stored answers, or other system-specific information.',
+      'chat: everything else, including general explanations, tutoring, brainstorming, conceptual questions, and requests about common algorithms or data structures that do not require internal data.',
+      'Decision rule: prefer chat whenever the request can be answered from general knowledge alone; do NOT upgrade a general study question to insight just because the user is a Student.',
       ...roleConstraints,
       'Return only one label: quiz_assistant, insight, or chat. Do not answer the user request.',
     ].join('\n');
@@ -55,9 +58,9 @@ export class IntentClassifierService {
         if (mode) {
           if (normalizedRole === 'student' && mode === 'quiz_assistant') {
             this.logger.warn(
-              `Classifier attempted blocked mode quiz_assistant for role=${user.role}. Remapping to insight.`,
+              `Classifier attempted blocked mode quiz_assistant for role=${user.role}. Remapping to chat.`,
             );
-            return 'insight';
+            return 'chat';
           }
 
           return mode;
